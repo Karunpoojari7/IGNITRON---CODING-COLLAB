@@ -865,25 +865,53 @@ export class EventAnalyticsService implements OnModuleInit {
 
     const now = new Date();
 
-    // Persist Submission
-    const submission = await this.prisma.submission.create({
-      data: {
+    // Persist or Safely Upsert Submission (Prevent duplicate records per question per team)
+    let submission;
+    const existingSub = await this.prisma.submission.findFirst({
+      where: {
         teamId: teamUser.id,
         roundId: round.id,
         questionId: question.id,
-        language: 'python',
-        sourceCode: sourceCodeStored,
-        stdout,
-        stderr,
-        compileOutput,
-        submissionStatus: finalStatus,
-        score: awardedScore,
         isTestRun: false,
-        testCaseResults: testResults as any,
-        submittedAt: now,
-        evaluatedAt: now,
       },
     });
+
+    if (existingSub) {
+      submission = await this.prisma.submission.update({
+        where: { id: existingSub.id },
+        data: {
+          language: 'python',
+          sourceCode: sourceCodeStored,
+          stdout,
+          stderr,
+          compileOutput,
+          submissionStatus: finalStatus,
+          score: awardedScore,
+          testCaseResults: testResults as any,
+          submittedAt: now,
+          evaluatedAt: now,
+        },
+      });
+    } else {
+      submission = await this.prisma.submission.create({
+        data: {
+          teamId: teamUser.id,
+          roundId: round.id,
+          questionId: question.id,
+          language: 'python',
+          sourceCode: sourceCodeStored,
+          stdout,
+          stderr,
+          compileOutput,
+          submissionStatus: finalStatus,
+          score: awardedScore,
+          isTestRun: false,
+          testCaseResults: testResults as any,
+          submittedAt: now,
+          evaluatedAt: now,
+        },
+      });
+    }
 
     // Update TeamRoundProgress
     const currentBreakdown = (progress.scoreBreakdown as any) || {};
