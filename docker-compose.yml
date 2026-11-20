@@ -1,0 +1,111 @@
+version: '3.8'
+
+# ==============================================================================
+# IGNITRON 2K26 — FULL-STACK LOCAL DEVELOPMENT DOCKER COMPOSE
+# Services: MySQL 8.0, NestJS Backend, Vite React Frontend
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. MySQL 8.0 Relational Database Engine
+  # ----------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: ignitron-mysql
+    restart: unless-stopped
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --sql-mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ignitron_2k26}
+      MYSQL_USER: ${MYSQL_USER:-ignitron_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ignitron_pass}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      # Persistent named volume preserves database state across container restarts
+      - mysql_data:/var/lib/mysql
+      # Initialization schema & seed scripts for initial empty container setup
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ignitron-network
+
+  # ----------------------------------------------------------------------------
+  # 2. NestJS Backend API Service
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ignitron-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-4000}:${BACKEND_PORT:-4000}"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      BACKEND_PORT: ${BACKEND_PORT:-4000}
+      API_PREFIX: ${API_PREFIX:-api}
+      DATABASE_URL: mysql://${MYSQL_USER:-ignitron_user}:${MYSQL_PASSWORD:-ignitron_pass}@mysql:3306/${MYSQL_DATABASE:-ignitron_2k26}
+      JWT_SECRET: ${JWT_SECRET:-ignitron-2k26-secret-development-key-change-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@ignitron.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin@123}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-IGNITRON System Administrator}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      JUDGE0_API_URL: ${JUDGE0_API_URL:-http://localhost:2358}
+      JUDGE0_AUTH_TOKEN: ${JUDGE0_AUTH_TOKEN:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ignitron-network
+
+  # ----------------------------------------------------------------------------
+  # 3. Vite React Frontend Application
+  # ----------------------------------------------------------------------------
+  frontend:
+    image: node:20-slim
+    container_name: ignitron-frontend
+    working_dir: /app
+    restart: unless-stopped
+    command: sh -c "npm install && npm run build:shared && npm run dev:frontend -- --host 0.0.0.0"
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000/api}
+      VITE_BACKEND_TARGET: http://backend:4000
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/frontend/node_modules
+      - /app/apps/backend/node_modules
+      - /app/packages/shared/node_modules
+    depends_on:
+      - backend
+    networks:
+      - ignitron-network
+
+# ------------------------------------------------------------------------------
+# Persistent Volume Declarations
+# ------------------------------------------------------------------------------
+volumes:
+  mysql_data:
+    driver: local
+
+# ------------------------------------------------------------------------------
+# Internal Bridge Network
+# ------------------------------------------------------------------------------
+networks:
+  ignitron-network:
+    driver: bridge

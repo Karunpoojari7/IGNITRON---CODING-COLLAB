@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Git
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+build/
+apps/*/dist/
+packages/*/dist/
+
+# Development & Test tooling
+.vscode/
+.idea/
+scripts/
+coverage/
+.turbo/
+
+# Documentation & temporary assets
+*.md
+!README.md
+tmp/
+temp/
+
+# Infrastructure & local DB files
+infrastructure/
+database/
