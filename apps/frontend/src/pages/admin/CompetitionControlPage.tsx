@@ -27,6 +27,7 @@ import {
   Edit3,
   Megaphone,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 
 const COMPETITION_STEPS: Array<{ status: CompetitionStatus; label: string; desc: string }> = [
@@ -69,7 +70,8 @@ export const CompetitionControlPage: React.FC = () => {
 
   // Reset Modal State
   const [showResetModal, setShowResetModal] = useState(false);
-  const [resetType, setResetType] = useState<'DEMO_ONLY' | 'FULL_RESET'>('DEMO_ONLY');
+  const [resetType, setResetType] = useState<'DEMO_ONLY' | 'FULL_RESET' | 'COMPLETE_RESET'>('DEMO_ONLY');
+  const [isConfirmingCompleteReset, setIsConfirmingCompleteReset] = useState(false);
 
   // Duration Configuration Modal State
   const [durationModalOpen, setDurationModalOpen] = useState(false);
@@ -361,7 +363,11 @@ export const CompetitionControlPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setShowResetModal(true)}
+              onClick={() => {
+                setResetType('DEMO_ONLY');
+                setIsConfirmingCompleteReset(false);
+                setShowResetModal(true);
+              }}
               className="px-3.5 py-2 bg-white border border-slate-300 hover:bg-rose-50 hover:border-rose-300 text-slate-700 hover:text-rose-700 text-xs font-bold rounded-xl transition shadow-2xs flex items-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -416,7 +422,11 @@ export const CompetitionControlPage: React.FC = () => {
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-emerald-900 text-xs shadow-2xs">
             <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" />
             <div>
-              <span className="font-bold block mb-0.5">Operation Succeeded</span>
+              <span className="font-bold block mb-0.5">
+                {successMsg.includes('Previous round announcements')
+                  ? 'Competition Successfully Reset'
+                  : 'Operation Succeeded'}
+              </span>
               <span>{successMsg}</span>
             </div>
           </div>
@@ -1111,12 +1121,12 @@ export const CompetitionControlPage: React.FC = () => {
 
       {/* SECTION C: Administrator-Controlled Team Shortlisting Interface Modal */}
       {showShortlistModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6">
+          <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col h-[88vh] max-h-[88vh] overflow-hidden">
             {shortlistStep === 'SELECT' ? (
               <>
                 {/* Modal Header */}
-                <div className="flex items-start justify-between pb-4 border-b border-slate-200">
+                <div className="flex items-start justify-between p-5 pb-4 border-b border-slate-200 shrink-0 bg-white">
                   <div>
                     <h3 className="text-lg font-bold text-emerald-950 flex items-center gap-2">
                       <Users className="w-5 h-5 text-emerald-600" />
@@ -1137,7 +1147,7 @@ export const CompetitionControlPage: React.FC = () => {
                 </div>
 
                 {/* Filter & Search Toolbar */}
-                <div className="py-3.5 space-y-3 border-b border-slate-100">
+                <div className="p-4 px-5 space-y-3 border-b border-slate-100 shrink-0 bg-slate-50/50">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div className="relative w-full sm:w-64">
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -1146,7 +1156,7 @@ export const CompetitionControlPage: React.FC = () => {
                         placeholder="Search by team or code..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3 py-1.5 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white transition"
+                        className="w-full pl-9 pr-3 py-1.5 border border-slate-200 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-500 transition"
                       />
                     </div>
 
@@ -1175,32 +1185,32 @@ export const CompetitionControlPage: React.FC = () => {
                   </div>
 
                   {/* Quick Select Buttons & Counters */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/60 text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-600">Quick Helpers:</span>
                       <button
                         onClick={() => handleSelectAllFiltered(filteredCandidates.map((t) => t.teamId))}
-                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium text-xs transition"
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-medium text-xs transition cursor-pointer"
                       >
                         Select All Filtered
                       </button>
                       <button
                         onClick={() => handleDeselectAllFiltered(filteredCandidates.map((t) => t.teamId))}
-                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium text-xs transition"
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-medium text-xs transition cursor-pointer"
                       >
                         Deselect All
                       </button>
                       {targetRound === 2 ? (
                         <button
                           onClick={() => handleAutoSelectTop(0.5)}
-                          className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition"
+                          className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition cursor-pointer"
                         >
                           Top 50% by Score
                         </button>
                       ) : (
                         <button
                           onClick={() => handleAutoSelectTop(6)}
-                          className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition"
+                          className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition cursor-pointer"
                         >
                           Top 6 Finalists
                         </button>
@@ -1208,13 +1218,13 @@ export const CompetitionControlPage: React.FC = () => {
                     </div>
 
                     <div className="font-mono font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
-                      {selectedTeamIds.size} of {candidateTeams.length} Teams Selected
+                      {selectedTeamIds.size} of {candidateTeams.length} Selected
                     </div>
                   </div>
                 </div>
 
                 {/* Candidate Teams Table */}
-                <div className="flex-1 overflow-y-auto py-2">
+                <div className="flex-1 overflow-y-auto px-5 py-2 min-h-0 bg-white">
                   {shortlistLoading ? (
                     <div className="py-16 text-center text-xs text-slate-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
@@ -1226,7 +1236,7 @@ export const CompetitionControlPage: React.FC = () => {
                     </div>
                   ) : (
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead className="text-[10px] uppercase font-mono text-slate-500 border-b border-slate-200 sticky top-0 bg-white shadow-2xs">
+                      <thead className="text-[10px] uppercase font-mono text-slate-500 border-b border-slate-200 sticky top-0 bg-white z-10 shadow-2xs">
                         <tr>
                           <th className="py-2.5 px-3">Qualify</th>
                           <th className="py-2.5 px-3">Rank & Code</th>
@@ -1257,7 +1267,7 @@ export const CompetitionControlPage: React.FC = () => {
                                   type="checkbox"
                                   checked={isSelected}
                                   onChange={() => {}} // handled by row click
-                                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                 />
                               </td>
                               <td className="py-3 px-3 font-mono font-bold text-emerald-900">
@@ -1295,15 +1305,20 @@ export const CompetitionControlPage: React.FC = () => {
                 </div>
 
                 {/* Modal Footer */}
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-500">
-                    {selectedTeamIds.size} teams selected for Round {targetRound}.
-                  </span>
+                <div className="p-4 px-5 border-t border-slate-200 flex items-center justify-between shrink-0 bg-white sticky bottom-0 z-20">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+                      {selectedTeamIds.size} of {candidateTeams.length} Selected
+                    </span>
+                    <span className="text-xs text-slate-500 hidden sm:inline">
+                      teams qualified for Round {targetRound}.
+                    </span>
+                  </div>
 
                   <div className="flex gap-2">
                     <button
                       onClick={() => setShowShortlistModal(false)}
-                      className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition"
+                      className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -1321,8 +1336,8 @@ export const CompetitionControlPage: React.FC = () => {
               </>
             ) : (
               /* Confirmation Step */
-              <div className="flex flex-col h-full space-y-4">
-                <div className="flex items-start justify-between pb-4 border-b border-slate-200">
+              <div className="flex flex-col h-full min-h-0 overflow-hidden">
+                <div className="flex items-start justify-between p-5 pb-4 border-b border-slate-200 shrink-0 bg-white">
                   <div>
                     <h3 className="text-lg font-bold text-emerald-950 flex items-center gap-2">
                       <ShieldCheck className="w-5 h-5 text-emerald-600" />
@@ -1341,7 +1356,7 @@ export const CompetitionControlPage: React.FC = () => {
                 </div>
 
                 {/* Summary Metrics */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3 p-4 px-5 shrink-0 bg-slate-50/50 border-b border-slate-100">
                   <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
                     <div className="text-[10px] font-mono uppercase text-emerald-700 font-bold">Qualifying Teams</div>
                     <div className="text-2xl font-black text-emerald-900 mt-0.5">{selectedTeamIds.size}</div>
@@ -1354,7 +1369,7 @@ export const CompetitionControlPage: React.FC = () => {
                     <div className="text-[10px] text-rose-600 mt-0.5">Will be marked INELIGIBLE</div>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200">
                     <div className="text-[10px] font-mono uppercase text-slate-600 font-bold">Total Candidates</div>
                     <div className="text-2xl font-black text-slate-900 mt-0.5">{candidateTeams.length}</div>
                     <div className="text-[10px] text-slate-500 mt-0.5">Evaluated from prior round</div>
@@ -1362,7 +1377,7 @@ export const CompetitionControlPage: React.FC = () => {
                 </div>
 
                 {/* Qualified Teams Review List */}
-                <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
+                <div className="flex-1 overflow-y-auto p-4 px-5 min-h-0 space-y-2">
                   <span className="text-xs font-bold text-slate-700 uppercase tracking-wide block">
                     Qualified Teams ({selectedTeamIds.size}):
                   </span>
@@ -1392,16 +1407,16 @@ export const CompetitionControlPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 leading-relaxed">
+                <div className="mx-5 mb-3 p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 leading-relaxed shrink-0">
                   <strong>Notice:</strong> Confirming will mark {selectedTeamIds.size} teams as ELIGIBLE for Round {targetRound} and update competition state. This modal will automatically close and refresh the control dashboard.
                 </div>
 
                 {/* Footer Buttons */}
-                <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                <div className="p-4 px-5 border-t border-slate-200 flex items-center justify-between shrink-0 bg-white sticky bottom-0 z-20">
                   <button
                     onClick={() => setShortlistStep('SELECT')}
                     disabled={shortlistLoading}
-                    className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition"
+                    className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
                   >
                     ← Back to Selection
                   </button>
@@ -1588,68 +1603,186 @@ export const CompetitionControlPage: React.FC = () => {
       {/* Modal: State Reset */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-emerald-950 flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-rose-600" />
-              <span>Reset Tournament State Machine</span>
-            </h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Resets competition progression back to <strong>STANDBY</strong>. Select reset scope:
-            </p>
-
-            <div className="space-y-2 text-xs">
-              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100/70">
-                <input
-                  type="radio"
-                  name="resetType"
-                  value="DEMO_ONLY"
-                  checked={resetType === 'DEMO_ONLY'}
-                  onChange={() => setResetType('DEMO_ONLY')}
-                  className="text-emerald-600"
-                />
-                <div>
-                  <span className="font-bold text-slate-800 block">Reset Demo Teams Only</span>
-                  <span className="text-slate-500 text-[11px]">
-                    Deletes simulated demo teams while preserving genuine registered teams.
-                  </span>
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4">
+            {!isConfirmingCompleteReset ? (
+              <>
+                <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                  <h3 className="text-base font-bold text-emerald-950 flex items-center gap-2">
+                    <RotateCcw className="w-4 h-4 text-rose-600" />
+                    <span>Reset Tournament State Machine</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowResetModal(false)}
+                    className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              </label>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Resets competition progression back to <strong>STANDBY</strong>. Select the required reset scope:
+                </p>
 
-              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100/70">
-                <input
-                  type="radio"
-                  name="resetType"
-                  value="FULL_RESET"
-                  checked={resetType === 'FULL_RESET'}
-                  onChange={() => setResetType('FULL_RESET')}
-                  className="text-rose-600"
-                />
-                <div>
-                  <span className="font-bold text-rose-700 block">Full Progress Reset</span>
-                  <span className="text-slate-500 text-[11px]">
-                    Resets round progress and eligibility for all teams back to STANDBY.
-                  </span>
+                <div className="space-y-2.5 text-xs">
+                  {/* Option A: DEMO_ONLY */}
+                  <label
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+                      resetType === 'DEMO_ONLY'
+                        ? 'bg-slate-100/80 border-slate-400 shadow-2xs ring-1 ring-slate-400'
+                        : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="resetType"
+                      value="DEMO_ONLY"
+                      checked={resetType === 'DEMO_ONLY'}
+                      onChange={() => setResetType('DEMO_ONLY')}
+                      className="mt-0.5 text-slate-700"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-800">Reset Demo Teams Only</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                          Non-Destructive
+                        </span>
+                      </div>
+                      <span className="text-slate-500 text-[11px] block mt-0.5 leading-snug">
+                        Deletes simulated demo teams while preserving genuine registered teams, competition progress, and announcements.
+                      </span>
+                    </div>
+                  </label>
+
+                  {/* Option B: FULL_RESET */}
+                  <label
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+                      resetType === 'FULL_RESET'
+                        ? 'bg-amber-50/80 border-amber-400 shadow-2xs ring-1 ring-amber-400'
+                        : 'bg-slate-50/60 border-slate-200 hover:bg-amber-50/30'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="resetType"
+                      value="FULL_RESET"
+                      checked={resetType === 'FULL_RESET'}
+                      onChange={() => setResetType('FULL_RESET')}
+                      className="mt-0.5 text-amber-600"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-amber-900">Full Progress Reset</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                          Progress Only
+                        </span>
+                      </div>
+                      <span className="text-slate-500 text-[11px] block mt-0.5 leading-snug">
+                        Resets round progression and team scores to STANDBY. Preserves team registrations, past announcements, and notifications.
+                      </span>
+                    </div>
+                  </label>
+
+                  {/* Option C: COMPLETE_RESET */}
+                  <label
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+                      resetType === 'COMPLETE_RESET'
+                        ? 'bg-rose-50/80 border-rose-500 shadow-2xs ring-1 ring-rose-500'
+                        : 'bg-slate-50/60 border-slate-200 hover:bg-rose-50/30'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="resetType"
+                      value="COMPLETE_RESET"
+                      checked={resetType === 'COMPLETE_RESET'}
+                      onChange={() => setResetType('COMPLETE_RESET')}
+                      className="mt-0.5 text-rose-600"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-rose-900">Complete Competition Reset</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">
+                          Full Cleanup
+                        </span>
+                      </div>
+                      <span className="text-slate-500 text-[11px] block mt-0.5 leading-snug">
+                        Resets state machine to STANDBY, clears team progress & workspace drafts, and removes previous round announcements and participant notifications. Genuine team registrations are preserved.
+                      </span>
+                    </div>
+                  </label>
                 </div>
-              </label>
-            </div>
 
-            <div className="pt-2 flex justify-end gap-2">
-              <button
-                onClick={() => setShowResetModal(false)}
-                className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowResetModal(false);
-                  executeControl('RESET_COMPETITION', { resetType });
-                }}
-                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-xs"
-              >
-                Confirm Reset
-              </button>
-            </div>
+                <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+                  <button
+                    onClick={() => setShowResetModal(false)}
+                    className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  {resetType === 'COMPLETE_RESET' ? (
+                    <button
+                      onClick={() => setIsConfirmingCompleteReset(true)}
+                      className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5"
+                    >
+                      <span>Proceed to Confirmation</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setShowResetModal(false);
+                        executeControl('RESET_COMPETITION', { resetType });
+                      }}
+                      className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-xs"
+                    >
+                      Confirm Reset
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-950">
+                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
+                  <div>
+                    <h4 className="text-sm font-bold text-rose-900 mb-1">
+                      Confirm Complete Competition Reset
+                    </h4>
+                    <p className="text-xs text-rose-800 leading-relaxed font-medium">
+                      This operation will reset competition progression, remove previous round announcements and clear related participant notifications. Genuine team registrations and essential historical records will be preserved.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-700 text-xs space-y-1.5">
+                  <div className="font-bold text-slate-800 mb-1">Items to be cleared:</div>
+                  <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-600">
+                    <li>Reset tournament state to <strong>STANDBY</strong> & all rounds to <strong>UPCOMING</strong></li>
+                    <li>Wipe participant round progress, MCQ answers, and workspace drafts</li>
+                    <li>Purge all previous round lifecycle announcements & participant popups</li>
+                    <li>End all active participant sessions and release workspace locks</li>
+                    <li>Clear declared tournament champion and confidential scoreboards</li>
+                  </ul>
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+                  <button
+                    onClick={() => setIsConfirmingCompleteReset(false)}
+                    className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsConfirmingCompleteReset(false);
+                      setShowResetModal(false);
+                      executeControl('RESET_COMPETITION', { resetType: 'COMPLETE_RESET' });
+                    }}
+                    className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                  >
+                    Confirm Complete Reset
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
