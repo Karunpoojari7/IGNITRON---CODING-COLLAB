@@ -34,7 +34,15 @@ The stack consists of 4 Docker containers connected via a private bridge network
 
 ## 3. Configuration & Environment Variables
 
-The stack is configured through [judge0.conf](file:///c:/Users/user/OneDrive/Desktop/Project/IGNITRON-2K26/infrastructure/judge0/judge0.conf).
+The stack is configured through `judge0.local.conf` (created from `judge0.conf.example`):
+
+```bash
+# Initial setup from repository template:
+cp infrastructure/judge0/judge0.conf.example infrastructure/judge0/judge0.local.conf
+```
+
+> [!NOTE]
+> `judge0.local.conf` is ignored by Git to ensure that PostgreSQL and Redis credentials remain secure locally.
 
 Key parameters:
 - `SERVER_PORT=2358`: Port on which Judge0 listens.
