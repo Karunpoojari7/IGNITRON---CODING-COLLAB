@@ -8,6 +8,7 @@ import {
   Min,
   Max,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
 import { RoundControlAction } from '@ignitron/shared';
 
@@ -34,9 +35,9 @@ export class RoundControlDto {
   @IsOptional()
   notes?: string;
 
-  @IsString()
+  @IsIn(['DEMO_ONLY', 'FULL_RESET', 'COMPLETE_RESET'])
   @IsOptional()
-  resetType?: 'DEMO_ONLY' | 'FULL_RESET';
+  resetType?: 'DEMO_ONLY' | 'FULL_RESET' | 'COMPLETE_RESET';
 
   @IsInt()
   @IsOptional()

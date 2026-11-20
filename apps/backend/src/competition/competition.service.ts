@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
   Logger,
   OnModuleInit,
 } from '@nestjs/common';
@@ -13,6 +14,8 @@ import {
   ShortlistingTeamItem,
   ShortlistSubmissionResult,
   TeamCompetitionStatusDto,
+  TeamQualificationAnnouncement,
+  TeamWinnerAnnouncement,
   CompetitionActivityLogItem,
   OFFICIAL_ROUNDS_CONFIG,
   LeaderboardResponseDto,
@@ -201,29 +204,29 @@ export class CompetitionService implements OnModuleInit {
   private getValidTransitions(status: string, isPaused: boolean): string[] {
     switch (status) {
       case 'STANDBY':
-        return ['START_ROUND_1', 'ANNOUNCE_ROUND', 'START_COUNTDOWN', 'CANCEL_COUNTDOWN'];
+        return ['START_ROUND_1', 'ANNOUNCE_ROUND', 'START_COUNTDOWN', 'CANCEL_COUNTDOWN', 'RESET_COMPETITION'];
       case 'ROUND_1_ACTIVE':
         return isPaused
-          ? ['RESUME_ROUND', 'END_ROUND']
-          : ['PAUSE_ROUND', 'END_ROUND'];
+          ? ['RESUME_ROUND', 'END_ROUND', 'RESET_COMPETITION']
+          : ['PAUSE_ROUND', 'END_ROUND', 'RESET_COMPETITION'];
       case 'ROUND_1_EVALUATION':
-        return ['START_ROUND_2', 'ANNOUNCE_ROUND', 'START_COUNTDOWN', 'CANCEL_COUNTDOWN'];
+        return ['START_ROUND_2', 'ANNOUNCE_ROUND', 'START_COUNTDOWN', 'CANCEL_COUNTDOWN', 'RESET_COMPETITION'];
       case 'ROUND_2_ACTIVE':
         return isPaused
-          ? ['RESUME_ROUND', 'END_ROUND']
-          : ['PAUSE_ROUND', 'END_ROUND'];
+          ? ['RESUME_ROUND', 'END_ROUND', 'RESET_COMPETITION']
+          : ['PAUSE_ROUND', 'END_ROUND', 'RESET_COMPETITION'];
       case 'ROUND_2_EVALUATION':
-        return ['START_ROUND_3', 'ANNOUNCE_ROUND', 'START_COUNTDOWN', 'CANCEL_COUNTDOWN'];
+        return ['START_ROUND_3', 'ANNOUNCE_ROUND', 'START_COUNTDOWN', 'CANCEL_COUNTDOWN', 'RESET_COMPETITION'];
       case 'ROUND_3_ACTIVE':
         return isPaused
-          ? ['RESUME_ROUND', 'END_ROUND']
-          : ['PAUSE_ROUND', 'END_ROUND'];
+          ? ['RESUME_ROUND', 'END_ROUND', 'RESET_COMPETITION']
+          : ['PAUSE_ROUND', 'END_ROUND', 'RESET_COMPETITION'];
       case 'FINAL_EVALUATION':
-        return ['COMPLETE_COMPETITION'];
+        return ['COMPLETE_COMPETITION', 'RESET_COMPETITION'];
       case 'COMPLETED':
         return ['RESET_COMPETITION'];
       default:
-        return [];
+        return ['RESET_COMPETITION'];
     }
   }
 
@@ -623,38 +626,94 @@ export class CompetitionService implements OnModuleInit {
               });
 
               for (const prog of eligibleR1) {
-                if (prog.participationStatus !== 'SUBMITTED') {
-                  const savedAnswers = await tx.teamMcqAnswer.findMany({
-                    where: { teamId: prog.teamId },
-                  });
-                  let score = 0;
-                  for (const q of r1Questions) {
-                    const ans = savedAnswers.find((a) => a.questionId === q.id);
-                    if (ans && ans.selectedOption !== null && ans.selectedOption === q.correctOption) {
-                      score += Number(q.marks);
-                    }
-                  }
-                  await tx.submission.create({
-                    data: {
-                      teamId: prog.teamId,
-                      roundId: currentRound.id,
-                      sourceCode: JSON.stringify(savedAnswers),
-                      language: 'json',
-                      score,
-                      submissionStatus: 'EVALUATED',
-                      submittedAt: now,
-                      isTestRun: false,
-                    },
-                  });
+                // If team already genuinely submitted, do not overwrite their work
+                if (prog.participationStatus === 'SUBMITTED') {
+                  continue;
+                }
+
+                // Check if a submission already exists for this team and round
+                const existingSub = await tx.submission.findFirst({
+                  where: { teamId: prog.teamId, roundId: currentRound.id, isTestRun: false },
+                });
+                if (existingSub) {
+                  continue;
+                }
+
+                const savedAnswers = await tx.teamMcqAnswer.findMany({
+                  where: { teamId: prog.teamId },
+                });
+
+                // Only consider answers that were actually selected by the team
+                const validAnswers = savedAnswers.filter(
+                  (a) => a.selectedOption !== null && a.selectedOption !== undefined,
+                );
+
+                // Teams with zero answers must NOT receive fabricated evaluated submissions or artificial scores
+                if (validAnswers.length === 0) {
                   await tx.teamRoundProgress.update({
                     where: { id: prog.id },
                     data: {
                       participationStatus: 'SUBMITTED',
-                      score,
+                      score: 0,
+                      scoreBreakdown: {
+                        totalQuestions: r1Questions.length,
+                        answeredCount: 0,
+                        correctCount: 0,
+                        autoSubmit: true,
+                        noAnswers: true,
+                      },
                       submittedAt: now,
+                      evaluatedAt: now,
                     },
                   });
+                  continue;
                 }
+
+                // Calculate marks strictly on questions actually answered
+                let correctCount = 0;
+                for (const ans of validAnswers) {
+                  const q = r1Questions.find((item) => item.id === ans.questionId);
+                  if (q && q.correctOption !== null && ans.selectedOption === q.correctOption) {
+                    correctCount++;
+                  }
+                }
+                const score = correctCount * 2.0;
+
+                await tx.submission.create({
+                  data: {
+                    teamId: prog.teamId,
+                    roundId: currentRound.id,
+                    sourceCode: JSON.stringify(validAnswers),
+                    language: 'json',
+                    score,
+                    submissionStatus: 'EVALUATED',
+                    submittedAt: now,
+                    evaluatedAt: now,
+                    isTestRun: false,
+                    testCaseResults: {
+                      totalQuestions: r1Questions.length,
+                      answeredCount: validAnswers.length,
+                      correctCount,
+                      autoSubmit: true,
+                    },
+                  },
+                });
+
+                await tx.teamRoundProgress.update({
+                  where: { id: prog.id },
+                  data: {
+                    participationStatus: 'SUBMITTED',
+                    score,
+                    scoreBreakdown: {
+                      totalQuestions: r1Questions.length,
+                      answeredCount: validAnswers.length,
+                      correctCount,
+                      autoSubmit: true,
+                    },
+                    submittedAt: now,
+                    evaluatedAt: now,
+                  },
+                });
               }
             } else if (currentRoundNumber === 2) {
               const eligibleR2 = await tx.teamRoundProgress.findMany({
@@ -665,7 +724,16 @@ export class CompetitionService implements OnModuleInit {
               });
 
               for (const prog of eligibleR2) {
-                if (prog.participationStatus !== 'SUBMITTED') {
+                if (prog.participationStatus === 'SUBMITTED') {
+                  continue;
+                }
+
+                // Prevent duplicate submission on repeated END_ROUND
+                const existingSub = await tx.submission.findFirst({
+                  where: { teamId: prog.teamId, roundId: currentRound.id, isTestRun: false },
+                });
+
+                if (!existingSub) {
                   const draft = await tx.workspaceDraft.findUnique({
                     where: {
                       teamId_roundId_caseNumber: {
@@ -686,17 +754,19 @@ export class CompetitionService implements OnModuleInit {
                         submissionStatus: 'PENDING',
                         submittedAt: now,
                         isTestRun: false,
+                        testCaseResults: { autoSubmit: true },
                       },
                     });
                   }
-                  await tx.teamRoundProgress.update({
-                    where: { id: prog.id },
-                    data: {
-                      participationStatus: 'SUBMITTED',
-                      submittedAt: now,
-                    },
-                  });
                 }
+
+                await tx.teamRoundProgress.update({
+                  where: { id: prog.id },
+                  data: {
+                    participationStatus: 'SUBMITTED',
+                    submittedAt: now,
+                  },
+                });
               }
             } else if (currentRoundNumber === 3) {
               const eligibleR3 = await tx.teamRoundProgress.findMany({
@@ -707,16 +777,23 @@ export class CompetitionService implements OnModuleInit {
               });
 
               for (const prog of eligibleR3) {
+                if (prog.participationStatus === 'SUBMITTED') {
+                  continue;
+                }
+
                 for (const cNum of [1, 2, 3]) {
                   const q = r3Questions.find((item) => item.caseNumber === cNum);
+                  if (!q) continue;
+
                   const existingSub = await tx.submission.findFirst({
                     where: {
                       teamId: prog.teamId,
                       roundId: currentRound.id,
-                      questionId: q?.id,
+                      questionId: q.id,
                       isTestRun: false,
                     },
                   });
+
                   if (!existingSub) {
                     const draft = await tx.workspaceDraft.findUnique({
                       where: {
@@ -732,17 +809,19 @@ export class CompetitionService implements OnModuleInit {
                         data: {
                           teamId: prog.teamId,
                           roundId: currentRound.id,
-                          questionId: q?.id || null,
+                          questionId: q.id,
                           sourceCode: draft.sourceCode,
                           language: draft.language,
                           submissionStatus: 'PENDING',
                           submittedAt: now,
                           isTestRun: false,
+                          testCaseResults: { autoSubmit: true },
                         },
                       });
                     }
                   }
                 }
+
                 await tx.teamRoundProgress.update({
                   where: { id: prog.id },
                   data: {
@@ -974,50 +1053,225 @@ export class CompetitionService implements OnModuleInit {
         }
 
         case 'RESET_COMPETITION': {
-          // Protected administrator reset for development/demo resets
-          const isDemoOnly = dto.resetType === 'DEMO_ONLY';
-
-          if (isDemoOnly) {
-            // Delete demo teams and cascade their progress
-            await tx.team.deleteMany({
-              where: { isDemo: true },
-            });
+          // Verify Super Admin authorization
+          const requestingAdmin = await tx.adminAccount.findUnique({
+            where: { id: adminId },
+          });
+          if (requestingAdmin && requestingAdmin.role !== 'SUPER_ADMIN') {
+            throw new ForbiddenException('Only a SUPER_ADMIN is authorized to perform a competition reset.');
           }
 
-          // Reset all rounds to UPCOMING
-          await tx.competitionRound.updateMany({
-            data: { status: 'UPCOMING' },
-          });
+          const resetType = dto.resetType || 'FULL_RESET';
 
-          // Reset all team round progress records
-          await tx.teamRoundProgress.deleteMany({});
+          // Option A: Reset Demo Teams Only
+          if (resetType === 'DEMO_ONLY') {
+            const deleted = await tx.team.deleteMany({
+              where: { isDemo: true },
+            });
 
-          // Reset Global State
-          await tx.competitionState.update({
-            where: { id: 'global' },
-            data: {
-              status: 'STANDBY',
-              currentRoundNumber: null,
-              isPaused: false,
-              startedAt: null,
-              deadlineAt: null,
-              pausedAt: null,
-              remainingDurationSeconds: null,
-              totalDurationSeconds: null,
-            },
-          });
+            await tx.activityLog.create({
+              data: {
+                actorType: 'ADMIN',
+                actorId: adminId,
+                action: 'DEMO_TEAMS_RESET',
+                description: `Admin removed ${deleted.count} simulated demo teams. Genuine registered teams preserved.`,
+                metadata: { resetType: 'DEMO_ONLY', deletedCount: deleted.count },
+              },
+            });
 
-          await tx.activityLog.create({
-            data: {
-              actorType: 'ADMIN',
-              actorId: adminId,
-              action: 'COMPETITION_RESET',
-              description: `Admin reset competition to STANDBY (${isDemoOnly ? 'Demo Teams Cleared' : 'All Progress Cleared'})`,
-              metadata: { resetType: dto.resetType || 'FULL_RESET' },
-            },
-          });
+            return {
+              message: `Demo teams successfully cleared (${deleted.count} simulated teams removed). Genuine registered teams preserved.`,
+            };
+          }
 
-          return { message: 'Competition state successfully reset to STANDBY' };
+          // Option B: Full Progress Reset
+          if (resetType === 'FULL_RESET') {
+            // Reset all rounds to UPCOMING
+            await tx.competitionRound.updateMany({
+              data: {
+                status: 'UPCOMING',
+                isLeaderboardPublished: false,
+                leaderboardPublishedAt: null,
+              },
+            });
+
+            // Reset all team round progress records
+            await tx.teamRoundProgress.deleteMany({});
+
+            // Reset Global State to STANDBY
+            await tx.competitionState.update({
+              where: { id: 'global' },
+              data: {
+                status: 'STANDBY',
+                currentRoundNumber: null,
+                isPaused: false,
+                startedAt: null,
+                deadlineAt: null,
+                pausedAt: null,
+                remainingDurationSeconds: null,
+                totalDurationSeconds: null,
+                countdownEndsAt: null,
+                countdownSeconds: 5,
+                preRoundAnnouncedRound: null,
+              },
+            });
+
+            await tx.activityLog.create({
+              data: {
+                actorType: 'ADMIN',
+                actorId: adminId,
+                action: 'COMPETITION_RESET',
+                description: 'Admin reset competition to STANDBY (All Progress Cleared)',
+                metadata: { resetType: 'FULL_RESET' },
+              },
+            });
+
+            return { message: 'Competition state successfully reset to STANDBY' };
+          }
+
+          // Option C: Complete Competition Reset (NEW)
+          if (resetType === 'COMPLETE_RESET') {
+            // 1. Reset all rounds to UPCOMING and unpublish leaderboards
+            await tx.competitionRound.updateMany({
+              data: {
+                status: 'UPCOMING',
+                isLeaderboardPublished: false,
+                leaderboardPublishedAt: null,
+              },
+            });
+
+            // 2. Reset all team round progress records
+            await tx.teamRoundProgress.deleteMany({});
+
+            // 3. Reset Global State to STANDBY
+            await tx.competitionState.update({
+              where: { id: 'global' },
+              data: {
+                status: 'STANDBY',
+                currentRoundNumber: null,
+                isPaused: false,
+                startedAt: null,
+                deadlineAt: null,
+                pausedAt: null,
+                remainingDurationSeconds: null,
+                totalDurationSeconds: null,
+                countdownEndsAt: null,
+                countdownSeconds: 5,
+                preRoundAnnouncedRound: null,
+              },
+            });
+
+            // 4. Identify and archive previous round-specific announcements
+            const roundSpecificAnnouncements = await tx.announcement.findMany({
+              where: {
+                OR: [
+                  { title: { contains: 'Round' } },
+                  { title: { contains: 'ROUND' } },
+                  { title: { contains: 'Tournament Paused' } },
+                  { title: { contains: 'TOURNAMENT PAUSED' } },
+                  { title: { contains: 'Tournament Resumed' } },
+                  { title: { contains: 'TOURNAMENT RESUMED' } },
+                  { title: { contains: 'Winner' } },
+                  { title: { contains: 'WINNER' } },
+                  { title: { contains: 'GET READY!' } },
+                  { message: { contains: 'ROUND CONCLUDED' } },
+                  { message: { contains: 'Round Concluded' } },
+                  { message: { contains: 'All arena inputs are locked' } },
+                  { message: { contains: 'is about to begin' } },
+                  { message: { contains: 'has officially started' } },
+                  { message: { contains: 'paused by competition administrators' } },
+                  { message: { contains: 'tournament has been resumed' } },
+                  { message: { contains: 'Official Winner Declared' } },
+                  { message: { contains: 'All participating teams may now access the MCQ Arena' } },
+                  { message: { contains: 'Enter your coding workspace to debug' } },
+                  { message: { contains: 'Final Boss Coding Relay is officially live' } },
+                  { message: { contains: 'Submissions and workspace access for this round are now closed' } },
+                ],
+              },
+            });
+
+            if (roundSpecificAnnouncements.length > 0) {
+              await tx.activityLog.create({
+                data: {
+                  actorType: 'ADMIN',
+                  actorId: adminId,
+                  action: 'ANNOUNCEMENTS_ARCHIVED',
+                  description: `Archived and cleared ${roundSpecificAnnouncements.length} round-specific announcements during complete competition reset`,
+                  metadata: {
+                    archivedCount: roundSpecificAnnouncements.length,
+                    announcementIds: roundSpecificAnnouncements.map((a) => a.id),
+                    titles: roundSpecificAnnouncements.map((a) => a.title),
+                  },
+                },
+              });
+
+              await tx.announcement.deleteMany({
+                where: {
+                  id: { in: roundSpecificAnnouncements.map((a) => a.id) },
+                },
+              });
+            }
+
+            // 5. Clear team round answers, bug reports, and drafts
+            await tx.teamMcqAnswer.deleteMany({});
+            await tx.teamBugReport.deleteMany({});
+            await tx.workspaceDraft.deleteMany({});
+
+            // 5b. Archive and clear active competition evaluations and submissions
+            const evalCount = await tx.evaluation.count();
+            const subCount = await tx.submission.count();
+
+            if (subCount > 0 || evalCount > 0) {
+              await tx.activityLog.create({
+                data: {
+                  actorType: 'ADMIN',
+                  actorId: adminId,
+                  action: 'SUBMISSIONS_ARCHIVED',
+                  description: `Archived and cleared ${subCount} submissions and ${evalCount} evaluations during complete competition reset`,
+                  metadata: {
+                    resetType: 'COMPLETE_RESET',
+                    clearedSubmissionsCount: subCount,
+                    clearedEvaluationsCount: evalCount,
+                  },
+                },
+              });
+
+              // Delete child evaluation records first due to foreign key constraints
+              await tx.evaluation.deleteMany({});
+              // Delete submission records
+              await tx.submission.deleteMany({});
+            }
+
+            // 6. End active team sessions to prevent displacement locks
+            await tx.teamSession.updateMany({
+              where: { status: 'ACTIVE' },
+              data: {
+                status: 'ENDED',
+                terminationReason: 'ADMIN_REVOKED',
+                logoutAt: now,
+              },
+            });
+
+            // 7. Log Complete Competition Reset in ActivityLog
+            await tx.activityLog.create({
+              data: {
+                actorType: 'ADMIN',
+                actorId: adminId,
+                action: 'COMPETITION_RESET',
+                description: 'Admin performed complete competition reset to STANDBY (All Progress & Round Announcements Cleared)',
+                metadata: {
+                  resetType: 'COMPLETE_RESET',
+                  clearedAnnouncementsCount: roundSpecificAnnouncements.length,
+                },
+              },
+            });
+
+            return {
+              message: 'Competition progression has returned to STANDBY. Previous round announcements and participant notifications have been cleared.',
+            };
+          }
+
+          throw new BadRequestException(`Unsupported resetType: ${resetType}`);
         }
 
         default:
@@ -1218,6 +1472,25 @@ export class CompetitionService implements OnModuleInit {
       });
     });
 
+    // Create broadcast announcement idempotently
+    const author = await this.prisma.adminAccount.findUnique({ where: { id: adminId } });
+    const announcementTitle = `📢 Round ${targetRoundNumber} Shortlisting Results Finalized`;
+    const existingAnn = await this.prisma.announcement.findFirst({
+      where: { title: announcementTitle },
+    });
+    if (!existingAnn) {
+      await this.prisma.announcement.create({
+        data: {
+          title: announcementTitle,
+          message: `Official shortlisting for Round ${targetRoundNumber} (${targetRound.name}) has been finalized. ${qualifiedCount} teams have qualified to proceed. Individual qualification status is now live on contestant dashboards.`,
+          priority: 'HIGH',
+          isPublished: true,
+          publishedAt: new Date(),
+          authorId: author ? adminId : null,
+        },
+      });
+    }
+
     return {
       roundNumber: targetRoundNumber,
       totalProcessed: prevProgress.length,
@@ -1417,6 +1690,104 @@ export class CompetitionService implements OnModuleInit {
       };
     });
 
+    // Check reset timestamp
+    const lastResetLog = await this.prisma.activityLog.findFirst({
+      where: { action: { in: ['COMPETITION_RESET', 'COMPETITION_PROGRESS_RESET'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const lastResetAt = lastResetLog?.createdAt || new Date(0);
+
+    // 1. Authoritative Qualification Announcement
+    let qualificationAnnouncement: TeamQualificationAnnouncement | null = null;
+    const r3ShortlistLog = await this.prisma.activityLog.findFirst({
+      where: {
+        action: 'SHORTLISTING_ROUND_3',
+        createdAt: { gt: lastResetAt },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const r2ShortlistLog = await this.prisma.activityLog.findFirst({
+      where: {
+        action: 'SHORTLISTING_ROUND_2',
+        createdAt: { gt: lastResetAt },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (r3ShortlistLog) {
+      const r3Prog = team.roundProgress.find((p) => p.round.roundNumber === 3);
+      if (r3Prog) {
+        const isQualified = r3Prog.eligibilityStatus === 'ELIGIBLE';
+        qualificationAnnouncement = {
+          id: `qual-r3-${team.id}-${r3ShortlistLog.id}`,
+          type: isQualified ? 'QUALIFIED' : 'ELIMINATED',
+          roundNumber: 2,
+          roundName: 'Round 2: Bug Hunt Arena',
+          targetRoundNumber: 3,
+          targetRoundName: 'Round 3: Final Boss Coding',
+          title: isQualified
+            ? '🎉 Congratulations! You Qualified for Round 3!'
+            : 'Round 2 Results: Not Shortlisted',
+          message: isQualified
+            ? `Congratulations Team ${team.teamName}! Your performance in Round 2: Bug Hunt Arena has earned you a qualification ticket to Round 3: Final Boss Coding Relay. Get ready to build!`
+            : `Thank you for competing in Round 2: Bug Hunt Arena. You were not shortlisted for the final round. You gave it your best. Come back stronger!`,
+          announcedAt: r3ShortlistLog.createdAt.toISOString(),
+        };
+      }
+    } else if (r2ShortlistLog) {
+      const r2Prog = team.roundProgress.find((p) => p.round.roundNumber === 2);
+      if (r2Prog) {
+        const isQualified = r2Prog.eligibilityStatus === 'ELIGIBLE';
+        qualificationAnnouncement = {
+          id: `qual-r2-${team.id}-${r2ShortlistLog.id}`,
+          type: isQualified ? 'QUALIFIED' : 'ELIMINATED',
+          roundNumber: 1,
+          roundName: 'Round 1: MCQ Arena',
+          targetRoundNumber: 2,
+          targetRoundName: 'Round 2: Bug Hunt Arena',
+          title: isQualified
+            ? '🎉 Congratulations! You Qualified for Round 2!'
+            : 'Round 1 Results: Not Shortlisted',
+          message: isQualified
+            ? `Congratulations Team ${team.teamName}! You successfully cleared the Round 1 MCQ screening and qualified for Round 2: Bug Hunt Arena. Prepare your workspace!`
+            : `Thank you for participating in Round 1: MCQ Arena. You were not shortlisted for Round 2. You gave it your best. Come back stronger!`,
+          announcedAt: r2ShortlistLog.createdAt.toISOString(),
+        };
+      }
+    }
+
+    // 2. Authoritative Winner Declaration Announcement
+    let winnerAnnouncement: TeamWinnerAnnouncement | null = null;
+    const winnerLog = await this.prisma.activityLog.findFirst({
+      where: {
+        action: 'OFFICIAL_WINNER_DECLARED',
+        createdAt: { gt: lastResetAt },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (winnerLog) {
+      const winnerData = winnerLog.metadata as any;
+      const isWinner = winnerData?.teamId === team.id;
+      winnerAnnouncement = {
+        id: `winner-${winnerLog.id}`,
+        type: isWinner ? 'GRAND_WINNER' : 'COMPLETED',
+        isWinner,
+        winnerTeamName: winnerData?.teamName || 'Champion Team',
+        winnerTeamCode: winnerData?.teamCode || '',
+        winnerScore: Number(winnerData?.totalScore || 0),
+        institution: winnerData?.institution || null,
+        title: isWinner
+          ? '🏆 Grand Champions of IGNITRON 2K26!'
+          : 'IGNITRON 2K26 Concluded: Official Results',
+        message: isWinner
+          ? `VICTORY! Team ${team.teamName} has officially been crowned the Champions of IGNITRON 2K26 with a tournament-winning score of ${winnerData?.totalScore} points!`
+          : `The championship has concluded. Congratulations to Champions Team ${winnerData?.teamName} (${winnerData?.teamCode}) with ${winnerData?.totalScore} pts. Thank you Team ${team.teamName} for competing with dedication and passion!`,
+        declaredAt: winnerData?.declaredAt || winnerLog.createdAt.toISOString(),
+      };
+    }
+
     return {
       teamId: team.id,
       teamCode: team.teamCode,
@@ -1442,6 +1813,8 @@ export class CompetitionService implements OnModuleInit {
       remainingDurationSeconds: currentRemainingDuration,
       roundHistory,
       roundCards,
+      qualificationAnnouncement,
+      winnerAnnouncement,
     };
   }
 
@@ -1579,11 +1952,25 @@ export class CompetitionService implements OnModuleInit {
           (a.leaderboardPublishedAt?.getTime() || 0),
       )[0]?.leaderboardPublishedAt;
 
-    const winnerLog = await this.prisma.activityLog.findFirst({
-      where: { action: 'OFFICIAL_WINNER_DECLARED' },
+    const lastResetLog = await this.prisma.activityLog.findFirst({
+      where: { action: 'COMPETITION_RESET' },
       orderBy: { createdAt: 'desc' },
     });
-    const winnerTeam = (winnerLog?.metadata as any) || null;
+
+    const compState = await this.prisma.competitionState.findUnique({
+      where: { id: 'global' },
+    });
+
+    let winnerTeam: any = null;
+    if (compState && compState.status !== 'STANDBY') {
+      const winnerLog = await this.prisma.activityLog.findFirst({
+        where: { action: 'OFFICIAL_WINNER_DECLARED' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (winnerLog && (!lastResetLog || winnerLog.createdAt > lastResetLog.createdAt)) {
+        winnerTeam = (winnerLog.metadata as any) || null;
+      }
+    }
 
     return {
       roundNumber: null,
