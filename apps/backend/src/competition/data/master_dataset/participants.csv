@@ -1,0 +1,101 @@
+participant_id,team_id,participant_name,department,year,college
+P101,T101,Akash Patel,Artificial Intelligence & Data Science,4,Institute of Technology & Science
+P102,T101,Vikram Chauhan,Artificial Intelligence & Data Science,3,University College of Engineering
+P103,T102,Chetan Kapoor,Information Technology,4,Academy of Computer Studies
+P104,T102,Rohit Patel,Information Technology,2,Institute of Technology & Science
+P105,T103,Kiran Nair,Information Technology,3,University College of Engineering
+P106,T103,Advait Gupta,Information Technology,2,Metropolitan Technical Institute
+P107,T104,Kiran Chauhan,Artificial Intelligence & Data Science,3,Metropolitan Technical Institute
+P108,T104,Sahil Rao,Artificial Intelligence & Data Science,2,Academy of Computer Studies
+P109,T105,Neha Kapoor,Computer Science & Engineering,4,University College of Engineering
+P110,T105,Sanjay Malhotra,Computer Science & Engineering,4,Metropolitan Technical Institute
+P111,T106,Sameer Deshmukh,Artificial Intelligence & Data Science,2,Institute of Technology & Science
+P112,T106,Sakshi Malhotra,Artificial Intelligence & Data Science,4,Academy of Computer Studies
+P113,T107,Pranav Bhat,Computer Science & Engineering,4,National Engineering College
+P114,T107,Akash Nair,Computer Science & Engineering,3,Institute of Technology & Science
+P115,T108,Chetan Menon,Information Technology,3,University College of Engineering
+P116,T108,Rhea Chopra,Information Technology,4,Academy of Computer Studies
+P117,T109,Dev Joshi,Artificial Intelligence & Data Science,4,Academy of Computer Studies
+P118,T109,Aditi Shetty,Artificial Intelligence & Data Science,4,Metropolitan Technical Institute
+P119,T110,Sahil Rao,Computer Science & Engineering,3,Institute of Technology & Science
+P120,T110,Nikhil Iyer,Computer Science & Engineering,2,Institute of Technology & Science
+P121,T111,Varun Gupta,Electronics & Communication,3,Academy of Computer Studies
+P122,T111,Akash Kulkarni,Electronics & Communication,2,National Engineering College
+P123,T112,Pooja Menon,Electronics & Communication,4,Metropolitan Technical Institute
+P124,T112,Aarav Chopra,Electronics & Communication,3,Academy of Computer Studies
+P125,T113,Tarun Malhotra,Information Technology,4,Metropolitan Technical Institute
+P126,T113,Meera Poojari,Information Technology,4,Metropolitan Technical Institute
+P127,T114,Rohit Poojari,Computer Science & Engineering,4,Institute of Technology & Science
+P128,T114,Sahil Joshi,Computer Science & Engineering,2,Institute of Technology & Science
+P129,T115,Varun Joshi,Information Technology,4,Metropolitan Technical Institute
+P130,T115,Kavya Hegde,Information Technology,4,Metropolitan Technical Institute
+P131,T116,Arun Singh,Information Technology,4,University College of Engineering
+P132,T116,Isha Patel,Information Technology,3,Metropolitan Technical Institute
+P133,T117,Diya Sharma,Artificial Intelligence & Data Science,3,Institute of Technology & Science
+P134,T117,Meera Aggarwal,Artificial Intelligence & Data Science,3,University College of Engineering
+P135,T118,Deepika Iyer,Information Technology,3,National Engineering College
+P136,T118,Arun Joshi,Information Technology,2,Metropolitan Technical Institute
+P137,T119,Isha Singh,Artificial Intelligence & Data Science,3,National Engineering College
+P138,T119,Varun Nair,Artificial Intelligence & Data Science,3,Institute of Technology & Science
+P139,T120,Siddharth Sharma,Electronics & Communication,3,Metropolitan Technical Institute
+P140,T120,Deepika Bhat,Electronics & Communication,2,Institute of Technology & Science
+P141,T121,Rhea Bhat,Information Technology,3,University College of Engineering
+P142,T121,Vidya Chopra,Information Technology,3,Academy of Computer Studies
+P143,T122,Rohit Chauhan,Computer Science & Engineering,3,Institute of Technology & Science
+P144,T122,Sameer Bhat,Computer Science & Engineering,3,Metropolitan Technical Institute
+P145,T123,Gaurav Poojari,Computer Science & Engineering,3,Institute of Technology & Science
+P146,T123,Akash Rao,Computer Science & Engineering,2,National Engineering College
+P147,T124,Vikram Chauhan,Artificial Intelligence & Data Science,4,Metropolitan Technical Institute
+P148,T124,Ishaan Singh,Artificial Intelligence & Data Science,3,Institute of Technology & Science
+P149,T125,Kiran Patel,Information Technology,4,Academy of Computer Studies
+P150,T125,Manish Patel,Information Technology,2,National Engineering College
+P151,T126,Chetan Malhotra,Computer Science & Engineering,4,Institute of Technology & Science
+P152,T126,Meera Poojari,Computer Science & Engineering,4,University College of Engineering
+P153,T127,Deepika Joshi,Artificial Intelligence & Data Science,4,University College of Engineering
+P154,T127,Aarav Hegde,Artificial Intelligence & Data Science,4,University College of Engineering
+P155,T128,Vidya Chauhan,Electronics & Communication,3,Metropolitan Technical Institute
+P156,T128,Nikhil Verma,Electronics & Communication,2,Metropolitan Technical Institute
+P157,T129,Pooja Shetty,Electronics & Communication,3,Institute of Technology & Science
+P158,T129,Advait Singh,Electronics & Communication,4,Academy of Computer Studies
+P159,T130,Sanjay Hegde,Information Technology,2,University College of Engineering
+P160,T130,Ishaan Kulkarni,Information Technology,3,Metropolitan Technical Institute
+P161,T131,Varun Chauhan,Computer Science & Engineering,4,National Engineering College
+P162,T131,Gaurav Reddy,Computer Science & Engineering,2,University College of Engineering
+P163,T132,Varun Chauhan,Artificial Intelligence & Data Science,4,Metropolitan Technical Institute
+P164,T132,Nikhil Chopra,Artificial Intelligence & Data Science,3,National Engineering College
+P165,T133,Arjun Rao,Computer Science & Engineering,4,Academy of Computer Studies
+P166,T133,Kiran Chopra,Computer Science & Engineering,3,National Engineering College
+P167,T134,Deepika Chauhan,Information Technology,2,Institute of Technology & Science
+P168,T134,Pooja Kulkarni,Information Technology,3,Institute of Technology & Science
+P169,T135,Kiran Sharma,Information Technology,3,Metropolitan Technical Institute
+P170,T135,Arun Singh,Information Technology,2,Institute of Technology & Science
+P171,T136,Sneha Aggarwal,Computer Science & Engineering,3,National Engineering College
+P172,T136,Diya Chauhan,Computer Science & Engineering,3,Institute of Technology & Science
+P173,T137,Sahil Chopra,Electronics & Communication,4,National Engineering College
+P174,T137,Siddharth Chauhan,Electronics & Communication,2,Institute of Technology & Science
+P175,T138,Chetan Nair,Information Technology,2,National Engineering College
+P176,T138,Deepika Verma,Information Technology,2,Academy of Computer Studies
+P177,T139,Arjun Sharma,Computer Science & Engineering,4,Metropolitan Technical Institute
+P178,T139,Kiran Aggarwal,Computer Science & Engineering,2,Institute of Technology & Science
+P179,T140,Priya Chopra,Information Technology,4,Academy of Computer Studies
+P180,T140,Siddharth Joshi,Information Technology,3,Academy of Computer Studies
+P181,T141,Arjun Gupta,Information Technology,3,Academy of Computer Studies
+P182,T141,Advait Verma,Information Technology,3,Institute of Technology & Science
+P183,T142,Chetan Shetty,Electronics & Communication,2,Academy of Computer Studies
+P184,T142,Sahil Gupta,Electronics & Communication,4,Institute of Technology & Science
+P185,T143,Tanvi Bhat,Electronics & Communication,3,Institute of Technology & Science
+P186,T143,Ishaan Deshmukh,Electronics & Communication,4,Metropolitan Technical Institute
+P187,T144,Sakshi Rao,Information Technology,3,Metropolitan Technical Institute
+P188,T144,Arun Iyer,Information Technology,3,Academy of Computer Studies
+P189,T145,Nikhil Patel,Information Technology,4,Academy of Computer Studies
+P190,T145,Pranav Rao,Information Technology,4,Institute of Technology & Science
+P191,T146,Nikhil Singh,Electronics & Communication,4,Metropolitan Technical Institute
+P192,T146,Gaurav Iyer,Electronics & Communication,4,Metropolitan Technical Institute
+P193,T147,Rhea Shetty,Artificial Intelligence & Data Science,4,University College of Engineering
+P194,T147,Yash Menon,Artificial Intelligence & Data Science,2,Academy of Computer Studies
+P195,T148,Siddharth Kulkarni,Information Technology,2,National Engineering College
+P196,T148,Neha Singh,Information Technology,3,Metropolitan Technical Institute
+P197,T149,Kavya Reddy,Electronics & Communication,4,Institute of Technology & Science
+P198,T149,Diya Kulkarni,Electronics & Communication,2,Institute of Technology & Science
+P199,T150,Deepika Malhotra,Artificial Intelligence & Data Science,3,Institute of Technology & Science
+P200,T150,Pooja Chauhan,Artificial Intelligence & Data Science,2,University College of Engineering
