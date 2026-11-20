@@ -185,7 +185,11 @@ export class CodeExecutionService {
           sourceCode: dto.sourceCode,
           stdin: dto.stdin || null,
           stdout: result.stdout || null,
-          stderr: result.stderr || null,
+          stderr:
+            result.stderr ||
+            (result.message && !result.stdout && !normalizedStatus.isSuccess
+              ? result.message
+              : null),
           compileOutput: result.compile_output || null,
           executionTime: executionTimeSeconds ? String(executionTimeSeconds) : null,
           memoryUsage: memoryUsageKb,
@@ -208,7 +212,11 @@ export class CodeExecutionService {
       token: result.token,
       status: normalizedStatus,
       stdout: result.stdout,
-      stderr: result.stderr,
+      stderr:
+        result.stderr ||
+        (result.message && !result.stdout && !normalizedStatus.isSuccess
+          ? result.message
+          : null),
       compileOutput: result.compile_output,
       executionTimeSeconds,
       memoryUsageKb,
