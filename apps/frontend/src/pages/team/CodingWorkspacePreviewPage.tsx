@@ -35,6 +35,9 @@ import {
   SanitizedQuestionDto,
 } from '@ignitron/shared';
 
+import { BugHuntArenaPage } from './BugHuntArenaPage';
+import { EventAnalyticsArenaPage } from './EventAnalyticsArenaPage';
+
 // Custom dark theme extension matching IGNITRON slate-950 UI styling
 const customDarkTheme = EditorView.theme({
   '&': {
@@ -44,7 +47,7 @@ const customDarkTheme = EditorView.theme({
   },
   '.cm-scroller': {
     overflow: 'auto',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
     lineHeight: '1.6',
   },
   '.cm-gutters': {
@@ -77,7 +80,7 @@ interface CaseDraftCache {
   submittedAt?: string | null;
 }
 
-export const CodingWorkspacePreviewPage: React.FC = () => {
+const Round3Workspace: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -105,7 +108,7 @@ export const CodingWorkspacePreviewPage: React.FC = () => {
   const [questions, setQuestions] = useState<SanitizedQuestionDto[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<SanitizedQuestionDto | null>(null);
 
-  const [language, setLanguage] = useState<'cpp' | 'python' | 'java' | 'javascript' | 'typescript'>('typescript');
+  const [language, setLanguage] = useState<'cpp' | 'python' | 'java' | 'javascript'>('javascript');
   const [code, setCode] = useState('');
 
   // Per-Case isolated state caching (prevents case overwrites during switching)
@@ -189,10 +192,12 @@ export const CodingWorkspacePreviewPage: React.FC = () => {
       try {
         const draft = await questionAndArenaService.getWorkspaceDraft(roundNumber, caseNum);
         setCode(draft.sourceCode);
-        setLanguage((draft.language as any) || 'typescript');
+        const rawLang = (draft.language as any);
+        const resolvedLang = rawLang === 'typescript' ? 'javascript' : (rawLang || (roundNumber === 2 ? 'javascript' : 'cpp'));
+        setLanguage(resolvedLang);
         versionRef.current = draft.version;
         lastSavedCodeRef.current = draft.sourceCode;
-        lastSavedLangRef.current = draft.language;
+        lastSavedLangRef.current = resolvedLang;
 
         if (roundNumber === 2 && (draft as any).isSubmitted) {
           setIsRoundSubmitted(true);
@@ -330,7 +335,6 @@ export const CodingWorkspacePreviewPage: React.FC = () => {
         case 'python':
           return python();
         case 'javascript':
-        case 'typescript':
         default:
           return javascript();
       }
@@ -457,7 +461,7 @@ export const CodingWorkspacePreviewPage: React.FC = () => {
               {isRoundConcluded
                 ? `Round ${roundNumber} Concluded`
                 : isLockedPreRound
-                ? `Round ${roundNumber} Preparation Screen`
+                ? `Round ${roundNumber} Preparation Screen (Arena Locked)`
                 : 'Arena Access Restricted'}
             </h1>
             <p className="text-xs text-slate-400 leading-relaxed">
@@ -752,11 +756,10 @@ export const CodingWorkspacePreviewPage: React.FC = () => {
                   onChange={(e) => handleLanguageChange(e.target.value as any)}
                   className="px-2.5 py-1 bg-slate-950 border border-slate-750 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 disabled:opacity-60 cursor-pointer"
                 >
-                  <option value="typescript">TypeScript</option>
+                  <option value="javascript">JavaScript</option>
                   <option value="python">Python</option>
                   <option value="cpp">C++</option>
                   <option value="java">Java</option>
-                  <option value="javascript">JavaScript</option>
                 </select>
               </div>
 
@@ -1062,4 +1065,19 @@ export const CodingWorkspacePreviewPage: React.FC = () => {
       )}
     </div>
   );
+};
+
+export const CodingWorkspacePreviewPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const roundNumber = searchParams.get('round') ? parseInt(searchParams.get('round')!, 10) : 2;
+
+  if (roundNumber === 2) {
+    return <BugHuntArenaPage />;
+  }
+
+  if (roundNumber === 3) {
+    return <EventAnalyticsArenaPage />;
+  }
+
+  return <Round3Workspace />;
 };
