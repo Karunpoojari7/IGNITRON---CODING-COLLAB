@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import * as bcrypt from 'bcrypt';
 import { PrismaClient, RoundStatus } from '@prisma/client';
 
 // Ensure root .env is loaded regardless of working directory
@@ -65,6 +66,42 @@ async function main() {
     console.log(
       `✓ Seeded Round ${upserted.roundNumber}: ${upserted.name} (${upserted.durationMinutes} mins, ${upserted.maximumMarks} marks)`,
     );
+  }
+
+  // Seed Genuine Retained Team: "Code Hunters" (IGN-4DD6)
+  const existingCodeHunters = await prisma.team.findUnique({
+    where: { teamCode: 'IGN-4DD6' },
+  });
+
+  if (!existingCodeHunters) {
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash('CodeHunters@2026', salt);
+
+    await prisma.team.create({
+      data: {
+        teamCode: 'IGN-4DD6',
+        teamName: 'Code Hunters',
+        institution: 'GM university',
+        passwordHash,
+        isActive: true,
+        mustChangePassword: false,
+        participants: {
+          create: [
+            {
+              fullName: 'Spoorthi M O',
+              email: 'spoorthi.mo@gmu.ac.in',
+            },
+            {
+              fullName: 'Sanjana',
+              email: 'sanjana@gmu.ac.in',
+            },
+          ],
+        },
+      },
+    });
+    console.log('✓ Seeded genuine competition team: Code Hunters (IGN-4DD6)');
+  } else {
+    console.log('✓ Team Code Hunters (IGN-4DD6) already present.');
   }
 
   console.log('--- Seeding Completed Successfully ---');
