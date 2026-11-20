@@ -28,9 +28,44 @@ async function bootstrap() {
   // Cookie parser middleware for HttpOnly JWT session tokens
   app.use(cookieParser());
 
-  // CORS configuration for local development
+  // CORS configuration for local development and production Vercel frontend
+  const frontendUrlEnv = process.env.FRONTEND_URL;
+  const configuredOrigins = frontendUrlEnv
+    ? frontendUrlEnv.split(',').map((u) => u.trim().replace(/\/+$/, ''))
+    : [];
+
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (server-to-server, health checks, curl)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Allow explicitly configured FRONTEND_URL(s)
+      if (configuredOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow all Vercel production and preview deployments
+      if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow local development and testing origins
+      if (
+        /^http:\/\/localhost:(5173|3000|4000)$/.test(origin) ||
+        /^http:\/\/127\.0\.0\.1:(5173|3000|4000)$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+
+      // In non-production environments, allow origin
+      if (configService.get<string>('app.nodeEnv') !== 'production') {
+        return callback(null, true);
+      }
+
+      callback(new Error(`CORS error: Origin ${origin} not permitted`));
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });

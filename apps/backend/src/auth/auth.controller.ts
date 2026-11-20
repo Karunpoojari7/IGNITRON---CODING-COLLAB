@@ -37,17 +37,21 @@ export class AuthController {
     res.cookie(SESSION_CONFIG.COOKIE_NAME, token, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax',
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
   }
 
   private clearSessionCookie(res: Response) {
+    const isProduction =
+      this.configService.get<string>('app.nodeEnv') === 'production';
+
     res.clearCookie(SESSION_CONFIG.COOKIE_NAME, {
       path: '/',
       httpOnly: true,
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
     });
   }
 
