@@ -7,6 +7,8 @@ import { RootLayout } from './layouts/RootLayout';
 import { LandingPage } from './pages/LandingPage';
 import { CodingWorkspacePreviewPage } from './pages/team/CodingWorkspacePreviewPage';
 import { McqArenaPage } from './pages/team/McqArenaPage';
+import { BugHuntArenaPage } from './pages/team/BugHuntArenaPage';
+import { EventAnalyticsArenaPage } from './pages/team/EventAnalyticsArenaPage';
 import { TeamLoginPage } from './pages/TeamLoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AdminLoginPage } from './pages/AdminLoginPage';
@@ -70,6 +72,22 @@ export const App: React.FC = () => {
                 element={
                   <ProtectedRoute requiredType="TEAM">
                     <McqArenaPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="team/arena/bug-hunt"
+                element={
+                  <ProtectedRoute requiredType="TEAM">
+                    <BugHuntArenaPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="team/arena/analytics"
+                element={
+                  <ProtectedRoute requiredType="TEAM">
+                    <EventAnalyticsArenaPage />
                   </ProtectedRoute>
                 }
               />
