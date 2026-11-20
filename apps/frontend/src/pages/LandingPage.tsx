@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCompetitionState } from '../hooks/useCompetition';
 import { GoldenSnowfall } from '../components/GoldenSnowfall';
+import { HeroIllustration } from '../components/HeroIllustration';
+import { RulebookModal } from '../components/RulebookModal';
 import {
   Terminal,
   ShieldCheck,
@@ -11,52 +13,59 @@ import {
   Award,
   ArrowRight,
   Radio,
-  FileCode,
   BookOpen,
-  UserPlus,
-  LogIn,
-  AlertTriangle,
   CheckCircle2,
   Code2,
   Cpu,
   Layers,
-  ArrowUp,
-  ShieldAlert,
+  ChevronRight,
+  ChevronDown,
+  ChevronsRight,
+  Settings,
+  Bug,
+  Crown,
+  Sparkles,
+  Trophy,
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
   const { user } = useAuth();
   const { data: compState } = useCompetitionState();
   const location = useLocation();
-  const [highlightRules, setHighlightRules] = useState(false);
 
-  // Smooth scroll to #rules when requested or when URL hash changes
-  const scrollToRules = () => {
-    const el = document.getElementById('rules');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-      setHighlightRules(true);
-      setTimeout(() => setHighlightRules(false), 2500);
+  const [isRulebookOpen, setIsRulebookOpen] = useState(false);
+  const [highlightRules, setHighlightRules] = useState(false);
+  const [showFullSpecs, setShowFullSpecs] = useState(false);
+
+  // Smooth scroll to section
+  const scrollToSection = (id: string) => {
+    if (id === 'top') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        if (id === 'rules') {
+          setHighlightRules(true);
+          setTimeout(() => setHighlightRules(false), 2500);
+        }
+      }
     }
   };
 
   useEffect(() => {
     if (location.hash === '#rules' || window.location.hash === '#rules') {
       const timer = setTimeout(() => {
-        scrollToRules();
+        scrollToSection('rules');
       }, 150);
       return () => clearTimeout(timer);
     }
   }, [location.hash]);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const getStatusBadge = () => {
     if (!compState) {
       return (
-        <span className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/90 shadow-[0_0_20px_rgba(251,191,36,0.35)] backdrop-blur-md">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/80 shadow-[0_0_20px_rgba(251,191,36,0.3)] backdrop-blur-md">
           <Clock className="w-3.5 h-3.5 text-amber-400" />
           <span>STANDBY — REGISTRATION ACTIVE</span>
         </span>
@@ -67,7 +76,7 @@ export const LandingPage: React.FC = () => {
 
     if (status.includes('ACTIVE')) {
       return (
-        <span className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-emerald-300 bg-black/60 border border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.45)] backdrop-blur-md">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-emerald-300 bg-black/60 border border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.45)] backdrop-blur-md">
           <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
           <span>LIVE: {compState.currentRoundName || status}</span>
         </span>
@@ -75,7 +84,7 @@ export const LandingPage: React.FC = () => {
     }
     if (status.includes('EVALUATION')) {
       return (
-        <span className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/90 shadow-[0_0_20px_rgba(251,191,36,0.4)] backdrop-blur-md">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/90 shadow-[0_0_20px_rgba(251,191,36,0.4)] backdrop-blur-md">
           <Clock className="w-3.5 h-3.5 text-amber-400" />
           <span>EVALUATION IN PROGRESS</span>
         </span>
@@ -83,7 +92,7 @@ export const LandingPage: React.FC = () => {
     }
     if (status === 'COMPLETED') {
       return (
-        <span className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-sky-300 bg-black/60 border border-sky-400/90 shadow-[0_0_20px_rgba(56,189,248,0.4)] backdrop-blur-md">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-sky-300 bg-black/60 border border-sky-400/90 shadow-[0_0_20px_rgba(56,189,248,0.4)] backdrop-blur-md">
           <Award className="w-3.5 h-3.5 text-sky-400" />
           <span>COMPETITION CONCLUDED</span>
         </span>
@@ -91,15 +100,18 @@ export const LandingPage: React.FC = () => {
     }
 
     return (
-      <span className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/90 shadow-[0_0_20px_rgba(251,191,36,0.35)] backdrop-blur-md">
+      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/80 shadow-[0_0_20px_rgba(251,191,36,0.3)] backdrop-blur-md">
         <Clock className="w-3.5 h-3.5 text-amber-400" />
-        <span>EVALUATION IN PROGRESS</span>
+        <span>STANDBY — REGISTRATION ACTIVE</span>
       </span>
     );
   };
 
   return (
-    <div className="relative min-h-screen bg-[#010905] text-slate-100 overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div
+      id="top"
+      className="relative min-h-screen bg-[#010905] text-slate-100 overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200"
+    >
       {/* Dynamic Golden Snowfall Canvas (Particles, Vertical Light Trails & Bokeh Discs) */}
       <GoldenSnowfall />
 
@@ -107,37 +119,37 @@ export const LandingPage: React.FC = () => {
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
         {/* Top Center Golden Ambient Glow */}
         <div
-          className="absolute -top-24 left-1/2 -translate-x-1/2 w-[700px] h-[350px] opacity-30 blur-3xl pointer-events-none"
+          className="absolute -top-24 left-1/2 -translate-x-1/2 w-[700px] h-[350px] opacity-25 blur-3xl pointer-events-none"
           style={{
             background:
-              'radial-gradient(ellipse at 50% 0%, rgba(245, 158, 11, 0.45) 0%, rgba(217, 119, 6, 0.15) 50%, transparent 80%)',
+              'radial-gradient(ellipse at 50% 0%, rgba(245, 158, 11, 0.4) 0%, rgba(217, 119, 6, 0.12) 50%, transparent 80%)',
           }}
         />
 
-        {/* Top Left Golden Shimmer */}
+        {/* Top Left Emerald Shimmer */}
         <div
-          className="absolute -top-16 left-0 w-[450px] h-[400px] opacity-25 blur-3xl pointer-events-none"
+          className="absolute -top-16 left-0 w-[450px] h-[400px] opacity-20 blur-3xl pointer-events-none"
           style={{
             background:
-              'radial-gradient(circle at 15% 10%, rgba(251, 191, 36, 0.4) 0%, transparent 70%)',
+              'radial-gradient(circle at 15% 10%, rgba(16, 185, 129, 0.35) 0%, transparent 70%)',
           }}
         />
 
-        {/* Top Right Golden Shimmer */}
+        {/* Top Right Emerald Shimmer */}
         <div
-          className="absolute -top-16 right-0 w-[450px] h-[400px] opacity-25 blur-3xl pointer-events-none"
+          className="absolute -top-16 right-0 w-[450px] h-[400px] opacity-20 blur-3xl pointer-events-none"
           style={{
             background:
-              'radial-gradient(circle at 85% 10%, rgba(251, 191, 36, 0.4) 0%, transparent 70%)',
+              'radial-gradient(circle at 85% 10%, rgba(16, 185, 129, 0.35) 0%, transparent 70%)',
           }}
         />
 
         {/* Center Emerald Glow (Directly behind Title) */}
         <div
-          className="absolute top-44 sm:top-56 left-1/2 -translate-x-1/2 w-[650px] sm:w-[900px] h-[450px] opacity-45 blur-3xl pointer-events-none"
+          className="absolute top-36 sm:top-48 left-1/2 -translate-x-1/2 w-[650px] sm:w-[920px] h-[420px] opacity-40 blur-3xl pointer-events-none"
           style={{
             background:
-              'radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.5) 0%, rgba(5, 150, 105, 0.2) 45%, transparent 75%)',
+              'radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.5) 0%, rgba(5, 150, 105, 0.18) 45%, transparent 75%)',
           }}
         />
 
@@ -145,74 +157,72 @@ export const LandingPage: React.FC = () => {
         <div className="absolute inset-0 bg-radial from-transparent via-[#010a05]/60 to-[#010804] pointer-events-none" />
       </div>
 
+      {/* Main Content Sections */}
       <div className="relative z-20 space-y-20 sm:space-y-28 py-6 sm:py-10">
         {/* ================================================================= */}
-        {/* SECTION A: HERO SECTION                                           */}
+        {/* SECTION 1: CENTERED HERO SECTION                                   */}
         {/* ================================================================= */}
-        <section className="relative pt-6 sm:pt-12 pb-16 sm:pb-24 text-center max-w-5xl mx-auto px-4 sm:px-6">
-          {/* Luminous Status Badge */}
-          <div className="flex justify-center mb-8 sm:mb-10 animate-fade-in">
+        <section className="relative pt-4 sm:pt-8 pb-12 sm:pb-20 text-center max-w-5xl mx-auto px-4 sm:px-6">
+          {/* Top Status & Event Identity Badge: /// IGNITRON 2K26 /// */}
+          <div className="flex flex-col items-center justify-center gap-3 mb-6 animate-fade-in">
             {getStatusBadge()}
+
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <span className="text-emerald-400 font-mono text-sm tracking-widest font-black select-none">
+                ///
+              </span>
+              <span className="px-4 py-1 rounded-full text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-emerald-300 bg-emerald-950/40 border border-emerald-400/60 shadow-[0_0_15px_rgba(16,185,129,0.35)] backdrop-blur-md">
+                IGNITRON 2K26
+              </span>
+              <span className="text-emerald-400 font-mono text-sm tracking-widest font-black select-none">
+                ///
+              </span>
+            </div>
           </div>
 
-          {/* Glowing Emerald Main Title */}
-          <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black italic tracking-wide text-white drop-shadow-[0_0_40px_rgba(16,185,129,0.95)]">
-            IGNITRON 2K26
+          {/* Dominant Hero Title: CODING COLLAB */}
+          <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-white flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-5 drop-shadow-[0_0_35px_rgba(16,185,129,0.3)]">
+            <span>CODING</span>
+            <span className="text-emerald-400 drop-shadow-[0_0_45px_rgba(52,211,153,0.95)]">
+              COLLAB
+            </span>
           </h1>
 
-          {/* Subtitle with Glowing Horizontal Neon Accent Streaks */}
-          <div className="flex items-center justify-center gap-3 sm:gap-6 mt-3 sm:mt-4">
-            <span
-              className="h-[2px] w-12 sm:w-28 bg-gradient-to-r from-transparent via-emerald-400 to-emerald-400 shadow-[0_0_12px_#10b981]"
-              aria-hidden="true"
-            />
-            <span className="text-emerald-400 font-mono tracking-[0.3em] sm:tracking-[0.45em] text-xs sm:text-base font-extrabold uppercase drop-shadow-[0_0_15px_rgba(16,185,129,0.85)]">
-              CODE RELAY TOURNAMENT
-            </span>
-            <span
-              className="h-[2px] w-12 sm:w-28 bg-gradient-to-l from-transparent via-emerald-400 to-emerald-400 shadow-[0_0_12px_#10b981]"
-              aria-hidden="true"
-            />
+          {/* Subtitle: INTER-COLLEGIATE PROGRAMMING CHAMPIONSHIP */}
+          <div className="text-emerald-300/90 font-mono tracking-[0.25em] sm:tracking-[0.4em] text-xs sm:text-sm font-bold uppercase mt-3 sm:mt-4">
+            INTER-COLLEGIATE PROGRAMMING CHAMPIONSHIP
           </div>
 
           {/* Description */}
-          <p className="mt-8 text-sm sm:text-base text-emerald-100/80 max-w-2xl mx-auto leading-relaxed font-normal">
-            The official university-tier competitive programming championship. Two contestants per team, one active terminal, and three progressive relay arenas.
+          <p className="mt-6 text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
+            A collaborative coding tournament where two minds, one terminal, and three progressive
+            arenas put your problem-solving, logic, and teamwork to the ultimate test.
           </p>
 
-          {/* Action Buttons */}
-          <div className="mt-10 sm:mt-12 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+          {/* Functional Centered CTA Buttons (Register, Enter Arena, Rules) */}
+          <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             {!user && (
               <Link
                 to="/register"
-                className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 text-slate-950 font-extrabold text-sm transition-all shadow-[0_0_35px_rgba(16,185,129,0.7)] hover:shadow-[0_0_50px_rgba(16,185,129,0.95)] border-2 border-emerald-200/90 hover:scale-105 active:scale-95 flex items-center gap-2"
+                className="px-6 sm:px-8 py-3 rounded-full bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-xs sm:text-sm transition-all shadow-[0_0_25px_rgba(16,185,129,0.7)] hover:shadow-[0_0_40px_rgba(16,185,129,0.95)] hover:scale-105 active:scale-95 flex items-center gap-2"
               >
-                <UserPlus className="w-4 h-4 text-slate-950" />
+                <Users className="w-4 h-4 text-slate-950" />
                 <span>Register Your Team</span>
               </Link>
             )}
 
             {user?.type === 'TEAM' ? (
-              <>
-                <Link
-                  to="/team/dashboard"
-                  className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 text-slate-950 font-extrabold text-sm transition-all shadow-[0_0_35px_rgba(16,185,129,0.7)] hover:shadow-[0_0_50px_rgba(16,185,129,0.95)] border-2 border-emerald-200/90 hover:scale-105 active:scale-95 flex items-center gap-2"
-                >
-                  <Users className="w-4 h-4 text-slate-950" />
-                  <span>Go to Team Arena</span>
-                </Link>
-                <Link
-                  to="/team/workspace"
-                  className="px-7 py-3.5 rounded-2xl bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 font-bold text-sm border border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 backdrop-blur-md"
-                >
-                  <FileCode className="w-4 h-4 text-emerald-400" />
-                  <span>Coding Workspace</span>
-                </Link>
-              </>
+              <Link
+                to="/team/dashboard"
+                className="px-6 sm:px-8 py-3 rounded-full bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-xs sm:text-sm transition-all shadow-[0_0_25px_rgba(16,185,129,0.7)] hover:shadow-[0_0_40px_rgba(16,185,129,0.95)] hover:scale-105 active:scale-95 flex items-center gap-2"
+              >
+                <Users className="w-4 h-4 text-slate-950" />
+                <span>Go to Team Arena</span>
+              </Link>
             ) : user?.type === 'ADMIN' ? (
               <Link
                 to="/admin/dashboard"
-                className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 text-slate-950 font-extrabold text-sm transition-all shadow-[0_0_35px_rgba(16,185,129,0.7)] hover:shadow-[0_0_50px_rgba(16,185,129,0.95)] border-2 border-emerald-200/90 hover:scale-105 active:scale-95 flex items-center gap-2"
+                className="px-6 sm:px-8 py-3 rounded-full bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-xs sm:text-sm transition-all shadow-[0_0_25px_rgba(16,185,129,0.7)] hover:shadow-[0_0_40px_rgba(16,185,129,0.95)] hover:scale-105 active:scale-95 flex items-center gap-2"
               >
                 <ShieldCheck className="w-4 h-4 text-slate-950" />
                 <span>Admin Dashboard</span>
@@ -220,496 +230,494 @@ export const LandingPage: React.FC = () => {
             ) : (
               <Link
                 to="/login"
-                className="px-7 py-3.5 rounded-2xl bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 font-bold text-sm border border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 backdrop-blur-md"
+                className="px-6 sm:px-7 py-3 rounded-full bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-200 hover:text-white font-bold text-xs sm:text-sm border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.35)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 backdrop-blur-md"
               >
-                <LogIn className="w-4 h-4 text-emerald-400" />
+                <span className="font-mono text-emerald-400">&gt;_</span>
                 <span>Enter Team Arena</span>
               </Link>
             )}
 
             <button
               type="button"
-              onClick={scrollToRules}
-              className="px-6 py-3.5 rounded-2xl bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 font-semibold text-sm border border-emerald-600/40 shadow-xs hover:border-emerald-400 hover:scale-105 transition-all flex items-center gap-2 backdrop-blur-md"
+              onClick={() => setIsRulebookOpen(true)}
+              className="px-6 py-3 rounded-full bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 hover:text-white font-semibold text-xs sm:text-sm border border-emerald-600/40 shadow-xs hover:border-emerald-400 hover:scale-105 transition-all flex items-center gap-2 backdrop-blur-md"
             >
               <BookOpen className="w-4 h-4 text-emerald-400" />
               <span>Rules</span>
             </button>
           </div>
 
-          {/* Luminous Horizon / Floor Reflection Streak */}
-          <div className="w-full flex justify-center items-center relative mt-16 sm:mt-24 pointer-events-none select-none">
-            <div className="h-[2px] w-full max-w-5xl bg-gradient-to-r from-transparent via-emerald-400/90 to-transparent shadow-[0_0_25px_#10b981]" />
-            <div
-              className="absolute w-72 sm:w-[480px] h-12 -top-5 opacity-70 blur-md pointer-events-none"
-              style={{
-                background:
-                  'radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.7) 0%, rgba(251, 191, 36, 0.4) 30%, transparent 75%)',
-              }}
-            />
-            <div className="absolute top-0 w-full max-w-4xl h-24 bg-gradient-to-b from-emerald-500/10 via-emerald-950/30 to-transparent blur-xl pointer-events-none" />
-          </div>
+          {/* Hero Centerpiece: 3D Angled Laptop, Floating Collaboration/Victory Badges & Wireframe Floor Rings */}
+          <HeroIllustration />
         </section>
 
         {/* ================================================================= */}
-        {/* SECTION B: COMPETITION OVERVIEW                                   */}
+        {/* SECTION 2: TOURNAMENT FORMAT (#format)                            */}
         {/* ================================================================= */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-3">
-            <span className="text-[11px] font-mono uppercase tracking-[0.3em] text-emerald-400 font-bold block">
-              Architected for Integrity
+        <section id="format" className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="text-center max-w-3xl mx-auto space-y-2">
+            <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-emerald-400 font-bold block">
+              ARCHITECTED FOR COLLABORATION
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
-              The Code Relay Tournament Format
+            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
+              <span className="text-emerald-400 mr-2 font-mono">//</span>
+              The Coding Collab Tournament Format
+              <span className="text-emerald-400 ml-2 font-mono">//</span>
             </h2>
-            <p className="text-sm text-emerald-200/80 leading-relaxed">
-              Unlike conventional hackathons or individual contests, IGNITRON 2K26 is built on a high-stakes, two-contender relay architecture designed to test synchronized problem solving, clear logic transfer, and high-pressure debugging.
+            <p className="text-xs sm:text-sm text-emerald-200/80 leading-relaxed max-w-2xl mx-auto">
+              A structured, team-based programming contest that tests collaboration, problem-solving,
+              and real-world coding skills across three unique arenas.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="p-6 rounded-2xl bg-[#02130a]/75 backdrop-blur-md border border-emerald-500/20 hover:border-emerald-400/50 shadow-xl hover:shadow-[0_0_25px_rgba(16,185,129,0.15)] transition-all space-y-3 group">
-              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-105 transition-transform">
-                <Users className="w-5 h-5" />
+            {/* Card 1: Two-Contestant Teams */}
+            <div className="p-6 rounded-2xl bg-[#02130a]/80 backdrop-blur-md border border-emerald-500/25 hover:border-emerald-400/60 shadow-xl hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] transition-all space-y-3 group">
+              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-105 transition-transform">
+                <Users className="w-5 h-5 text-emerald-400" />
               </div>
-              <h3 className="font-bold text-base text-white drop-shadow-xs">Two-Contestant Teams</h3>
+              <h3 className="font-bold text-base text-white">Two-Contestant Teams</h3>
               <p className="text-xs text-emerald-200/70 leading-relaxed">
-                Every team represents their collegiate institution with exactly two contestants. Teammates must collaborate, strategize, and coordinate execution across every tournament stage.
+                Each team consists of two participants who collaborate throughout the tournament.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-[#02130a]/75 backdrop-blur-md border border-emerald-500/20 hover:border-emerald-400/50 shadow-xl hover:shadow-[0_0_25px_rgba(16,185,129,0.15)] transition-all space-y-3 group">
-              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-105 transition-transform">
-                <ShieldAlert className="w-5 h-5 text-amber-400" />
+            {/* Card 2: Sequential Relay Handoff */}
+            <div className="p-6 rounded-2xl bg-[#02130a]/80 backdrop-blur-md border border-emerald-500/25 hover:border-emerald-400/60 shadow-xl hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] transition-all space-y-3 group">
+              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-105 transition-transform">
+                <Layers className="w-5 h-5 text-emerald-400" />
               </div>
-              <h3 className="font-bold text-base text-white drop-shadow-xs">Sequential Relay Handoff</h3>
+              <h3 className="font-bold text-base text-white">Sequential Relay Handoff</h3>
               <p className="text-xs text-emerald-200/70 leading-relaxed">
-                Participants alternate control of the team workspace between phases. To hand off the baton, the active contestant must log out cleanly, passing code and context to their partner.
+                Progress through challenges in sequence, with outputs from one arena fueling the next.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-[#02130a]/75 backdrop-blur-md border border-emerald-500/20 hover:border-emerald-400/50 shadow-xl hover:shadow-[0_0_25px_rgba(16,185,129,0.15)] transition-all space-y-3 group">
-              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-105 transition-transform">
-                <ShieldCheck className="w-5 h-5" />
+            {/* Card 3: Single-Terminal Concurrency */}
+            <div className="p-6 rounded-2xl bg-[#02130a]/80 backdrop-blur-md border border-emerald-500/25 hover:border-emerald-400/60 shadow-xl hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] transition-all space-y-3 group">
+              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-105 transition-transform">
+                <Terminal className="w-5 h-5 text-emerald-400" />
               </div>
-              <h3 className="font-bold text-base text-white drop-shadow-xs">Single-Terminal Concurrency</h3>
+              <h3 className="font-bold text-base text-white">Single-Terminal Concurrency</h3>
               <p className="text-xs text-emerald-200/70 leading-relaxed">
-                Database-enforced mutual exclusion prevents duplicate or simultaneous logins. Only one participant terminal can ever be active per team, ensuring absolute competitive fairness.
+                Work together in a shared coding environment with real-time collaboration.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-[#02130a]/75 backdrop-blur-md border border-emerald-500/20 hover:border-emerald-400/50 shadow-xl hover:shadow-[0_0_25px_rgba(16,185,129,0.15)] transition-all space-y-3 group">
-              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-105 transition-transform">
-                <Clock className="w-5 h-5" />
+            {/* Card 4: Server-Authoritative Timing */}
+            <div className="p-6 rounded-2xl bg-[#02130a]/80 backdrop-blur-md border border-emerald-500/25 hover:border-emerald-400/60 shadow-xl hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] transition-all space-y-3 group">
+              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-105 transition-transform">
+                <Clock className="w-5 h-5 text-emerald-400" />
               </div>
-              <h3 className="font-bold text-base text-white drop-shadow-xs">Server-Authoritative Timing</h3>
+              <h3 className="font-bold text-base text-white">Server-Authoritative Timing</h3>
               <p className="text-xs text-emerald-200/70 leading-relaxed">
-                Deadlines, round transitions, and submission cutoffs are measured by the server clock. Local system time adjustments have zero effect on round expiration or scoring validity.
+                Strict time limits and automated evaluation ensure a fair and competitive experience.
               </p>
             </div>
           </div>
         </section>
 
         {/* ================================================================= */}
-        {/* SECTION C: THE THREE COMPETITION ROUNDS                           */}
+        {/* SECTION 3: THE THREE COMPETITION ARENAS (#arenas)                 */}
         {/* ================================================================= */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+        <section id="arenas" className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="text-center max-w-3xl mx-auto space-y-2">
-            <span className="text-[11px] font-mono uppercase tracking-[0.3em] text-emerald-400 font-bold block">
-              Tournament Progression
+            <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-emerald-400 font-bold block">
+              TOURNAMENT PROGRESSION
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
+            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
               The Three Competition Arenas
             </h2>
-            <p className="text-sm text-emerald-200/75">
-              Three progressively demanding arenas designed to filter, test, and crown the ultimate collegiate programming duo.
+            <p className="text-xs sm:text-sm text-emerald-200/75 max-w-2xl mx-auto">
+              A three-stage journey that progressively increases in complexity, testing a complete
+              range of coding skills.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Round 1 Card */}
-            <div className="p-7 rounded-2xl bg-[#02130a]/80 backdrop-blur-md border border-emerald-500/25 hover:border-emerald-400/60 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] transition-all flex flex-col justify-between group">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
-                    Arena 01
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                    All Teams Eligible
-                  </span>
+          <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-3">
+            {/* Arena 01 Card */}
+            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-[#02130a]/85 backdrop-blur-md border border-emerald-500/30 hover:border-emerald-400/70 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.25)] transition-all flex flex-col justify-between group">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
+                  <Layers className="w-5 h-5 text-emerald-400" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300 transition-colors">
-                  MCQ Arena
-                </h3>
-                <p className="text-xs text-emerald-200/70 leading-relaxed">
-                  Rapid-fire algorithmic, data structure, discrete mathematics, and system fundamentals assessment testing foundational theoretical mastery.
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest block">
+                    ARENA 01
+                  </span>
+                  <h3 className="text-xl font-bold text-white group-hover:text-emerald-300 transition-colors">
+                    MCQ Arena
+                  </h3>
+                </div>
+                <p className="text-xs text-emerald-200/70 leading-relaxed min-h-[3rem]">
+                  Rapid-fire, algorithmic, data structure, and system fundamentals assessment.
                 </p>
 
-                <div className="mt-6 space-y-2.5 text-xs font-mono">
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Official Duration</span>
-                    <span className="text-emerald-100 font-semibold">30 Minutes</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Maximum Marks</span>
-                    <span className="text-amber-400 font-bold">30 Points</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Progression</span>
-                    <span className="text-emerald-400 font-bold">Top 50% Shortlisted</span>
-                  </div>
+                <div className="flex items-center gap-3 pt-2 text-xs font-mono">
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300">
+                    <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>30 Minutes</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-amber-300 font-bold">
+                    <Award className="w-3.5 h-3.5 text-amber-400" />
+                    <span>30 Points</span>
+                  </span>
                 </div>
+              </div>
+
+              <div className="mt-6 pt-3 border-t border-emerald-950/80">
+                <span className="inline-block px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  Top 50% &rarr; Round 2
+                </span>
               </div>
             </div>
 
-            {/* Round 2 Card */}
-            <div className="p-7 rounded-2xl bg-[#02130a]/80 backdrop-blur-md border border-emerald-500/25 hover:border-emerald-400/60 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] transition-all flex flex-col justify-between group">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
-                    Arena 02
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                    Qualified Semifinalists
-                  </span>
+            {/* Connecting Chevron Arrow 1 */}
+            <div className="hidden lg:flex items-center justify-center text-emerald-400/80 px-1">
+              <ChevronsRight className="w-7 h-7 animate-pulse" />
+            </div>
+
+            {/* Arena 02 Card */}
+            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-[#02130a]/85 backdrop-blur-md border border-emerald-500/30 hover:border-emerald-400/70 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.25)] transition-all flex flex-col justify-between group">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
+                  <Bug className="w-5 h-5 text-emerald-400" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300 transition-colors">
-                  Bug Hunt Arena
-                </h3>
-                <p className="text-xs text-emerald-200/70 leading-relaxed">
-                  Identify, isolate, and repair critical logical flaws, edge case bugs, memory errors, and runtime vulnerabilities hidden inside complex codebases.
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest block">
+                    ARENA 02
+                  </span>
+                  <h3 className="text-xl font-bold text-white group-hover:text-emerald-300 transition-colors">
+                    Bug Hunt Arena
+                  </h3>
+                </div>
+                <p className="text-xs text-emerald-200/70 leading-relaxed min-h-[3rem]">
+                  Identify, isolate, and repair critical logical flaws in complex codebases.
                 </p>
 
-                <div className="mt-6 space-y-2.5 text-xs font-mono">
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Official Duration</span>
-                    <span className="text-emerald-100 font-semibold">40 Minutes</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Maximum Marks</span>
-                    <span className="text-amber-400 font-bold">100 Points</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Progression</span>
-                    <span className="text-emerald-400 font-bold">Top 5–8 Finalists</span>
-                  </div>
+                <div className="flex items-center gap-3 pt-2 text-xs font-mono">
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300">
+                    <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>40 Minutes</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-amber-300 font-bold">
+                    <Award className="w-3.5 h-3.5 text-amber-400" />
+                    <span>100 Points</span>
+                  </span>
                 </div>
+              </div>
+
+              <div className="mt-6 pt-3 border-t border-emerald-950/80">
+                <span className="inline-block px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  Top 5–8 Teams &rarr; Round 3
+                </span>
               </div>
             </div>
 
-            {/* Round 3 Card */}
-            <div className="p-7 rounded-2xl bg-[#02130a]/80 backdrop-blur-md border border-emerald-500/25 hover:border-emerald-400/60 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] transition-all flex flex-col justify-between group">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
-                    Arena 03
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                    Grand Finals
-                  </span>
+            {/* Connecting Chevron Arrow 2 */}
+            <div className="hidden lg:flex items-center justify-center text-emerald-400/80 px-1">
+              <ChevronsRight className="w-7 h-7 animate-pulse" />
+            </div>
+
+            {/* Arena 03 Card — GOLD HIGHLIGHT FOR THE FINALS */}
+            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-gradient-to-b from-[#1a1202]/90 via-[#0a0a03]/90 to-[#02130a]/90 backdrop-blur-md border-2 border-amber-400/70 hover:border-amber-300 shadow-[0_0_35px_rgba(251,191,36,0.25)] hover:shadow-[0_0_50px_rgba(251,191,36,0.4)] transition-all flex flex-col justify-between group">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.3)]">
+                  <Crown className="w-5 h-5 text-amber-400" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300 transition-colors">
-                  Final Boss Coding
-                </h3>
-                <p className="text-xs text-emerald-200/70 leading-relaxed">
-                  High-complexity team relay showdown: contestants solve deep algorithmic challenges against hidden test fixtures inside the competitive CodeMirror workspace.
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest block">
+                    ARENA 03
+                  </span>
+                  <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition-colors">
+                    Final Boss Coding
+                  </h3>
+                </div>
+                <p className="text-xs text-amber-100/75 leading-relaxed min-h-[3rem]">
+                  A high-complexity, real-world challenge that tests complete coding mastery.
                 </p>
 
-                <div className="mt-6 space-y-2.5 text-xs font-mono">
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Official Duration</span>
-                    <span className="text-emerald-100 font-semibold">60 Minutes</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Maximum Marks</span>
-                    <span className="text-amber-400 font-bold">100 Points</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-emerald-950/80">
-                    <span className="text-emerald-200/50">Championship</span>
-                    <span className="text-amber-300 font-bold">IGNITRON Trophy</span>
-                  </div>
+                <div className="flex items-center gap-3 pt-2 text-xs font-mono">
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-200">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>60 Minutes</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-300 font-bold">
+                    <Award className="w-3.5 h-3.5 text-amber-400" />
+                    <span>100 Points</span>
+                  </span>
                 </div>
+              </div>
+
+              <div className="mt-6 pt-3 border-t border-amber-950/80">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-amber-400/20 text-amber-300 border border-amber-400/50 shadow-[0_0_10px_rgba(251,191,36,0.2)]">
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  <span>IGNITRON Trophy</span>
+                </span>
               </div>
             </div>
           </div>
         </section>
 
         {/* ================================================================= */}
-        {/* SECTION D: OFFICIAL RULES SECTION (#rules)                         */}
+        {/* SECTION 4: RULES & TECHNICAL SPECIFICATIONS PANELS                */}
         {/* ================================================================= */}
         <section
           id="rules"
-          className={`scroll-mt-24 sm:scroll-mt-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-700`}
+          className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6"
         >
-          <div
-            className={`p-6 sm:p-10 rounded-3xl transition-all duration-700 ${
-              highlightRules
-                ? 'ring-2 ring-emerald-400 ring-offset-4 ring-offset-[#010905] shadow-[0_0_50px_rgba(16,185,129,0.6)] bg-[#02180d]'
-                : 'border border-emerald-500/25 bg-[#02130a]/85 shadow-2xl'
-            }`}
-          >
-            {/* Rules Header */}
-            <div className="border-b border-emerald-900/60 pb-6 mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold uppercase bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 mb-3">
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>Official Tournament Guidelines</span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* LEFT PANEL: Competition Rules & Regulations */}
+            <div
+              className={`relative p-7 sm:p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between overflow-hidden ${
+                highlightRules
+                  ? 'border-2 border-emerald-400 ring-2 ring-emerald-400/40 bg-[#02180d]'
+                  : 'border border-emerald-500/30 bg-[#02130a]/85 shadow-2xl'
+              }`}
+            >
+              {/* Glowing Watermark in Background */}
+              <div className="absolute -bottom-6 -right-6 text-emerald-500/10 font-mono font-black text-8xl sm:text-9xl pointer-events-none select-none">
+                &lt;/&gt;
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Competition Rules & Regulations
-              </h2>
-              <p className="text-xs sm:text-sm text-emerald-200/70 mt-2 max-w-3xl leading-relaxed">
-                The governing guidelines and integrity policies of IGNITRON 2K26 — Code Relay. All contestants, teams, and faculty mentors are expected to adhere strictly to these standards.
-              </p>
+
+              <div className="space-y-4 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400">
+                    <BookOpen className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      Competition Rules & Regulations
+                    </h3>
+                  </div>
+                </div>
+
+                <p className="text-xs text-emerald-200/70 leading-relaxed">
+                  The governing policies, eligibility, and conduct guidelines for IGNITRON 2K26 — Coding Collab.
+                </p>
+
+                <ul className="space-y-3 pt-2 text-xs text-emerald-100/90">
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Team composition and registration process</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Single-terminal concurrency and session rules</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Official arena structure and progression criteria</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Timing, evaluation, and fairness policies</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-6 relative z-10">
+                <button
+                  type="button"
+                  onClick={() => setIsRulebookOpen(true)}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 hover:text-white text-xs font-bold border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:scale-105 transition-all flex items-center gap-2"
+                >
+                  <span>View Detailed Rules</span>
+                  <ArrowRight className="w-4 h-4 text-emerald-400" />
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-8">
-              {/* 1. Team Composition & Registration */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-emerald-400" />
-                  <span>1. Team Composition & Registration</span>
-                </h3>
-                <div className="p-5 rounded-2xl bg-black/40 border border-emerald-500/20 space-y-2.5 text-xs text-emerald-100/80 leading-relaxed">
-                  <p>
-                    • <strong>Team Composition:</strong> Every team must consist of exactly <strong>two (2) registered participants</strong> representing their enrolled college or university.
-                  </p>
-                  <p>
-                    • <strong>Registration:</strong> Teams register directly via the public team registration portal. Each registration generates an official <strong>Team Code</strong> (e.g. <code className="bg-emerald-950/80 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">IGN-XXXX</code>) and stores encrypted credentials in the database.
-                  </p>
-                  <p>
-                    • <strong>Valid Email Addresses:</strong> Both personal and college-domain email addresses are valid and accepted for participant records.
-                  </p>
-                  <p>
-                    • <strong>Institutional Eligibility:</strong> Both contestants must hold a valid college/university identification card and be present during all rounds for tournament validation.
-                  </p>
+            {/* RIGHT PANEL: Tournament Technical Specifications (#specifications) */}
+            <div
+              id="specifications"
+              className="scroll-mt-24 relative p-7 sm:p-8 rounded-3xl border border-emerald-500/30 bg-[#02130a]/85 shadow-2xl flex flex-col justify-between overflow-hidden"
+            >
+              <div className="space-y-4 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400">
+                    <Settings className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      Tournament Technical Specifications
+                    </h3>
+                  </div>
                 </div>
-              </div>
 
-              {/* 2. Single-Terminal Concurrency Policy */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <ShieldAlert className="w-5 h-5 text-amber-400" />
-                  <span>2. Single-Terminal Concurrency Policy</span>
-                </h3>
-                <div className="p-5 rounded-2xl bg-amber-950/20 border border-amber-500/30 space-y-2.5 text-xs text-amber-100/90 leading-relaxed">
-                  <div className="flex items-center gap-2 text-amber-400 font-semibold mb-1">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>Strict Server-Side Session Mutual Exclusion Active</span>
-                  </div>
-                  <p>
-                    • While both participants are registered on the team, <strong>only ONE participant may have an active authenticated session at any given moment</strong>.
-                  </p>
-                  <p>
-                    • If Participant A is actively logged in, any concurrent login attempt by Participant B will be rejected with an immediate <strong>HTTP 409 Conflict</strong>.
-                  </p>
-                  <p>
-                    • To execute a relay handoff, Participant A must explicitly click <strong>Log Out</strong>. This releases the server mutex lock, allowing Participant B to authenticate and resume the contest.
-                  </p>
-                  <p>
-                    • Administrators possess real-time session revocation capability to reset locked sessions in the event of hardware failures.
-                  </p>
-                </div>
-              </div>
+                <p className="text-xs text-emerald-200/70 leading-relaxed">
+                  Technical guidelines for languages, test harness, and contest setup.
+                </p>
 
-              {/* 3. Official Arenas & Progression */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Terminal className="w-5 h-5 text-teal-400" />
-                  <span>3. Official Arenas & Progression Criteria</span>
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2 text-xs">
-                    <span className="font-bold text-emerald-300 block">Round 1: MCQ Arena</span>
-                    <p className="text-emerald-200/70 leading-relaxed">
-                      30 Questions • 30 Minutes • 30 Points. Testing algorithmic fundamentals, Big-O complexity, and data structures.
-                    </p>
-                    <span className="text-emerald-400 font-bold block pt-1">
-                      Criterion: Top 50% advance to Round 2.
-                    </span>
+                <div className="space-y-3 pt-2 text-xs">
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-black/40 border border-emerald-500/20">
+                    <Code2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <strong className="text-white block font-mono text-[11px]">
+                        Supported Languages
+                      </strong>
+                      <span className="text-emerald-200/80 text-[11px]">
+                        C, C++, Java, Python, JavaScript
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2 text-xs">
-                    <span className="font-bold text-emerald-300 block">Round 2: Bug Hunt Arena</span>
-                    <p className="text-emerald-200/70 leading-relaxed">
-                      Multi-file bug isolation • 40 Minutes • 100 Points. Locating syntax, logic, memory, and runtime defects.
-                    </p>
-                    <span className="text-emerald-400 font-bold block pt-1">
-                      Criterion: Top 5–8 teams advance to Round 3.
-                    </span>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-black/40 border border-emerald-500/20">
+                    <Cpu className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <strong className="text-white block font-mono text-[11px]">
+                        Automated Test Harness
+                      </strong>
+                      <span className="text-emerald-200/80 text-[11px]">
+                        Sandboxed execution with time &amp; memory limits
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2 text-xs">
-                    <span className="font-bold text-amber-300 block">Round 3: Final Boss Coding</span>
-                    <p className="text-emerald-200/70 leading-relaxed">
-                      Algorithmic relay showdown • 60 Minutes • 100 Points. Rigorous automated test fixture validation.
-                    </p>
-                    <span className="text-amber-400 font-bold block pt-1">
-                      Criterion: Highest aggregate score wins Trophy.
-                    </span>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-black/40 border border-emerald-500/20">
+                    <Layers className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <strong className="text-white block font-mono text-[11px]">
+                        Contest Day Checklist
+                      </strong>
+                      <span className="text-emerald-200/80 text-[11px]">
+                        Pre-event setup, access, and environment readiness
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* 4. Timing & Fair Play Integrity */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-emerald-400" />
-                  <span>4. Timing & Fair Play Integrity</span>
-                </h3>
-                <div className="p-5 rounded-2xl bg-black/40 border border-emerald-500/20 space-y-2.5 text-xs text-emerald-100/80 leading-relaxed">
-                  <p>
-                    • <strong>Server-Authoritative Clock:</strong> All countdowns, deadlines, pause states, and submission acceptance windows are calculated strictly on the competition server. Changing local computer clocks has zero impact on timer expiration.
-                  </p>
-                  <p>
-                    • <strong>Campus Network Isolation:</strong> All competition evaluation occurs on the local campus tournament server. External internet access, unauthorized communication tools, and external generative AI assistants are strictly prohibited.
-                  </p>
-                  <p>
-                    • <strong>Automated Cutoffs:</strong> Submissions attempted after deadline expiration are rejected automatically by the backend system.
-                  </p>
-                </div>
+              <div className="pt-6 relative z-10">
+                <button
+                  type="button"
+                  onClick={() => setShowFullSpecs(!showFullSpecs)}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 hover:text-white text-xs font-bold border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:scale-105 transition-all flex items-center gap-2"
+                >
+                  <span>{showFullSpecs ? 'Hide Specifications' : 'View Specifications'}</span>
+                  {showFullSpecs ? (
+                    <ChevronDown className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4 text-emerald-400" />
+                  )}
+                </button>
               </div>
             </div>
           </div>
-        </section>
 
-        {/* ================================================================= */}
-        {/* SECTION E: ADDITIONAL COMPETITION INFORMATION                     */}
-        {/* ================================================================= */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          <div className="text-center max-w-3xl mx-auto space-y-2">
-            <span className="text-[11px] font-mono uppercase tracking-[0.3em] text-emerald-400 font-bold block">
-              Specifications & Guidelines
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
-              Tournament Technical Specifications
-            </h2>
-            <p className="text-sm text-emerald-200/75">
-              Comprehensive guidelines for languages, automated harnesses, and contest day setup.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 1: Supported Languages */}
-            <div className="p-6 rounded-2xl bg-[#02130a]/75 backdrop-blur-md border border-emerald-500/20 shadow-xl space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                <Code2 className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base text-white">Supported Languages</h3>
-              <ul className="space-y-2 text-xs text-emerald-200/70 font-mono">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>C++ (GCC 11+ / C++17 Standard)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Java (OpenJDK 17 / 21 LTS)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Python (CPython 3.11 runtime)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>JavaScript / TypeScript (Node.js LTS)</span>
-                </li>
-              </ul>
-              <p className="text-[11px] text-emerald-200/50 pt-2 border-t border-emerald-950/80">
-                Standard libraries are available across all runtimes. External network package fetching is disabled.
-              </p>
-            </div>
-
-            {/* Card 2: Automated Evaluation */}
-            <div className="p-6 rounded-2xl bg-[#02130a]/75 backdrop-blur-md border border-emerald-500/20 shadow-xl space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                <Cpu className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base text-white">Automated Test Harness</h3>
-              <ul className="space-y-2 text-xs text-emerald-200/70">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span><strong>Sandboxed Sandbox:</strong> Isolated test runs protect memory, CPU limits, and system resources.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span><strong>Hidden Fixtures:</strong> Submissions are checked against public and hidden edge-case test vectors.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span><strong>Deterministic Scoring:</strong> Execution time and memory thresholds break equal-score ties.</span>
-                </li>
-              </ul>
-              <p className="text-[11px] text-emerald-200/50 pt-2 border-t border-emerald-950/80">
-                Real-time feedback shows passed test counts and execution errors instantly.
-              </p>
-            </div>
-
-            {/* Card 3: Eligibility & Participation */}
-            <div className="p-6 rounded-2xl bg-[#02130a]/75 backdrop-blur-md border border-emerald-500/20 shadow-xl space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                <Layers className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base text-white">Contest Day Checklist</h3>
-              <ul className="space-y-2 text-xs text-emerald-200/70">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span><strong>Registration Check:</strong> Bring assigned Team Code and password provided at registration.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span><strong>Identity Cards:</strong> Both contestants must show original physical student identification.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span><strong>Pre-Round Briefing:</strong> Teams must report to assigned terminal labs 30 minutes before start.</span>
-                </li>
-              </ul>
-              <p className="text-[11px] text-emerald-200/50 pt-2 border-t border-emerald-950/80">
-                No external USB drives, storage media, or personal laptops permitted in arena labs.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ================================================================= */}
-        {/* FACULTY / EVALUATOR DEMO GUIDE (PRESERVED)                        */}
-        {/* ================================================================= */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="p-8 rounded-2xl bg-[#02130a]/75 backdrop-blur-md border border-emerald-500/30 shadow-2xl space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-bold block mb-1">
-                  Faculty & Evaluator Guide
+          {/* Expandable Full Technical Specifications Drawer */}
+          {showFullSpecs && (
+            <div className="p-6 sm:p-8 rounded-3xl border border-emerald-500/30 bg-[#02130a]/95 backdrop-blur-xl shadow-2xl space-y-6 animate-fade-in text-xs leading-relaxed">
+              <div className="flex items-center justify-between border-b border-emerald-900/60 pb-3">
+                <span className="font-mono font-bold uppercase text-emerald-400 tracking-wider">
+                  Detailed Technical Specifications & Execution Parameters
                 </span>
-                <h2 className="text-xl font-bold text-white drop-shadow-sm">
-                  Evaluating the IGNITRON Platform
-                </h2>
+                <span className="text-emerald-200/50 font-mono">Judge0 CE v1.13.1 Powered</span>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="space-y-2 p-4 rounded-xl bg-black/40 border border-emerald-500/20">
+                  <span className="font-bold text-white block">Compiler & Runtimes</span>
+                  <ul className="space-y-1.5 font-mono text-emerald-200/80 text-[11px]">
+                    <li>• C++: GCC 11+ / C++17 Standard</li>
+                    <li>• Java: OpenJDK 17/21 (Main.java)</li>
+                    <li>• Python: CPython 3.11.x</li>
+                    <li>• JavaScript: Node.js 20 LTS</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-2 p-4 rounded-xl bg-black/40 border border-emerald-500/20">
+                  <span className="font-bold text-white block">Sandbox Execution Constraints</span>
+                  <ul className="space-y-1.5 text-emerald-200/80 text-[11px]">
+                    <li>• CPU Time Limit: 2.0s per test case</li>
+                    <li>• Wall Clock Limit: 5.0s maximum</li>
+                    <li>• Memory Ceiling: 256 MB per runner</li>
+                    <li>• Network Access: Blocked / Isolated</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-2 p-4 rounded-xl bg-black/40 border border-emerald-500/20">
+                  <span className="font-bold text-white block">Evaluation Criteria</span>
+                  <ul className="space-y-1.5 text-emerald-200/80 text-[11px]">
+                    <li>• Strict stdout / expectedOutput matching</li>
+                    <li>• Automatic whitespace normalization</li>
+                    <li>• Short-circuit on compilation error</li>
+                    <li>• Shielded hidden test vectors</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ================================================================= */}
+        {/* SECTION 5: FACULTY & EVALUATOR GUIDE (#guide)                     */}
+        {/* ================================================================= */}
+        <section id="guide" className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="p-7 sm:p-9 rounded-3xl bg-[#02130a]/85 backdrop-blur-md border border-emerald-500/30 shadow-2xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-emerald-900/60 pb-5">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                  <Users className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Faculty & Evaluator Guide</h3>
+                  <p className="text-xs text-emerald-200/70 max-w-xl">
+                    A comprehensive guide for coordinators and evaluators to conduct and assess the tournament smoothly.
+                  </p>
+                </div>
+              </div>
+
               <Link
                 to="/admin/competition"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 self-start sm:self-auto shadow-md shadow-emerald-600/30 hover:scale-105"
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition-all flex items-center gap-2 self-start sm:self-auto shadow-md shadow-emerald-500/30 hover:scale-105 active:scale-95 shrink-0"
               >
                 <span>Launch Competition Engine</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-slate-950" />
               </Link>
             </div>
 
+            {/* 3 Step Interactive Pathway */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/20 space-y-1.5">
-                <span className="font-bold text-emerald-300 block">1. Seed Demo Roster</span>
+              {/* Step 01 */}
+              <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2 relative group hover:border-emerald-400/50 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    01
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-emerald-500/40 hidden md:block" />
+                </div>
+                <strong className="text-white block font-bold text-sm">Seed Demo Roster</strong>
                 <p className="text-emerald-200/70 leading-relaxed">
-                  Use the admin button to generate 20 demonstration teams with populated candidate rosters and credentials.
+                  Generate and manage demo teams with populated candidate rosters and credentials.
                 </p>
               </div>
-              <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/20 space-y-1.5">
-                <span className="font-bold text-emerald-300 block">2. Control Progression</span>
+
+              {/* Step 02 */}
+              <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2 relative group hover:border-emerald-400/50 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    02
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-emerald-500/40 hidden md:block" />
+                </div>
+                <strong className="text-white block font-bold text-sm">Control Progression</strong>
                 <p className="text-emerald-200/70 leading-relaxed">
-                  Start Round 1, observe server countdown, test pausing, conclude round, and use the shortlisting drawer to advance top teams.
+                  Manage arena flow and team advancement with live timers, pause, and shortlisting.
                 </p>
               </div>
-              <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/20 space-y-1.5">
-                <span className="font-bold text-emerald-300 block">3. Workspace Preview</span>
+
+              {/* Step 03 */}
+              <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2 relative group hover:border-emerald-400/50 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    03
+                  </span>
+                  <Sparkles className="w-4 h-4 text-emerald-400/60" />
+                </div>
+                <strong className="text-white block font-bold text-sm">Workspace Preview</strong>
                 <p className="text-emerald-200/70 leading-relaxed">
-                  Explore the IDE coding interface with problem statements, CodeMirror 6 editor, and test run triggers.
+                  Explore the collaborative coding interface with CodeMirror editor and test harness.
                 </p>
               </div>
             </div>
@@ -717,23 +725,23 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* ================================================================= */}
-        {/* SECTION F: CONSOLIDATED PUBLIC FOOTER                             */}
+        {/* SECTION 6: CONSOLIDATED PUBLIC FOOTER                             */}
         {/* ================================================================= */}
         <footer className="border-t border-emerald-900/60 pt-12 pb-8 bg-[#010804] text-slate-400">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               {/* Brand and Description */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-                  <Terminal className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                  <span className="font-mono font-black text-xs text-emerald-400">&lt;/&gt;</span>
                 </div>
                 <div>
                   <div className="text-base font-extrabold tracking-tight text-white flex items-center gap-1.5">
                     <span>IGNITRON</span>
                     <span className="text-emerald-400">2K26</span>
                   </div>
-                  <div className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-semibold">
-                    Code Relay Championship
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-400/90 font-semibold">
+                    CODING COLLAB
                   </div>
                 </div>
               </div>
@@ -742,42 +750,86 @@ export const LandingPage: React.FC = () => {
               <nav className="flex flex-wrap items-center justify-center gap-6 text-xs font-semibold font-mono text-emerald-200/80">
                 <button
                   type="button"
-                  onClick={scrollToTop}
-                  className="hover:text-emerald-400 transition-colors flex items-center gap-1"
+                  onClick={() => scrollToSection('top')}
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
                 >
-                  <ArrowUp className="w-3.5 h-3.5" />
-                  <span>Top</span>
+                  Home
                 </button>
                 <button
                   type="button"
-                  onClick={scrollToRules}
-                  className="hover:text-emerald-400 transition-colors"
+                  onClick={() => scrollToSection('format')}
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                >
+                  Format
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('arenas')}
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                >
+                  Arenas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRulebookOpen(true)}
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
                 >
                   Rules
                 </button>
-                <Link to="/register" className="hover:text-emerald-400 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('specifications')}
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                >
+                  Specifications
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('guide')}
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                >
+                  Guide
+                </button>
+              </nav>
+
+              {/* Auth Links */}
+              <div className="flex items-center gap-3 text-xs font-mono font-bold">
+                <Link
+                  to="/register"
+                  className="px-3 py-1.5 rounded-lg bg-emerald-400 text-slate-950 hover:bg-emerald-300 transition-all"
+                >
                   Register Team
                 </Link>
-                <Link to="/login" className="hover:text-emerald-400 transition-colors">
+                <Link
+                  to="/login"
+                  className="px-3 py-1.5 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-950/60 transition-all"
+                >
                   Team Login
                 </Link>
-                <Link to="/admin/login" className="hover:text-emerald-400 transition-colors">
-                  Admin Console
+                <Link
+                  to="/admin/login"
+                  className="px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-400/80 hover:bg-emerald-950/40 transition-all"
+                >
+                  Admin Login
                 </Link>
-              </nav>
+              </div>
             </div>
 
+            {/* Bottom Copyright and Details */}
             <div className="pt-6 border-t border-emerald-950/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-emerald-200/50">
               <p>
-                © 2026 IGNITRON — Code Relay Tournament Platform. Built for University Competitive Programming.
+                &copy; 2026 IGNITRON &mdash; Coding Collab. All Rights Reserved.
               </p>
               <p className="font-mono text-[11px]">
-                Engineered with React 18 • NestJS • Prisma • MySQL
+                Built for University Competitive Programming.
               </p>
             </div>
           </div>
         </footer>
       </div>
+
+      {/* Official Rule Book Modal (Integrates the 4-page official document) */}
+      <RulebookModal isOpen={isRulebookOpen} onClose={() => setIsRulebookOpen(false)} />
     </div>
   );
 };
