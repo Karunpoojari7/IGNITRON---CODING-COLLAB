@@ -323,6 +323,20 @@ export interface TeamCredentials {
   generatedAt: string;
 }
 
+export type BulkTeamActionType = 'ACTIVATE' | 'DEACTIVATE' | 'DELETE' | 'REVOKE_SESSIONS';
+
+export interface BulkTeamActionDto {
+  teamIds: string[];
+  action: BulkTeamActionType;
+}
+
+export interface BulkTeamActionResult {
+  success: boolean;
+  action: BulkTeamActionType;
+  affectedCount: number;
+  message: string;
+}
+
 export interface RecentRegistrationItem {
   id: string;
   teamCode: string;
@@ -481,7 +495,7 @@ export type RoundControlAction =
 export interface RoundControlDto {
   action: RoundControlAction;
   notes?: string;
-  resetType?: 'DEMO_ONLY' | 'FULL_RESET';
+  resetType?: 'DEMO_ONLY' | 'FULL_RESET' | 'COMPLETE_RESET';
   countdownDurationSeconds?: number;
   roundNumber?: number;
 }
@@ -590,6 +604,35 @@ export interface TeamCompetitionStatusDto {
   remainingDurationSeconds: number | null;
   roundHistory: TeamRoundHistoryItem[];
   roundCards?: CompetitionRoundCardItem[];
+  qualificationAnnouncement?: TeamQualificationAnnouncement | null;
+  winnerAnnouncement?: TeamWinnerAnnouncement | null;
+}
+
+export type ResultCelebrationType = 'QUALIFIED' | 'ELIMINATED' | 'GRAND_WINNER' | 'COMPLETED';
+
+export interface TeamQualificationAnnouncement {
+  id: string;
+  type: 'QUALIFIED' | 'ELIMINATED';
+  roundNumber: number;
+  roundName: string;
+  targetRoundNumber: number;
+  targetRoundName: string;
+  title: string;
+  message: string;
+  announcedAt: string;
+}
+
+export interface TeamWinnerAnnouncement {
+  id: string;
+  type: 'GRAND_WINNER' | 'COMPLETED';
+  isWinner: boolean;
+  winnerTeamName: string;
+  winnerTeamCode: string;
+  winnerScore: number;
+  institution?: string | null;
+  title: string;
+  message: string;
+  declaredAt: string;
 }
 
 export interface CompetitionActivityLogItem {
@@ -1108,11 +1151,13 @@ export interface AdminSubmissionListItem {
   questionTitle?: string | null;
   caseNumber?: number | null;
   language: string;
-  submissionStatus: SubmissionStatus;
+  submissionStatus: SubmissionStatus | 'NO_SUBMISSION' | 'TIMEOUT_FINALIZED' | string;
   score?: number | null;
-  submittedAt: string;
+  submittedAt: string | null;
   evaluatedAt?: string | null;
   evaluatorName?: string | null;
+  isAutoSubmit?: boolean;
+  verdict?: string | null;
 }
 
 export interface AdminSubmissionDetailDto {
