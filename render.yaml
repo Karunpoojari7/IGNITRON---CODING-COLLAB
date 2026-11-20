@@ -1,0 +1,45 @@
+# ==============================================================================
+# IGNITRON 2K26 — RENDER DEPLOYMENT BLUEPRINT (render.yaml)
+# Target Service: Containerized NestJS Backend API
+# Documentation: https://render.com/docs/blueprint-spec
+# ==============================================================================
+
+services:
+  - type: web
+    name: ignitron-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PREFIX
+        value: api
+      - key: BACKEND_PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+        # Note: Provide your MySQL connection string in the Render Dashboard
+        # Format: mysql://USER:PASSWORD@HOST:PORT/DATABASE?sslaccept=strict
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: ADMIN_EMAIL
+        value: admin@ignitron.local
+      - key: ADMIN_PASSWORD
+        sync: false
+        # Note: Set your secure initial admin password in the Render Dashboard
+      - key: ADMIN_FULL_NAME
+        value: IGNITRON System Administrator
+      - key: FRONTEND_URL
+        sync: false
+        # Note: Set to your deployed Vercel URL (e.g. https://your-project.vercel.app)
+      - key: JUDGE0_API_URL
+        value: http://localhost:2358
+      - key: JUDGE0_AUTH_TOKEN
+        sync: false
