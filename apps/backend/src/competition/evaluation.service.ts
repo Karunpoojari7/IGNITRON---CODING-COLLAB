@@ -149,6 +149,14 @@ export class EvaluationService {
 
     const latestEval = s.evaluations[0];
 
+    let bugReports = null;
+    if (s.round?.roundNumber === 2 && s.questionId) {
+      bugReports = await this.prisma.teamBugReport.findMany({
+        where: { teamId: s.teamId, questionId: s.questionId },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+
     return {
       id: s.id,
       teamId: s.teamId,
@@ -169,6 +177,7 @@ export class EvaluationService {
       submissionStatus: s.submissionStatus as SubmissionStatus,
       score: s.score !== null ? Number(s.score) : null,
       testCaseResults: s.testCaseResults,
+      bugReports,
       criteriaScores: (latestEval?.criteriaScores as Record<string, number>) || null,
       feedback: latestEval?.feedback || null,
       submittedAt: s.submittedAt.toISOString(),
@@ -258,17 +267,41 @@ export class EvaluationService {
             }
           }
 
-          // Case 1 (20) + Case 2 (25) + Case 3 Combined (45 case + 10 code quality = 55) = 100 max
-          finalRoundScore = Array.from(caseScores.values()).reduce((a, b) => a + b, 0);
-          finalRoundScore = Math.min(100, Math.max(0, finalRoundScore));
-
           const prevBreakdown = (progress.scoreBreakdown as Record<string, any>) || {};
           const cNum = submission.question?.caseNumber || 1;
+
+          // Check if code quality criteria were provided
+          let codeQualityAwarded = 0;
+          if (dto.criteriaScores) {
+            const cqKeys = ['clean_structure', 'data_structures', 'input_validation', 'algorithmic_efficiency', 'edge_cases'];
+            for (const k of cqKeys) {
+              if (dto.criteriaScores[k] !== undefined) {
+                codeQualityAwarded += Number(dto.criteriaScores[k] || 0);
+              }
+            }
+            if (dto.criteriaScores.codeQuality !== undefined) {
+              codeQualityAwarded = Number(dto.criteriaScores.codeQuality || 0);
+            }
+          }
+          codeQualityAwarded = Math.min(10, Math.max(0, codeQualityAwarded));
+
+          const case1Score = prevBreakdown.case1Score !== undefined ? Number(prevBreakdown.case1Score) : (caseScores.get(1) || 0);
+          const case2Score = prevBreakdown.case2Score !== undefined ? Number(prevBreakdown.case2Score) : (caseScores.get(2) || 0);
+          const case3Score = prevBreakdown.case3Score !== undefined ? Number(prevBreakdown.case3Score) : (caseScores.get(3) || 0);
+          const cqScore = codeQualityAwarded > 0 ? codeQualityAwarded : Number(prevBreakdown.codeQuality || 0);
+
+          finalRoundScore = Math.min(100, Math.max(0, case1Score + case2Score + case3Score + cqScore));
+
           scoreBreakdownToSave = {
             ...prevBreakdown,
             [`case${cNum}`]: dto.totalScore,
             [`case${cNum}Criteria`]: dto.criteriaScores,
             caseScores: Object.fromEntries(caseScores),
+            case1Score,
+            case2Score,
+            case3Score,
+            codeQuality: cqScore,
+            codeQualityCriteria: dto.criteriaScores,
             totalScore: finalRoundScore,
           };
         }
