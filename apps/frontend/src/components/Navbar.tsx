@@ -7,7 +7,6 @@ import {
   LogOut,
   Terminal,
   UserCheck,
-  BookOpen,
   UserPlus,
   ChevronDown,
   Menu,
@@ -47,28 +46,6 @@ export const Navbar: React.FC = () => {
   const isLanding = location.pathname === '/';
   const isActive = (path: string) => location.pathname === path;
 
-  const handleLogoClick = (e: React.MouseEvent) => {
-    if (isLanding) {
-      e.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const handleRulesClick = (e: React.MouseEvent) => {
-    if (isLanding) {
-      e.preventDefault();
-      const el = document.getElementById('rules');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
-        const hashEvent = new HashChangeEvent('hashchange');
-        window.location.hash = 'rules';
-        window.dispatchEvent(hashEvent);
-      }
-    } else {
-      navigate('/#rules');
-    }
-  };
-
   // Primary admin items (first 5) and secondary items for "More" dropdown (last 3)
   const primaryAdminItems = ADMIN_NAV_ITEMS.slice(0, 5);
   const secondaryAdminItems = ADMIN_NAV_ITEMS.slice(5);
@@ -76,54 +53,100 @@ export const Navbar: React.FC = () => {
     (item) => location.pathname === item.path,
   );
 
+  const scrollToSection = (id: string, e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (isLanding) {
+      if (id === 'top') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    } else {
+      navigate(`/#${id}`);
+    }
+    setMobileMenuOpen(false);
+  };
+
   // ---------------------------------------------------------------------------
-  // 1. Landing Page Navbar (Futuristic Glowing Dark Glassmorphism)
+  // 1. Landing Page Navbar (Centered Reference Design with Full Access)
   // ---------------------------------------------------------------------------
   if (isLanding) {
     return (
       <header className="sticky top-0 z-50 pt-3 sm:pt-4 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pointer-events-auto">
-        <div className="w-full bg-[#02130a]/80 backdrop-blur-xl border border-emerald-500/30 rounded-2xl px-4 sm:px-6 h-16 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.65)]">
+        <div className="w-full bg-[#02130a]/85 backdrop-blur-xl border border-emerald-500/30 rounded-2xl px-4 sm:px-6 h-16 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.65)]">
           {/* Brand — clicking on / scrolls smoothly to top */}
           <Link
             to="/"
-            onClick={handleLogoClick}
-            className="flex items-center gap-3 group"
+            onClick={(e) => scrollToSection('top', e)}
+            className="flex items-center gap-2.5 group shrink-0"
           >
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/60 flex items-center justify-center text-emerald-400 shadow-[0_0_18px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-transform">
-              <Terminal className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-transform">
+              <span className="font-mono font-black text-xs text-emerald-400">&lt;/&gt;</span>
             </div>
-            <div>
-              <div className="text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]">
-                <span>IGNITRON</span>
-                <span className="text-emerald-400">2K26</span>
-              </div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-400/90 font-semibold leading-tight">
-                Code Relay
-              </div>
+            <div className="text-sm sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+              <span>IGNITRON</span>
+              <span className="text-emerald-400">2K26</span>
             </div>
           </Link>
 
-          {/* Center Navigation: STRICTLY Rules ONLY (Workspace & Status removed) */}
-          <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-emerald-100/90 font-mono">
+          {/* Center Navigation Links (Home, Format, Arenas, Rules, Specifications, Guide) */}
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-xs font-semibold text-emerald-100/80 font-mono">
             <button
               type="button"
-              onClick={handleRulesClick}
-              className="flex items-center gap-1.5 text-emerald-200/80 hover:text-emerald-300 hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.8)] transition-all cursor-pointer"
+              onClick={(e) => scrollToSection('top', e)}
+              className="hover:text-emerald-300 transition-colors cursor-pointer py-1 border-b-2 border-emerald-400 text-emerald-400 font-bold"
             >
-              <BookOpen className="w-4 h-4 text-emerald-400" />
-              <span>Rules</span>
+              Home
+            </button>
+            <button
+              type="button"
+              onClick={(e) => scrollToSection('format', e)}
+              className="hover:text-emerald-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-emerald-500/50"
+            >
+              Format
+            </button>
+            <button
+              type="button"
+              onClick={(e) => scrollToSection('arenas', e)}
+              className="hover:text-emerald-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-emerald-500/50"
+            >
+              Arenas
+            </button>
+            <button
+              type="button"
+              onClick={(e) => scrollToSection('rules', e)}
+              className="hover:text-emerald-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-emerald-500/50"
+            >
+              Rules
+            </button>
+            <button
+              type="button"
+              onClick={(e) => scrollToSection('specifications', e)}
+              className="hover:text-emerald-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-emerald-500/50"
+            >
+              Specifications
+            </button>
+            <button
+              type="button"
+              onClick={(e) => scrollToSection('guide', e)}
+              className="hover:text-emerald-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-emerald-500/50"
+            >
+              Guide
             </button>
           </nav>
 
           {/* User Session / Public Auth CTAs */}
           <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <div className="hidden sm:flex flex-col text-right">
                   <span className="text-xs font-bold text-white">
                     {user.type === 'ADMIN' ? user.fullName : user.teamName}
                   </span>
-                  <span className="text-[11px] font-mono text-emerald-400/80 flex items-center justify-end gap-1">
+                  <span className="text-[10px] font-mono text-emerald-400/80 flex items-center justify-end gap-1">
                     {user.type === 'ADMIN' ? (
                       <span className="text-amber-400 font-bold tracking-wider">
                         [{user.role}]
@@ -156,43 +179,126 @@ export const Navbar: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 sm:gap-3">
-                {/* Mobile Rules Button */}
-                <button
-                  type="button"
-                  onClick={handleRulesClick}
-                  className="md:hidden p-2 rounded-xl border border-emerald-500/30 bg-emerald-950/40 text-emerald-200 hover:text-white transition-all"
-                  title="Rules"
-                >
-                  <BookOpen className="w-4 h-4 text-emerald-400" />
-                </button>
-
-                <Link
-                  to="/register"
-                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 text-slate-950 transition-all shadow-[0_0_20px_rgba(16,185,129,0.6)] hover:shadow-[0_0_30px_rgba(16,185,129,0.9)] hover:scale-105 active:scale-95 flex items-center gap-1.5"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Register Team</span>
-                </Link>
-
-                <Link
-                  to="/login"
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-emerald-500/40 bg-emerald-950/50 text-emerald-200 hover:bg-emerald-900/60 hover:text-white transition-all shadow-[0_0_12px_rgba(16,185,129,0.15)]"
-                >
-                  Team Login
-                </Link>
-
+              <div className="hidden sm:flex items-center gap-2.5">
+                {/* Admin Login Button */}
                 <Link
                   to="/admin/login"
-                  className="px-3 py-2 rounded-xl text-xs font-medium border border-emerald-500/30 bg-emerald-950/30 text-emerald-300/80 hover:bg-emerald-900/50 hover:text-emerald-100 transition-all flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium border border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
                 >
                   <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="hidden sm:inline">Admin</span>
+                  <span>Admin Login</span>
+                </Link>
+
+                {/* Team Login Button */}
+                <Link
+                  to="/login"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-emerald-500/40 bg-emerald-950/50 text-emerald-200 hover:bg-emerald-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Team Login</span>
+                </Link>
+
+                {/* Register Team Button */}
+                <Link
+                  to="/register"
+                  className="px-4 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-400 hover:bg-emerald-300 text-slate-950 transition-all shadow-[0_0_20px_rgba(16,185,129,0.6)] hover:shadow-[0_0_30px_rgba(16,185,129,0.9)] hover:scale-105 active:scale-95 flex items-center gap-1.5"
+                >
+                  <span>Register Team</span>
                 </Link>
               </div>
             )}
+
+            {/* Mobile Menu Hamburger Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl border border-emerald-500/30 bg-emerald-950/50 text-emerald-300 hover:text-white transition-all"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden mt-2 p-4 rounded-2xl bg-[#02130a]/95 backdrop-blur-2xl border border-emerald-500/40 shadow-2xl space-y-3 animate-fade-in text-xs font-mono">
+            <div className="grid grid-cols-2 gap-2 pb-3 border-b border-emerald-900/60">
+              <button
+                type="button"
+                onClick={(e) => scrollToSection('top', e)}
+                className="p-2 rounded-lg bg-emerald-950/40 text-emerald-200 text-left hover:text-white"
+              >
+                Home
+              </button>
+              <button
+                type="button"
+                onClick={(e) => scrollToSection('format', e)}
+                className="p-2 rounded-lg bg-emerald-950/40 text-emerald-200 text-left hover:text-white"
+              >
+                Format
+              </button>
+              <button
+                type="button"
+                onClick={(e) => scrollToSection('arenas', e)}
+                className="p-2 rounded-lg bg-emerald-950/40 text-emerald-200 text-left hover:text-white"
+              >
+                Arenas
+              </button>
+              <button
+                type="button"
+                onClick={(e) => scrollToSection('rules', e)}
+                className="p-2 rounded-lg bg-emerald-950/40 text-emerald-200 text-left hover:text-white"
+              >
+                Rules
+              </button>
+              <button
+                type="button"
+                onClick={(e) => scrollToSection('specifications', e)}
+                className="p-2 rounded-lg bg-emerald-950/40 text-emerald-200 text-left hover:text-white"
+              >
+                Specifications
+              </button>
+              <button
+                type="button"
+                onClick={(e) => scrollToSection('guide', e)}
+                className="p-2 rounded-lg bg-emerald-950/40 text-emerald-200 text-left hover:text-white"
+              >
+                Guide
+              </button>
+            </div>
+
+            {!user && (
+              <div className="space-y-2 pt-1">
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full py-2.5 rounded-xl text-center font-bold bg-emerald-400 text-slate-950 flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Register Team</span>
+                </Link>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-2 rounded-xl text-center border border-emerald-500/40 bg-emerald-950/60 text-emerald-200 flex items-center justify-center gap-1.5"
+                  >
+                    <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Team Login</span>
+                  </Link>
+                  <Link
+                    to="/admin/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-2 rounded-xl text-center border border-emerald-500/30 bg-emerald-950/40 text-emerald-300 flex items-center justify-center gap-1.5"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Admin Login</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </header>
     );
   }
@@ -216,8 +322,8 @@ export const Navbar: React.FC = () => {
                   <span className="text-emerald-600">2K26</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-800 font-semibold">
-                    Code Relay
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-800 font-bold">
+                    CODING COLLAB
                   </span>
                   <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
                     Admin
@@ -383,8 +489,8 @@ export const Navbar: React.FC = () => {
               <span>IGNITRON</span>
               <span className="text-emerald-600">2K26</span>
             </div>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-800 font-semibold">
-              Code Relay
+            <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-800 font-bold">
+              CODING COLLAB
             </div>
           </div>
         </Link>

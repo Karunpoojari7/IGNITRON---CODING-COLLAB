@@ -14,12 +14,12 @@ export const RootLayout: React.FC = () => {
   return (
     <div
       className={`flex flex-col min-h-screen font-sans ${
-        isDarkPage
+        isDarkPage || isArenaOrWorkspace
           ? 'bg-[#010905] text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-200'
           : 'bg-[#f8faf9] text-slate-800 selection:bg-emerald-500/20 selection:text-emerald-900'
       }`}
     >
-      <Navbar />
+      {!isArenaOrWorkspace && <Navbar />}
 
       {/* Main Content Area */}
       <main className="flex-1 w-full flex flex-col">
@@ -35,7 +35,7 @@ export const RootLayout: React.FC = () => {
               : 'border-t border-slate-200/80 bg-white/60 text-slate-500'
           }`}
         >
-          IGNITRON 2K26 — Code Relay • Official University Tournament Platform
+          IGNITRON 2K26 — CODING COLLAB • Official University Tournament Platform
         </footer>
       )}
     </div>
