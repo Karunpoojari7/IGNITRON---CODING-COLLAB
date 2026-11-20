@@ -120,6 +120,7 @@ model Team {
   sessions      TeamSession[]
   drafts        WorkspaceDraft[]
   mcqAnswers    TeamMcqAnswer[]
+  bugReports    TeamBugReport[]
 
   @@map("teams")
 }
@@ -416,6 +417,7 @@ model Question {
   explanation     String?      @db.Text @map("explanation") // For MCQ or bug solution review
   sampleTestCases Json?        @map("sample_test_cases") // [{ stdin, expectedOutput, explanation }]
   hiddenTestCases Json?        @map("hidden_test_cases") // [{ stdin, expectedOutput, marks }] - strictly protected
+  plantedBugs     Json?        @map("planted_bugs") // [{ key, name, description, lineNumber, expression, acceptableTokens }]
   rubric          Json?        @map("rubric") // Criteria breakdown for evaluation
   isActive        Boolean      @default(true) @map("is_active")
   createdAt       DateTime     @default(now()) @map("created_at")
@@ -424,6 +426,7 @@ model Question {
   round       CompetitionRound @relation(fields: [roundId], references: [id], onDelete: Restrict)
   submissions Submission[]
   mcqAnswers  TeamMcqAnswer[]
+  bugReports  TeamBugReport[]
 
   @@unique([roundId, orderNumber])
   @@index([roundId])
@@ -450,5 +453,26 @@ model TeamMcqAnswer {
   @@index([teamId])
   @@index([questionId])
   @@map("team_mcq_answers")
+}
+
+// ------------------------------------------------------------------------------
+// O. TEAM BUG REPORT (Round 2 Bug Hunt Identified Defect Tracking)
+// ------------------------------------------------------------------------------
+model TeamBugReport {
+  id           String   @id @default(cuid())
+  teamId       String   @map("team_id")
+  questionId   String   @map("question_id")
+  bugKey       String   @map("bug_key")
+  selectedText String?  @db.Text @map("selected_text")
+  lineNumber   Int?     @map("line_number")
+  identifiedBy String?  @map("identified_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, questionId, bugKey])
+  @@index([teamId, questionId])
+  @@map("team_bug_reports")
 }
 
