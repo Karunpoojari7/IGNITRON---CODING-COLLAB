@@ -1,13 +1,15 @@
 services:
   server:
-    image: judge0/judge0:v1.13.1
+    image: mrkushalsm/judge0@sha256:d60605ad448453ac3754629bc7121d379cf691e0c091aabbc03ff2886b2626b2
     container_name: ignitron-judge0-server
     restart: always
     privileged: true
+    env_file:
+      - ./judge0.local.conf
     volumes:
-      - ./judge0.conf:/judge0.conf:ro
+      - ./judge0.local.conf:/judge0.conf:ro
     ports:
-      - "2358:2358"
+      - "127.0.0.1:2358:2358"
     environment:
       - VIRTUAL_HOST=localhost
       - VIRTUAL_PORT=2358
@@ -20,13 +22,19 @@ services:
       - ignitron-judge0-net
 
   workers:
-    image: judge0/judge0:v1.13.1
+    image: mrkushalsm/judge0@sha256:d60605ad448453ac3754629bc7121d379cf691e0c091aabbc03ff2886b2626b2
     container_name: ignitron-judge0-workers
     command: ["./scripts/workers"]
     restart: always
     privileged: true
+    cgroup: host
+    environment:
+      - COUNT=1
+    env_file:
+      - ./judge0.local.conf
     volumes:
-      - ./judge0.conf:/judge0.conf:ro
+      - ./judge0.local.conf:/judge0.conf:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
     depends_on:
       db:
         condition: service_healthy
@@ -39,10 +47,11 @@ services:
     image: postgres:13.0
     container_name: ignitron-judge0-db
     restart: always
+    env_file:
+      - ./judge0.local.conf
     environment:
       POSTGRES_DB: judge0
       POSTGRES_USER: judge0
-      POSTGRES_PASSWORD: Judge0DbPass2026_Secured
     volumes:
       - judge0-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -57,7 +66,9 @@ services:
     image: redis:7.2-alpine
     container_name: ignitron-judge0-redis
     restart: always
-    command: ["redis-server", "--requirepass", "Judge0RedisPass2026_Secured"]
+    env_file:
+      - ./judge0.local.conf
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
     volumes:
       - judge0-redis-data:/data
     networks:
