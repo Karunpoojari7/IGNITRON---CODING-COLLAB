@@ -11,6 +11,12 @@ import {
   AdminSubmissionListItem,
   AdminSubmissionDetailDto,
   GradeSubmissionDto,
+  BugHuntArenaStateDto,
+  ReportBugDto,
+  ReportBugResultDto,
+  AnalyticsArenaStateDto,
+  DatasetMetaDto,
+  AnalyticsSubmissionResultDto,
 } from '@ignitron/shared';
 
 export interface ApiResponseWrapper<T> {
@@ -59,6 +65,10 @@ export const questionAndArenaService = {
       },
     );
     return res.data;
+  },
+
+  async togglePublish(id: string, isActive: boolean): Promise<QuestionDto> {
+    return this.updateQuestion(id, { isActive });
   },
 
   async deleteQuestion(id: string): Promise<{ success: boolean; message: string }> {
@@ -131,6 +141,22 @@ export const questionAndArenaService = {
         body: JSON.stringify(dto || {}),
       },
     );
+    return res.data;
+  },
+
+  // --------------------------------------------------------------------------
+  // ROUND 2 BUG HUNT ARENA
+  // --------------------------------------------------------------------------
+  async getBugHuntState(): Promise<BugHuntArenaStateDto> {
+    const res = await apiClient<ApiResponseWrapper<BugHuntArenaStateDto>>('/arena/bug-hunt/state');
+    return res.data;
+  },
+
+  async reportBug(dto: ReportBugDto): Promise<ReportBugResultDto> {
+    const res = await apiClient<ApiResponseWrapper<ReportBugResultDto>>('/arena/bug-hunt/report-bug', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
     return res.data;
   },
 
@@ -238,6 +264,127 @@ export const questionAndArenaService = {
         isCorrect: boolean;
       }>;
     }>>(`/competition/evaluation/teams/${teamId}/mcq`);
+    return res.data;
+  },
+
+  // --------------------------------------------------------------------------
+  // ROUND 3: EVENT ANALYTICS ARENA
+  // --------------------------------------------------------------------------
+  async getAnalyticsArenaState(): Promise<AnalyticsArenaStateDto> {
+    const res = await apiClient<ApiResponseWrapper<AnalyticsArenaStateDto>>(
+      '/arena/analytics/state',
+    );
+    return res.data;
+  },
+
+  async getDatasetMeta(): Promise<DatasetMetaDto> {
+    const res = await apiClient<ApiResponseWrapper<DatasetMetaDto>>(
+      '/arena/analytics/dataset-meta',
+    );
+    return res.data;
+  },
+
+  async getDatasetPreview(
+    filename: string,
+    page = 1,
+    limit = 20,
+    search?: string,
+  ): Promise<{
+    totalRows: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    columns: string[];
+    rows: Record<string, any>[];
+  }> {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (search && search.trim()) params.append('search', search.trim());
+
+    const res = await apiClient<ApiResponseWrapper<{
+      totalRows: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      columns: string[];
+      rows: Record<string, any>[];
+    }>>(`/arena/analytics/dataset-preview/${filename}?${params.toString()}`);
+    return res.data;
+  },
+
+  getDatasetDownloadUrl(filename: string): string {
+    return `/api/arena/analytics/dataset-download/${filename}`;
+  },
+
+  async saveAnalyticsDraft(questionId: string, sourceCode: string) {
+    const res = await apiClient<ApiResponseWrapper<{
+      success: boolean;
+      caseNumber: number;
+      version: number;
+      updatedAt: string;
+    }>>('/arena/analytics/draft', {
+      method: 'POST',
+      body: JSON.stringify({ questionId, sourceCode }),
+    });
+    return res.data;
+  },
+
+  async selectAnalyticsOption(questionId: string, selectedOption: 'A' | 'B' | 'C' | 'D') {
+    const res = await apiClient<ApiResponseWrapper<{
+      success: boolean;
+      questionId: string;
+      selectedOption: string;
+      savedAt: string;
+    }>>('/arena/analytics/select-option', {
+      method: 'POST',
+      body: JSON.stringify({ questionId, selectedOption }),
+    });
+    return res.data;
+  },
+
+  async testRunAnalytics(questionId: string, sourceCode: string) {
+    const res = await apiClient<ApiResponseWrapper<{
+      passedTests: number;
+      totalTests: number;
+      allPassed: boolean;
+      testCaseResults: any[];
+    }>>('/arena/analytics/test-run', {
+      method: 'POST',
+      body: JSON.stringify({ questionId, sourceCode }),
+    });
+    return res.data;
+  },
+
+  async submitAnalyticsQuestion(
+    questionId: string,
+    selectedOption?: 'A' | 'B' | 'C' | 'D',
+    sourceCode?: string,
+  ): Promise<AnalyticsSubmissionResultDto> {
+    const res = await apiClient<ApiResponseWrapper<AnalyticsSubmissionResultDto>>(
+      '/arena/analytics/submit-question',
+      {
+        method: 'POST',
+        body: JSON.stringify({ questionId, selectedOption, sourceCode }),
+      },
+    );
+    return res.data;
+  },
+
+  async finalizeRound3(): Promise<{
+    success: boolean;
+    message: string;
+    totalScore: number;
+    submittedAt?: string;
+  }> {
+    const res = await apiClient<ApiResponseWrapper<{
+      success: boolean;
+      message: string;
+      totalScore: number;
+      submittedAt?: string;
+    }>>('/arena/analytics/finalize', {
+      method: 'POST',
+    });
     return res.data;
   },
 };
