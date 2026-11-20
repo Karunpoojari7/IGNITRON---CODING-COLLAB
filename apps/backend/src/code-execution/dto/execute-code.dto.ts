@@ -11,7 +11,9 @@ import { EXECUTION_LIMITS } from '@ignitron/shared';
 
 export class ExecuteCodeDto {
   @IsOptional()
-  @IsIn(['cpp', 'java', 'python', 'javascript'])
+  @IsIn(['cpp', 'java', 'python', 'javascript'], {
+    message: 'Invalid languageKey. Supported execution languages are cpp, java, python, javascript. TypeScript is not supported.',
+  })
   languageKey?: 'cpp' | 'java' | 'python' | 'javascript';
 
   @IsOptional()
