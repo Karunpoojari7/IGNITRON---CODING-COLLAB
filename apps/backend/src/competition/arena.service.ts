@@ -348,7 +348,8 @@ export class ArenaService {
    * Final submission and automatic scoring for Round 1 MCQ
    */
   async submitMcqRound(teamUser: AuthTeamUser, autoSubmit = false): Promise<McqSubmissionResultDto> {
-    const { round, progress } = await this.assertRoundAccess(teamUser, 1, 'SUBMIT');
+    // Check READ access first to allow already-submitted teams to retrieve their authoritative result
+    const { round, progress } = await this.assertRoundAccess(teamUser, 1, 'READ');
 
     if (progress.participationStatus === 'SUBMITTED') {
       const breakdown = (progress.scoreBreakdown as any) || {};
@@ -356,11 +357,14 @@ export class ArenaService {
         totalQuestions: breakdown.totalQuestions || 15,
         answeredCount: breakdown.answeredCount || 0,
         correctCount: breakdown.correctCount || 0,
-        score: Number(progress.score),
+        score: Number(progress.score ?? 0),
         maximumMarks: 30,
         submittedAt: progress.submittedAt ? progress.submittedAt.toISOString() : new Date().toISOString(),
       };
     }
+
+    // Assert SUBMIT access for active round check, timer, and pause check
+    await this.assertRoundAccess(teamUser, 1, 'SUBMIT');
 
     // Fetch all questions for Round 1 with correct answers
     const questions = await this.prisma.question.findMany({
@@ -412,6 +416,51 @@ export class ArenaService {
         evaluatedAt: now,
       },
     });
+
+    // Ensure authoritative Submission record exists in submissions table
+    const existingSub = await this.prisma.submission.findFirst({
+      where: { teamId: teamUser.id, roundId: round.id, isTestRun: false },
+    });
+
+    if (existingSub) {
+      await this.prisma.submission.update({
+        where: { id: existingSub.id },
+        data: {
+          sourceCode: JSON.stringify(answers),
+          language: 'json',
+          score: calculatedScore,
+          submissionStatus: 'EVALUATED',
+          testCaseResults: {
+            totalQuestions: questions.length,
+            answeredCount,
+            correctCount,
+            autoSubmit,
+          },
+          submittedAt: now,
+          evaluatedAt: now,
+        },
+      });
+    } else {
+      await this.prisma.submission.create({
+        data: {
+          teamId: teamUser.id,
+          roundId: round.id,
+          sourceCode: JSON.stringify(answers),
+          language: 'json',
+          score: calculatedScore,
+          submissionStatus: 'EVALUATED',
+          isTestRun: false,
+          testCaseResults: {
+            totalQuestions: questions.length,
+            answeredCount,
+            correctCount,
+            autoSubmit,
+          },
+          submittedAt: now,
+          evaluatedAt: now,
+        },
+      });
+    }
 
     // Log activity
     await this.prisma.activityLog.create({
@@ -1100,6 +1149,12 @@ export class ArenaService {
       if (progress.participationStatus === 'SUBMITTED') {
         throw new BadRequestException('Round 2 has already been submitted by your team.');
       }
+      const existingR2Sub = await this.prisma.submission.findFirst({
+        where: { teamId: teamUser.id, roundId: round.id, isTestRun: false },
+      });
+      if (existingR2Sub) {
+        throw new BadRequestException('Round 2 has already been submitted by your team.');
+      }
       if (question) {
         const plantedBugs = (question.plantedBugs as any[]) ||
           (question.title === 'Bug Hunt: Distributed Token Bucket Rate Limiter' ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
@@ -1383,29 +1438,61 @@ export class ArenaService {
 
     const now = new Date();
 
-    // 11. Create Persistent Submission Record
-    const submission = await this.prisma.submission.create({
-      data: {
+    // 11. Create or Safely Upsert Persistent Submission Record
+    let submission;
+    const existingSubmission = await this.prisma.submission.findFirst({
+      where: {
         teamId: teamUser.id,
         roundId: round.id,
-        questionId: question?.id || null,
-        language: langConfig.key,
-        sourceCode,
-        stdin: testCasesToRun[0]?.stdin || null,
-        stdout: lastStdout,
-        stderr: firstStderr,
-        compileOutput: firstCompileOutput,
-        executionTime: maxExecutionTime > 0 ? String(maxExecutionTime) : null,
-        memoryUsage: maxMemoryUsage > 0 ? maxMemoryUsage : null,
-        submissionStatus: finalSubmissionStatus,
-        score: calculatedScore,
-        judge0Token: firstToken,
+        ...(roundNumber === 2 ? {} : { questionId: question?.id || null }),
         isTestRun: false,
-        testCaseResults: allTestCaseResults,
-        submittedAt: now,
-        evaluatedAt: now,
       },
     });
+
+    if (existingSubmission) {
+      submission = await this.prisma.submission.update({
+        where: { id: existingSubmission.id },
+        data: {
+          language: langConfig.key,
+          sourceCode,
+          stdin: testCasesToRun[0]?.stdin || null,
+          stdout: lastStdout,
+          stderr: firstStderr,
+          compileOutput: firstCompileOutput,
+          executionTime: maxExecutionTime > 0 ? String(maxExecutionTime) : null,
+          memoryUsage: maxMemoryUsage > 0 ? maxMemoryUsage : null,
+          submissionStatus: finalSubmissionStatus,
+          score: calculatedScore,
+          judge0Token: firstToken,
+          testCaseResults: allTestCaseResults,
+          submittedAt: now,
+          evaluatedAt: now,
+        },
+      });
+    } else {
+      submission = await this.prisma.submission.create({
+        data: {
+          teamId: teamUser.id,
+          roundId: round.id,
+          questionId: question?.id || null,
+          language: langConfig.key,
+          sourceCode,
+          stdin: testCasesToRun[0]?.stdin || null,
+          stdout: lastStdout,
+          stderr: firstStderr,
+          compileOutput: firstCompileOutput,
+          executionTime: maxExecutionTime > 0 ? String(maxExecutionTime) : null,
+          memoryUsage: maxMemoryUsage > 0 ? maxMemoryUsage : null,
+          submissionStatus: finalSubmissionStatus,
+          score: calculatedScore,
+          judge0Token: firstToken,
+          isTestRun: false,
+          testCaseResults: allTestCaseResults,
+          submittedAt: now,
+          evaluatedAt: now,
+        },
+      });
+    }
 
     // 12. Update Team Round Progress with Server-Authoritative Score
     if (roundNumber === 2) {
