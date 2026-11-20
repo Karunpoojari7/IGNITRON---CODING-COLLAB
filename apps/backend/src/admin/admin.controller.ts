@@ -23,6 +23,7 @@ import {
   CreateTeamDto,
   UpdateTeamDto,
   ToggleTeamStatusDto,
+  BulkTeamActionDto,
 } from './dto/admin-teams.dto';
 
 @Controller('admin')
@@ -70,6 +71,16 @@ export class AdminController {
   ) {
     const result = await this.adminService.createTeam(dto, user.id);
     return { success: true, ...result };
+  }
+
+  @Post('teams/bulk')
+  @HttpCode(HttpStatus.OK)
+  async bulkTeamAction(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: BulkTeamActionDto,
+  ) {
+    const result = await this.adminService.bulkTeamAction(dto, user.id);
+    return result;
   }
 
   @Patch('teams/:id')

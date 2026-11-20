@@ -11,7 +11,7 @@ import {
   IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TeamStatus } from '@ignitron/shared';
+import { TeamStatus, BulkTeamActionType } from '@ignitron/shared';
 
 export class ParticipantInputDto {
   @IsString()
@@ -101,5 +101,17 @@ export class UpdateTeamDto {
 export class ToggleTeamStatusDto {
   @IsBoolean()
   isActive!: boolean;
+}
+
+export class BulkTeamActionDto {
+  @IsArray()
+  @ArrayMinSize(1, { message: 'At least one team must be selected' })
+  @IsString({ each: true })
+  teamIds!: string[];
+
+  @IsEnum(['ACTIVATE', 'DEACTIVATE', 'DELETE', 'REVOKE_SESSIONS'] as const, {
+    message: 'Action must be ACTIVATE, DEACTIVATE, DELETE, or REVOKE_SESSIONS',
+  })
+  action!: BulkTeamActionType;
 }
 

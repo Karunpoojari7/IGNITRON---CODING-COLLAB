@@ -12,12 +12,15 @@ import {
   DashboardStatsDto,
   TeamListItem,
   TeamCredentials,
+  BulkTeamActionType,
+  BulkTeamActionResult,
 } from '@ignitron/shared';
 import { PrismaService } from '../database/prisma.service';
 import {
   CreateTeamDto,
   UpdateTeamDto,
   ToggleTeamStatusDto,
+  BulkTeamActionDto,
 } from './dto/admin-teams.dto';
 
 @Injectable()
@@ -663,5 +666,189 @@ export class AdminService {
       message: `Team "${team.teamName}" (${team.teamCode}) permanently deleted`,
       deletedTeamCode: team.teamCode,
     };
+  }
+
+  /**
+   * Execute bulk actions on multiple teams (ACTIVATE, DEACTIVATE, DELETE, REVOKE_SESSIONS)
+   */
+  async bulkTeamAction(dto: BulkTeamActionDto, adminId: string): Promise<BulkTeamActionResult> {
+    const { teamIds, action } = dto;
+    if (!teamIds || teamIds.length === 0) {
+      throw new BadRequestException('No teams provided for bulk operation');
+    }
+
+    // Verify existing teams
+    const existingTeams = await this.prisma.team.findMany({
+      where: { id: { in: teamIds } },
+      select: { id: true, teamCode: true, teamName: true },
+    });
+
+    const validIds = existingTeams.map((t) => t.id);
+    if (validIds.length === 0) {
+      throw new NotFoundException('None of the specified teams were found');
+    }
+
+    switch (action) {
+      case 'ACTIVATE': {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.team.updateMany({
+            where: { id: { in: validIds } },
+            data: { isActive: true },
+          });
+
+          await tx.activityLog.create({
+            data: {
+              actorType: 'ADMIN',
+              actorId: adminId,
+              action: 'TEAMS_BULK_ACTIVATED',
+              description: `Admin activated ${validIds.length} teams in bulk`,
+              metadata: { teamIds: validIds, count: validIds.length },
+            },
+          });
+        });
+
+        return {
+          success: true,
+          action,
+          affectedCount: validIds.length,
+          message: `Successfully activated ${validIds.length} team(s)`,
+        };
+      }
+
+      case 'DEACTIVATE': {
+        const revokedCount = await this.prisma.$transaction(async (tx) => {
+          await tx.team.updateMany({
+            where: { id: { in: validIds } },
+            data: { isActive: false },
+          });
+
+          // Revoke active sessions for all deactivated teams
+          const sessions = await tx.teamSession.updateMany({
+            where: { teamId: { in: validIds }, status: 'ACTIVE' },
+            data: {
+              status: 'REVOKED',
+              terminationReason: 'ADMIN_REVOKED',
+              logoutAt: new Date(),
+            },
+          });
+
+          await tx.activityLog.create({
+            data: {
+              actorType: 'ADMIN',
+              actorId: adminId,
+              action: 'TEAMS_BULK_DEACTIVATED',
+              description: `Admin deactivated ${validIds.length} teams in bulk and revoked ${sessions.count} active sessions`,
+              metadata: { teamIds: validIds, count: validIds.length, sessionsRevoked: sessions.count },
+            },
+          });
+
+          return sessions.count;
+        });
+
+        return {
+          success: true,
+          action,
+          affectedCount: validIds.length,
+          message: `Successfully deactivated ${validIds.length} team(s)${revokedCount > 0 ? ` and revoked ${revokedCount} active session(s)` : ''}`,
+        };
+      }
+
+      case 'REVOKE_SESSIONS': {
+        const revokedCount = await this.prisma.$transaction(async (tx) => {
+          const sessions = await tx.teamSession.updateMany({
+            where: { teamId: { in: validIds }, status: 'ACTIVE' },
+            data: {
+              status: 'REVOKED',
+              terminationReason: 'ADMIN_REVOKED',
+              logoutAt: new Date(),
+            },
+          });
+
+          await tx.activityLog.create({
+            data: {
+              actorType: 'ADMIN',
+              actorId: adminId,
+              action: 'TEAMS_BULK_SESSIONS_REVOKED',
+              description: `Admin revoked active sessions for ${validIds.length} teams (${sessions.count} sessions terminated)`,
+              metadata: { teamIds: validIds, count: validIds.length, sessionsRevoked: sessions.count },
+            },
+          });
+
+          return sessions.count;
+        });
+
+        return {
+          success: true,
+          action,
+          affectedCount: revokedCount,
+          message: `Successfully revoked ${revokedCount} active session(s) across selected teams`,
+        };
+      }
+
+      case 'DELETE': {
+        await this.prisma.$transaction(async (tx) => {
+          // 1. Delete evaluations for submissions of these teams
+          const submissions = await tx.submission.findMany({
+            where: { teamId: { in: validIds } },
+            select: { id: true },
+          });
+          const subIds = submissions.map((s) => s.id);
+          if (subIds.length > 0) {
+            await tx.evaluation.deleteMany({
+              where: { submissionId: { in: subIds } },
+            });
+          }
+
+          // 2. Delete team bug reports
+          await tx.teamBugReport.deleteMany({ where: { teamId: { in: validIds } } });
+
+          // 3. Delete submissions
+          await tx.submission.deleteMany({ where: { teamId: { in: validIds } } });
+
+          // 4. Delete workspace drafts
+          await tx.workspaceDraft.deleteMany({ where: { teamId: { in: validIds } } });
+
+          // 5. Delete MCQ answers
+          await tx.teamMcqAnswer.deleteMany({ where: { teamId: { in: validIds } } });
+
+          // 6. Delete team round progress
+          await tx.teamRoundProgress.deleteMany({ where: { teamId: { in: validIds } } });
+
+          // 7. Delete team sessions
+          await tx.teamSession.deleteMany({ where: { teamId: { in: validIds } } });
+
+          // 8. Delete participants
+          await tx.participant.deleteMany({ where: { teamId: { in: validIds } } });
+
+          // 9. Delete teams
+          await tx.team.deleteMany({ where: { id: { in: validIds } } });
+
+          // 10. Audit log
+          await tx.activityLog.create({
+            data: {
+              actorType: 'ADMIN',
+              actorId: adminId,
+              action: 'TEAMS_BULK_DELETED',
+              description: `Admin permanently deleted ${validIds.length} teams in bulk`,
+              metadata: {
+                teamIds: validIds,
+                count: validIds.length,
+                teams: existingTeams.map((t) => `${t.teamName} (${t.teamCode})`),
+              },
+            },
+          });
+        });
+
+        return {
+          success: true,
+          action,
+          affectedCount: validIds.length,
+          message: `Successfully deleted ${validIds.length} team(s) and cascaded all associated data`,
+        };
+      }
+
+      default:
+        throw new BadRequestException(`Unsupported bulk action: ${action}`);
+    }
   }
 }
