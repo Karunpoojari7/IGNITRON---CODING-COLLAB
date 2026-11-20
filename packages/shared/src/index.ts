@@ -618,7 +618,7 @@ export const EXECUTION_LIMITS = {
 
 export interface SupportedLanguageItem {
   id: number;
-  key: 'cpp' | 'java' | 'python' | 'javascript';
+  key: 'c' | 'cpp' | 'java' | 'python' | 'javascript';
   name: string;
   version: string;
   extension: string;
@@ -626,6 +626,14 @@ export interface SupportedLanguageItem {
 }
 
 export const OFFICIAL_JUDGE0_LANGUAGES: SupportedLanguageItem[] = [
+  {
+    id: 50,
+    key: 'c',
+    name: 'C (GCC 9.2.0)',
+    version: '9.2.0',
+    extension: 'c',
+    monacoLang: 'c',
+  },
   {
     id: 54,
     key: 'cpp',
@@ -661,7 +669,7 @@ export const OFFICIAL_JUDGE0_LANGUAGES: SupportedLanguageItem[] = [
 ];
 
 export interface CodeExecutionRequestDto {
-  languageKey?: 'cpp' | 'java' | 'python' | 'javascript';
+  languageKey?: 'c' | 'cpp' | 'java' | 'python' | 'javascript';
   languageId?: number;
   sourceCode: string;
   stdin?: string;
@@ -904,7 +912,8 @@ export interface QuestionDto {
   explanation?: string | null; // Admin only
   sampleTestCases?: TestCaseDto[] | null;
   hiddenTestCases?: TestCaseDto[] | null; // Admin only
-  rubric?: Record<string, number> | null;
+  plantedBugs?: BugHuntPlantedBug[] | null; // Admin & Round 2 evaluation
+  rubric?: Record<string, any> | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -923,7 +932,7 @@ export interface SanitizedQuestionDto {
   marks: number;
   options?: string[] | null;
   sampleTestCases?: TestCaseDto[] | null;
-  rubric?: Record<string, number> | null;
+  rubric?: Record<string, any> | null;
 }
 
 export interface CreateQuestionDto {
@@ -941,7 +950,8 @@ export interface CreateQuestionDto {
   explanation?: string | null;
   sampleTestCases?: TestCaseDto[] | null;
   hiddenTestCases?: TestCaseDto[] | null;
-  rubric?: Record<string, number> | null;
+  plantedBugs?: BugHuntPlantedBug[] | null;
+  rubric?: Record<string, any> | null;
   isActive?: boolean;
 }
 
@@ -960,7 +970,8 @@ export interface UpdateQuestionDto {
   explanation?: string | null;
   sampleTestCases?: TestCaseDto[] | null;
   hiddenTestCases?: TestCaseDto[] | null;
-  rubric?: Record<string, number> | null;
+  plantedBugs?: BugHuntPlantedBug[] | null;
+  rubric?: Record<string, any> | null;
   isActive?: boolean;
 }
 
@@ -1006,6 +1017,83 @@ export interface McqSubmissionResultDto {
 }
 
 // ------------------------------------------------------------------------------
+// BUG HUNT ARENA (ROUND 2)
+// ------------------------------------------------------------------------------
+
+export interface BugHuntPlantedBug {
+  key: string;
+  name?: string;
+  description: string;
+  lineNumber: number;
+  expression: string;
+  correctedExpression?: string;
+  notes?: string;
+  acceptableTokens: string[];
+  startOffset?: number;
+  endOffset?: number;
+  codeHash?: string;
+  range?: {
+    startLine?: number;
+    startCol?: number;
+    endLine?: number;
+    endCol?: number;
+  };
+}
+
+export interface BugHuntIdentifiedBugDto {
+  bugKey: string;
+  selectedText?: string | null;
+  lineNumber?: number | null;
+  startOffset?: number | null;
+  endOffset?: number | null;
+  identifiedAt: string;
+  bugName?: string;
+  description?: string;
+}
+
+export interface BugHuntArenaStateDto {
+  roundNumber: 2;
+  questionId: string;
+  title: string;
+  description: string;
+  faultyCode: string;
+  language: string;
+  totalRequired: number;
+  identifiedCount: number;
+  isInvestigationComplete: boolean;
+  isRepairUnlocked: boolean;
+  isSubmitted: boolean;
+  score?: number | null;
+  scoreBreakdown?: any;
+  identifiedBugs: BugHuntIdentifiedBugDto[];
+  sampleTestCases?: TestCaseDto[];
+  remainingSeconds: number;
+  isPaused: boolean;
+  deadlineAt?: string | null;
+}
+
+export interface ReportBugDto {
+  questionId: string;
+  selectedText: string;
+  lineNumber?: number;
+  startOffset?: number;
+  endOffset?: number;
+}
+
+export interface ReportBugResultDto {
+  isCorrect: boolean;
+  isDuplicate?: boolean;
+  bugKey?: string;
+  bugName?: string;
+  message: string;
+  identifiedCount: number;
+  totalRequired: number;
+  isInvestigationComplete: boolean;
+  isRepairUnlocked?: boolean;
+  identifiedBugs: BugHuntIdentifiedBugDto[];
+}
+
+// ------------------------------------------------------------------------------
 // EVALUATION & MANUAL GRADING (ROUNDS 2 & 3)
 // ------------------------------------------------------------------------------
 
@@ -1047,6 +1135,7 @@ export interface AdminSubmissionDetailDto {
   submissionStatus: SubmissionStatus;
   score?: number | null;
   testCaseResults?: any;
+  bugReports?: any;
   criteriaScores?: Record<string, number> | null;
   feedback?: string | null;
   submittedAt: string;
@@ -1059,6 +1148,150 @@ export interface GradeSubmissionDto {
   criteriaScores?: Record<string, number>;
   feedback?: string;
 }
+
+// ------------------------------------------------------------------------------
+// ROUND 3: IGNITRON EVENT ANALYTICS ENGINE
+// ------------------------------------------------------------------------------
+
+export interface AnalyticsQuestionOptionDto {
+  key: 'A' | 'B' | 'C' | 'D';
+  label: string;
+  code?: string;
+  explanation?: string;
+}
+
+export interface AnalyticsTestCaseSummaryDto {
+  caseIndex: number;
+  name: string;
+  stdin: string;
+  expectedOutput: string;
+  explanation?: string;
+}
+
+export interface AnalyticsQuestionDto {
+  id: string;
+  orderNumber: number; // 1 to 6
+  caseNumber: 1 | 2 | 3;
+  caseTitle: string;
+  title: string;
+  difficulty: 'EASY' | 'MEDIUM' | 'ADVANCED' | 'EXPERT';
+  marks: number;
+  format: 'SELECT_CODE' | 'WRITE_CODE';
+  technology: string;
+  concept: string;
+  description: string;
+  fixtureDescription?: string;
+  fixtureTable?: Record<string, any>[];
+  options?: AnalyticsQuestionOptionDto[];
+  starterCode: string;
+  sampleTestCases: AnalyticsTestCaseSummaryDto[];
+  status: 'UNATTEMPTED' | 'DRAFT' | 'SAVED' | 'SUBMITTED';
+  selectedOption?: 'A' | 'B' | 'C' | 'D' | null;
+  savedCode?: string | null;
+  score?: number | null;
+  isSubmitted?: boolean;
+}
+
+export interface DatasetFileMetaDto {
+  filename: string;
+  title: string;
+  description: string;
+  recordCount: number;
+  columns: string[];
+  previewRows: Record<string, any>[];
+}
+
+export interface DatasetMetaDto {
+  datasetName: string;
+  version: string;
+  description: string;
+  files: DatasetFileMetaDto[];
+}
+
+export interface AnalyticsCaseDto {
+  caseNumber: 1 | 2 | 3;
+  caseTitle: string;
+  caseDescription: string;
+  totalMarks: number;
+  questions: AnalyticsQuestionDto[];
+}
+
+export interface AnalyticsArenaStateDto {
+  roundNumber: 3;
+  roundName: string;
+  roundStatus: string;
+  remainingSeconds: number;
+  isPaused: boolean;
+  isSubmitted: boolean;
+  totalScore: number;
+  scoreBreakdown?: any;
+  cases: AnalyticsCaseDto[];
+  dataset: DatasetMetaDto;
+  activeParticipantId?: string;
+  activeParticipantName?: string;
+  activeParticipantRole?: string;
+}
+
+export interface SaveAnalyticsDraftDto {
+  questionId: string;
+  sourceCode: string;
+}
+
+export interface SelectAnalyticsOptionDto {
+  questionId: string;
+  selectedOption: 'A' | 'B' | 'C' | 'D';
+}
+
+export interface SubmitAnalyticsQuestionDto {
+  questionId: string;
+  selectedOption?: 'A' | 'B' | 'C' | 'D';
+  sourceCode?: string;
+}
+
+export interface AnalyticsTestCaseResultDto {
+  caseIndex: number;
+  isHidden: boolean;
+  passed: boolean;
+  status: string;
+  executionTime?: string | null;
+  memory?: number | null;
+  stdin?: string;
+  expectedOutput?: string;
+  actualOutput?: string;
+  compileOutput?: string | null;
+  stderr?: string | null;
+}
+
+export interface AnalyticsSubmissionResultDto {
+  submissionId: string;
+  questionId: string;
+  orderNumber: number;
+  caseNumber: number;
+  status: 'ACCEPTED' | 'WRONG_ANSWER' | 'COMPILATION_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
+  isCorrect: boolean;
+  score: number;
+  maximumMarks: number;
+  passedCount: number;
+  totalCount: number;
+  message: string;
+  stdout?: string | null;
+  stderr?: string | null;
+  compileOutput?: string | null;
+  testCaseResults?: AnalyticsTestCaseResultDto[];
+}
+
+export interface CodeQualityRubricCriterionDto {
+  id: string;
+  name: string;
+  maxMarks: number;
+  description: string;
+}
+
+export interface CodeQualityRubricDto {
+  totalMarks: number;
+  criteria: CodeQualityRubricCriterionDto[];
+}
+
 
 
 
