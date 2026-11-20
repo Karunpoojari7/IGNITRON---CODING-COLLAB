@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { adminService } from '../../services/admin.service';
 import {
   TeamListItem,
   TeamCredentials,
   CreateTeamDto,
+  BulkTeamActionType,
 } from '@ignitron/shared';
 import {
   Users,
@@ -24,6 +25,7 @@ import {
   Clock,
   Trash2,
   CheckCircle2,
+  CheckSquare,
 } from 'lucide-react';
 
 export const TeamManagementPage: React.FC = () => {
@@ -39,6 +41,15 @@ export const TeamManagementPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [successNotification, setSuccessNotification] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Bulk Selection & Action State
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+  const [bulkActionModal, setBulkActionModal] = useState<{
+    action: BulkTeamActionType;
+    count: number;
+  } | null>(null);
+  const [isBulkExecuting, setIsBulkExecuting] = useState(false);
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   // Create team form state
   const [newTeam, setNewTeam] = useState<CreateTeamDto>({
@@ -68,6 +79,50 @@ export const TeamManagementPage: React.FC = () => {
   useEffect(() => {
     fetchTeams();
   }, [search, statusFilter]);
+
+  // Sync indeterminate state on header selection checkbox
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      const allSelected = teams.length > 0 && teams.every((t) => selectedTeamIds.includes(t.id));
+      const someSelected = teams.some((t) => selectedTeamIds.includes(t.id));
+      headerCheckboxRef.current.indeterminate = someSelected && !allSelected;
+    }
+  }, [teams, selectedTeamIds]);
+
+  const handleToggleSelectAll = () => {
+    const allSelected = teams.length > 0 && teams.every((t) => selectedTeamIds.includes(t.id));
+    if (allSelected) {
+      const visibleIds = new Set(teams.map((t) => t.id));
+      setSelectedTeamIds((prev) => prev.filter((id) => !visibleIds.has(id)));
+    } else {
+      const combined = new Set([...selectedTeamIds, ...teams.map((t) => t.id)]);
+      setSelectedTeamIds(Array.from(combined));
+    }
+  };
+
+  const handleToggleSelectTeam = (teamId: string) => {
+    setSelectedTeamIds((prev) =>
+      prev.includes(teamId)
+        ? prev.filter((id) => id !== teamId)
+        : [...prev, teamId],
+    );
+  };
+
+  const handleExecuteBulkAction = async () => {
+    if (!bulkActionModal || selectedTeamIds.length === 0) return;
+    setIsBulkExecuting(true);
+    try {
+      const res = await adminService.bulkTeamAction(selectedTeamIds, bulkActionModal.action);
+      setSuccessNotification(res.message);
+      setBulkActionModal(null);
+      setSelectedTeamIds([]);
+      await fetchTeams();
+    } catch (err: any) {
+      alert(err?.message || `Failed to execute bulk ${bulkActionModal.action}`);
+    } finally {
+      setIsBulkExecuting(false);
+    }
+  };
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +158,7 @@ export const TeamManagementPage: React.FC = () => {
     try {
       await adminService.deleteTeam(deleteTarget.id);
       setSuccessNotification(`Team "${deleteTarget.name}" (${deleteTarget.code}) Deleted Successfully`);
+      setSelectedTeamIds((prev) => prev.filter((id) => id !== deleteTarget.id));
       setDeleteTarget(null);
       await fetchTeams();
     } catch (err: any) {
@@ -279,12 +335,95 @@ export const TeamManagementPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Bulk Action Bar (Visible when teams are selected) */}
+      {selectedTeamIds.length > 0 && (
+        <div className="p-3.5 rounded-2xl bg-emerald-950 text-white border border-emerald-800 shadow-md flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-900/80 rounded-xl border border-emerald-700/60 text-xs font-semibold text-emerald-200">
+              <CheckSquare className="w-4 h-4 text-emerald-400" />
+              <span>{selectedTeamIds.length} team{selectedTeamIds.length > 1 ? 's' : ''} selected</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleSelectAll}
+              className="text-xs text-emerald-300 hover:text-white underline font-medium transition-colors cursor-pointer"
+            >
+              {teams.length > 0 && teams.every((t) => selectedTeamIds.includes(t.id))
+                ? 'Deselect visible'
+                : `Select all visible (${teams.length})`}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap justify-end w-full sm:w-auto">
+            {/* Bulk Activate */}
+            <button
+              type="button"
+              onClick={() => setBulkActionModal({ action: 'ACTIVATE', count: selectedTeamIds.length })}
+              className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 font-semibold text-xs rounded-xl border border-emerald-600/50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Activate</span>
+            </button>
+
+            {/* Bulk Deactivate */}
+            <button
+              type="button"
+              onClick={() => setBulkActionModal({ action: 'DEACTIVATE', count: selectedTeamIds.length })}
+              className="px-3 py-1.5 bg-amber-900/60 hover:bg-amber-900/80 text-amber-200 font-semibold text-xs rounded-xl border border-amber-700/60 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <UserX className="w-3.5 h-3.5 text-amber-300" />
+              <span>Deactivate</span>
+            </button>
+
+            {/* Bulk Revoke Sessions */}
+            <button
+              type="button"
+              onClick={() => setBulkActionModal({ action: 'REVOKE_SESSIONS', count: selectedTeamIds.length })}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl border border-slate-600/50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+              <span>Revoke Sessions</span>
+            </button>
+
+            {/* Bulk Delete */}
+            <button
+              type="button"
+              onClick={() => setBulkActionModal({ action: 'DELETE', count: selectedTeamIds.length })}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 shadow-sm shadow-rose-900/50 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected</span>
+            </button>
+
+            {/* Clear Selection */}
+            <button
+              type="button"
+              onClick={() => setSelectedTeamIds([])}
+              title="Clear selection"
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer ml-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Teams Table */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 text-slate-600 uppercase font-mono text-[10px] tracking-wider border-b border-slate-200">
               <tr>
+                <th className="py-3 px-4 w-12 text-center">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={teams.length > 0 && teams.every((t) => selectedTeamIds.includes(t.id))}
+                    onChange={handleToggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                    title={teams.length > 0 && teams.every((t) => selectedTeamIds.includes(t.id)) ? "Deselect all visible" : "Select all visible"}
+                  />
+                </th>
                 <th className="py-3 px-4">Code</th>
                 <th className="py-3 px-4">Team & Institution</th>
                 <th className="py-3 px-4">Contestants (Exactly 2)</th>
@@ -297,24 +436,44 @@ export const TeamManagementPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100 font-sans">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500 font-mono">
+                  <td colSpan={8} className="py-12 text-center text-slate-500 font-mono">
                     <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                     Loading team roster...
                   </td>
                 </tr>
               ) : teams.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                  <td colSpan={8} className="py-12 text-center text-slate-500">
                     No teams found matching search criteria.
                   </td>
                 </tr>
               ) : (
-                teams.map((team) => (
-                  <tr key={team.id} className="hover:bg-slate-50/70 transition-colors">
-                    {/* Team Code */}
-                    <td className="py-3.5 px-4 font-mono font-bold text-emerald-800">
-                      {team.teamCode}
-                    </td>
+                teams.map((team) => {
+                  const isSelected = selectedTeamIds.includes(team.id);
+                  return (
+                    <tr
+                      key={team.id}
+                      className={`transition-colors ${
+                        isSelected
+                          ? 'bg-emerald-50/70 hover:bg-emerald-100/60'
+                          : 'hover:bg-slate-50/70'
+                      }`}
+                    >
+                      {/* Selection Box */}
+                      <td className="py-3.5 px-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectTeam(team.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                          aria-label={`Select team ${team.teamName}`}
+                        />
+                      </td>
+
+                      {/* Team Code */}
+                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-800">
+                        {team.teamCode}
+                      </td>
 
                     {/* Team Name */}
                     <td className="py-3.5 px-4">
@@ -425,8 +584,9 @@ export const TeamManagementPage: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })
+            )}
             </tbody>
           </table>
         </div>
@@ -678,6 +838,124 @@ export const TeamManagementPage: React.FC = () => {
                   <>Deleting Team...</>
                 ) : (
                   <>Permanently Delete Team</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Bulk Action Confirmation */}
+      {bulkActionModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className={`p-2.5 rounded-xl border ${
+                  bulkActionModal.action === 'DELETE'
+                    ? 'bg-rose-50 border-rose-200 text-rose-600'
+                    : bulkActionModal.action === 'DEACTIVATE'
+                    ? 'bg-amber-50 border-amber-200 text-amber-600'
+                    : bulkActionModal.action === 'REVOKE_SESSIONS'
+                    ? 'bg-slate-100 border-slate-300 text-slate-700'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                }`}
+              >
+                {bulkActionModal.action === 'DELETE' ? (
+                  <Trash2 className="w-5 h-5" />
+                ) : bulkActionModal.action === 'DEACTIVATE' ? (
+                  <UserX className="w-5 h-5" />
+                ) : bulkActionModal.action === 'REVOKE_SESSIONS' ? (
+                  <ShieldAlert className="w-5 h-5" />
+                ) : (
+                  <UserCheck className="w-5 h-5" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">
+                  {bulkActionModal.action === 'DELETE'
+                    ? `Permanently Delete ${bulkActionModal.count} Teams?`
+                    : bulkActionModal.action === 'DEACTIVATE'
+                    ? `Deactivate ${bulkActionModal.count} Teams?`
+                    : bulkActionModal.action === 'REVOKE_SESSIONS'
+                    ? `Revoke Active Sessions for ${bulkActionModal.count} Teams?`
+                    : `Activate ${bulkActionModal.count} Teams?`}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {bulkActionModal.action === 'DELETE'
+                    ? 'This action is irreversible and permanently deletes database records'
+                    : 'Confirm bulk status change for the selected roster'}
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`rounded-xl p-4 mb-5 space-y-2.5 text-xs ${
+                bulkActionModal.action === 'DELETE'
+                  ? 'bg-rose-50/80 border border-rose-200 text-rose-900'
+                  : bulkActionModal.action === 'DEACTIVATE'
+                  ? 'bg-amber-50/80 border border-amber-200 text-amber-900'
+                  : bulkActionModal.action === 'REVOKE_SESSIONS'
+                  ? 'bg-slate-50 border border-slate-200 text-slate-800'
+                  : 'bg-emerald-50/80 border border-emerald-200 text-emerald-900'
+              }`}
+            >
+              <p className="font-semibold leading-relaxed">
+                {bulkActionModal.action === 'DELETE'
+                  ? `You are about to delete ${bulkActionModal.count} selected teams. All credentials, participant profiles, submissions, test execution telemetry, and scores will be permanently deleted.`
+                  : bulkActionModal.action === 'DEACTIVATE'
+                  ? `Deactivating ${bulkActionModal.count} teams will block contestant logins and immediately terminate any active participant terminal sessions.`
+                  : bulkActionModal.action === 'REVOKE_SESSIONS'
+                  ? `This will terminate all currently active participant terminal sessions for the ${bulkActionModal.count} selected teams, requiring contestants to re-authenticate.`
+                  : `Activating ${bulkActionModal.count} teams will enable their accounts and allow registered contestants to log in and participate in active arenas.`}
+              </p>
+
+              {/* Selected teams preview list */}
+              <div className="bg-white/90 rounded-lg p-3 border border-slate-200/80 max-h-40 overflow-y-auto space-y-1.5 font-mono text-[11px]">
+                {teams
+                  .filter((t) => selectedTeamIds.includes(t.id))
+                  .map((t) => (
+                    <div key={t.id} className="flex items-center justify-between py-0.5 border-b border-slate-100 last:border-0">
+                      <span className="font-bold text-slate-800 truncate mr-2">{t.teamName}</span>
+                      <span className="text-emerald-700 font-semibold shrink-0">{t.teamCode}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isBulkExecuting}
+                onClick={() => setBulkActionModal(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isBulkExecuting}
+                onClick={handleExecuteBulkAction}
+                className={`px-4 py-2 rounded-xl text-white text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1.5 cursor-pointer ${
+                  bulkActionModal.action === 'DELETE'
+                    ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-900/30'
+                    : bulkActionModal.action === 'DEACTIVATE'
+                    ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/30'
+                    : bulkActionModal.action === 'REVOKE_SESSIONS'
+                    ? 'bg-slate-700 hover:bg-slate-600'
+                    : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/30'
+                }`}
+              >
+                {isBulkExecuting ? (
+                  <>Processing...</>
+                ) : bulkActionModal.action === 'DELETE' ? (
+                  <>Permanently Delete {bulkActionModal.count} Teams</>
+                ) : bulkActionModal.action === 'DEACTIVATE' ? (
+                  <>Deactivate {bulkActionModal.count} Teams</>
+                ) : bulkActionModal.action === 'REVOKE_SESSIONS' ? (
+                  <>Revoke {bulkActionModal.count} Sessions</>
+                ) : (
+                  <>Activate {bulkActionModal.count} Teams</>
                 )}
               </button>
             </div>

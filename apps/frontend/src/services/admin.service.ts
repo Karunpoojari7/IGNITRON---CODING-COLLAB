@@ -4,6 +4,8 @@ import {
   TeamCredentials,
   CreateTeamDto,
   UpdateTeamDto,
+  BulkTeamActionType,
+  BulkTeamActionResult,
 } from '@ignitron/shared';
 import { apiClient } from './api';
 
@@ -103,6 +105,16 @@ export const adminService = {
       deletedTeamCode: string;
     }>(`/admin/teams/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  async bulkTeamAction(
+    teamIds: string[],
+    action: BulkTeamActionType,
+  ): Promise<BulkTeamActionResult> {
+    return apiClient<BulkTeamActionResult>('/admin/teams/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ teamIds, action }),
     });
   },
 
