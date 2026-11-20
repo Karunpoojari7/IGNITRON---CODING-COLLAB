@@ -782,7 +782,7 @@ export class CompetitionService implements OnModuleInit {
           await tx.announcement.create({
             data: {
               title: `ROUND CONCLUDED`,
-              message: `ROUND CONCLUDED\n\nYour latest work has been safely recorded.\nYour submission will now be evaluated.\nPlease return to your dashboard and wait for the results.`,
+              message: `ROUND CONCLUDED\n\nYour latest work has been safely recorded. All arena inputs are locked and evaluation is now in progress.\nYour submission will now be evaluated.\nPlease return to your dashboard and wait for the results.`,
               priority: 'URGENT',
               isPublished: true,
               publishedAt: now,
