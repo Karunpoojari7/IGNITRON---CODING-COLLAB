@@ -32,7 +32,7 @@ export class EvaluationController {
     @Query('status') status?: string,
   ) {
     const rNum = roundNumber ? parseInt(roundNumber, 10) : undefined;
-    const subStatus = status ? (status.toUpperCase() as SubmissionStatus) : undefined;
+    const subStatus = status ? status.toUpperCase() : undefined;
     const data = await this.evaluationService.listSubmissions({
       roundNumber: rNum,
       teamId,

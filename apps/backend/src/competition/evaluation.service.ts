@@ -24,7 +24,7 @@ export class EvaluationService {
   async listSubmissions(filter: {
     roundNumber?: number;
     teamId?: string;
-    status?: SubmissionStatus;
+    status?: SubmissionStatus | string;
   }): Promise<AdminSubmissionListItem[]> {
     const where: any = {
       isTestRun: false,
@@ -34,16 +34,13 @@ export class EvaluationService {
       where.teamId = filter.teamId;
     }
 
-    if (filter.status) {
-      where.submissionStatus = filter.status;
-    }
-
+    let targetRound = null;
     if (filter.roundNumber) {
-      const round = await this.prisma.competitionRound.findFirst({
+      targetRound = await this.prisma.competitionRound.findFirst({
         where: { roundNumber: filter.roundNumber },
       });
-      if (round) {
-        where.roundId = round.id;
+      if (targetRound) {
+        where.roundId = targetRound.id;
       }
     }
 
@@ -83,26 +80,138 @@ export class EvaluationService {
       orderBy: { submittedAt: 'desc' },
     });
 
-    return submissions.map((s) => {
+    const items: AdminSubmissionListItem[] = submissions.map((s) => {
       const latestEval = s.evaluations[0];
+      const isAutoSubmit = Boolean(
+        s.testCaseResults && (s.testCaseResults as any).autoSubmit,
+      );
+
+      let calculatedStatus: string;
+      if (isAutoSubmit) {
+        calculatedStatus = 'TIMEOUT_FINALIZED';
+      } else if (
+        s.submissionStatus === 'PENDING' ||
+        s.submissionStatus === 'EVALUATING'
+      ) {
+        calculatedStatus = 'PENDING';
+      } else {
+        calculatedStatus = 'EVALUATED';
+      }
+
+      const roundNum = s.round?.roundNumber || 0;
+      const questionTitle =
+        s.question?.title ||
+        (roundNum === 1
+          ? 'MCQ Arena (15 Questions)'
+          : roundNum === 2
+          ? 'Bug Hunt: Distributed Token Bucket Rate Limiter'
+          : s.question?.caseNumber
+          ? `Event Analytics (Case ${s.question.caseNumber})`
+          : 'Final Boss Coding');
+
       return {
         id: s.id,
         teamId: s.teamId,
         teamName: s.team.teamName,
         teamCode: s.team.teamCode,
         institution: s.team.institution,
-        roundNumber: s.round?.roundNumber || 0,
+        roundNumber: roundNum,
         questionId: s.questionId,
-        questionTitle: s.question?.title || null,
+        questionTitle,
         caseNumber: s.question?.caseNumber || null,
-        language: s.language,
-        submissionStatus: s.submissionStatus as SubmissionStatus,
+        language: s.language || '—',
+        submissionStatus: calculatedStatus as any,
         score: s.score !== null ? Number(s.score) : null,
-        submittedAt: s.submittedAt.toISOString(),
+        submittedAt: s.submittedAt ? s.submittedAt.toISOString() : null,
         evaluatedAt: s.evaluatedAt ? s.evaluatedAt.toISOString() : null,
         evaluatorName: latestEval?.evaluator?.fullName || null,
+        isAutoSubmit,
+        verdict: s.submissionStatus,
       };
     });
+
+    // If viewing a specific round, also include eligible teams that have NO SUBMISSION
+    if (targetRound) {
+      const roundProgresses = await this.prisma.teamRoundProgress.findMany({
+        where: {
+          roundId: targetRound.id,
+          ...(filter.teamId ? { teamId: filter.teamId } : {}),
+        },
+        include: {
+          team: {
+            select: {
+              id: true,
+              teamName: true,
+              teamCode: true,
+              institution: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const submittedTeamIds = new Set(submissions.map((s) => s.teamId));
+
+      for (const prog of roundProgresses) {
+        if (!submittedTeamIds.has(prog.teamId)) {
+          const roundNum = targetRound.roundNumber;
+          const questionTitle =
+            roundNum === 1
+              ? 'MCQ Arena (15 Questions)'
+              : roundNum === 2
+              ? 'Bug Hunt: Distributed Token Bucket Rate Limiter'
+              : 'Final Boss Coding';
+
+          items.push({
+            id: `unsubmitted-${targetRound.id}-${prog.teamId}`,
+            teamId: prog.teamId,
+            teamName: prog.team.teamName,
+            teamCode: prog.team.teamCode,
+            institution: prog.team.institution,
+            roundNumber: roundNum,
+            questionId: null,
+            questionTitle,
+            caseNumber: null,
+            language: '—',
+            submissionStatus: 'NO_SUBMISSION',
+            score: null,
+            submittedAt: null,
+            evaluatedAt: null,
+            evaluatorName: null,
+            isAutoSubmit: false,
+            verdict: null,
+          });
+        }
+      }
+    }
+
+    // Apply status filter if provided
+    if (filter.status && filter.status !== 'all' && filter.status !== 'ALL') {
+      const sFilter = filter.status.toUpperCase();
+      return items.filter((item) => {
+        if (sFilter === 'EVALUATED') {
+          return item.submissionStatus === 'EVALUATED';
+        }
+        if (sFilter === 'PENDING') {
+          return item.submissionStatus === 'PENDING';
+        }
+        if (sFilter === 'TIMEOUT_FINALIZED') {
+          return (
+            item.submissionStatus === 'TIMEOUT_FINALIZED' ||
+            Boolean(item.isAutoSubmit)
+          );
+        }
+        if (sFilter === 'NO_SUBMISSION') {
+          return item.submissionStatus === 'NO_SUBMISSION';
+        }
+        return (
+          item.submissionStatus === sFilter ||
+          (item.verdict && item.verdict.toUpperCase() === sFilter)
+        );
+      });
+    }
+
+    return items;
   }
 
   /**
@@ -150,12 +259,32 @@ export class EvaluationService {
     const latestEval = s.evaluations[0];
 
     let bugReports = null;
-    if (s.round?.roundNumber === 2 && s.questionId) {
+    if (s.round?.roundNumber === 2) {
       bugReports = await this.prisma.teamBugReport.findMany({
-        where: { teamId: s.teamId, questionId: s.questionId },
+        where: {
+          teamId: s.teamId,
+          ...(s.questionId ? { questionId: s.questionId } : {}),
+        },
         orderBy: { createdAt: 'asc' },
       });
     }
+
+    const roundNum = s.round?.roundNumber || 0;
+    const questionTitle =
+      s.question?.title ||
+      (roundNum === 1
+        ? 'MCQ Arena (15 Questions)'
+        : roundNum === 2
+        ? 'Bug Hunt: Distributed Token Bucket Rate Limiter'
+        : 'Final Boss Coding');
+
+    const questionDescription =
+      s.question?.description ||
+      (roundNum === 1
+        ? 'Round 1 Multiple Choice Question Arena (15 questions assessing core computer science and programming fundamentals).'
+        : roundNum === 2
+        ? 'Distributed Token Bucket Rate Limiter Debugging & Code Repair challenge.'
+        : null);
 
     return {
       id: s.id,
@@ -163,10 +292,10 @@ export class EvaluationService {
       teamName: s.team.teamName,
       teamCode: s.team.teamCode,
       institution: s.team.institution,
-      roundNumber: s.round?.roundNumber || 0,
+      roundNumber: roundNum,
       questionId: s.questionId,
-      questionTitle: s.question?.title || null,
-      questionDescription: s.question?.description || null,
+      questionTitle,
+      questionDescription,
       starterCode: s.question?.starterCode || null,
       caseNumber: s.question?.caseNumber || null,
       language: s.language,
