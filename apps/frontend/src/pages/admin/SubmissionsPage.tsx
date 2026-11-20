@@ -18,6 +18,9 @@ import {
   X,
   Copy,
   ShieldCheck,
+  Code2,
+  Terminal,
+  Bug,
 } from 'lucide-react';
 
 export const SubmissionsPage: React.FC = () => {
@@ -28,8 +31,10 @@ export const SubmissionsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Grade Modal state
+  // Grade & View Modal state
   const [gradingModalOpen, setGradingModalOpen] = useState<boolean>(false);
+  const [viewOnlyMode, setViewOnlyMode] = useState<boolean>(false);
+  const [leftTab, setLeftTab] = useState<'code' | 'tests' | 'defects'>('code');
   const [selectedSubDetail, setSelectedSubDetail] = useState<AdminSubmissionDetailDto | null>(null);
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
   const [gradeSubmitting, setGradeSubmitting] = useState<boolean>(false);
@@ -71,7 +76,7 @@ export const SubmissionsPage: React.FC = () => {
     fetchSubmissions();
   }, [roundFilter, statusFilter]);
 
-  const handleOpenGradeModal = async (sub: AdminSubmissionListItem) => {
+  const handleOpenDetail = async (sub: AdminSubmissionListItem) => {
     setDetailLoading(true);
     setGradingModalOpen(true);
     setCopiedCode(false);
@@ -87,7 +92,14 @@ export const SubmissionsPage: React.FC = () => {
           setR2EdgeCases(detail.criteriaScores.edgeCases ?? 20);
           setR2CodeQuality(detail.criteriaScores.codeQuality ?? 10);
         } else {
-          setR3CaseScore(detail.criteriaScores.caseScore ?? (detail.caseNumber === 3 ? (detail.score ? detail.score - (detail.criteriaScores.codeQuality ?? 10) : 45) : (detail.score ?? 20)));
+          setR3CaseScore(
+            detail.criteriaScores.caseScore ??
+              (detail.caseNumber === 3
+                ? detail.score
+                  ? detail.score - (detail.criteriaScores.codeQuality ?? 10)
+                  : 45
+                : detail.score ?? 20),
+          );
           setR3CodeQuality(detail.criteriaScores.codeQuality ?? 10);
         }
       } else {
@@ -110,6 +122,18 @@ export const SubmissionsPage: React.FC = () => {
     } finally {
       setDetailLoading(false);
     }
+  };
+
+  const handleOpenViewModal = async (sub: AdminSubmissionListItem) => {
+    setViewOnlyMode(true);
+    setLeftTab('code');
+    await handleOpenDetail(sub);
+  };
+
+  const handleOpenGradeModal = async (sub: AdminSubmissionListItem) => {
+    setViewOnlyMode(false);
+    setLeftTab('code');
+    await handleOpenDetail(sub);
   };
 
   const handleSubmitGrade = async (e: React.FormEvent) => {
@@ -212,7 +236,7 @@ export const SubmissionsPage: React.FC = () => {
           <button
             onClick={fetchSubmissions}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition shadow-xs self-start md:self-auto"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition shadow-xs self-start md:self-auto cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh Submissions</span>
@@ -236,50 +260,67 @@ export const SubmissionsPage: React.FC = () => {
               )}
               <span>{feedback.message}</span>
             </div>
-            <button onClick={() => setFeedback(null)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setFeedback(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* Filter bar */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by team name, team code, or college..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-xs"
-            />
+        {/* Round Navigation Tabs & Filter Bar */}
+        <div className="space-y-3">
+          {/* Prominent Round Tabs */}
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { id: 'all', label: 'All Rounds' },
+              { id: '1', label: 'Round 1: MCQ Arena' },
+              { id: '2', label: 'Round 2: Bug Hunt Arena' },
+              { id: '3', label: 'Round 3: Final Boss Coding' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setRoundFilter(tab.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                  roundFilter === tab.id
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span>{tab.label}</span>
+              </button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
-              <Filter className="w-3.5 h-3.5" />
-              <span>Round:</span>
+          {/* Search & Status Filters */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-3">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search by team name, team code, or college..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-xs"
+              />
             </div>
-            <select
-              value={roundFilter}
-              onChange={(e) => setRoundFilter(e.target.value)}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white"
-            >
-              <option value="all">All Rounds</option>
-              <option value="1">Round 1 (MCQ)</option>
-              <option value="2">Round 2 (Bug Hunt)</option>
-              <option value="3">Round 3 (Final Boss)</option>
-            </select>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white"
-            >
-              <option value="all">All Statuses</option>
-              <option value="PENDING">Pending Evaluation</option>
-              <option value="EVALUATED">Evaluated</option>
-            </select>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
+                <Filter className="w-3.5 h-3.5" />
+                <span>Status:</span>
+              </div>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 font-medium"
+              >
+                <option value="all">All Statuses</option>
+                <option value="EVALUATED">Submitted & Evaluated</option>
+                <option value="PENDING">Pending Evaluation</option>
+                <option value="TIMEOUT_FINALIZED">Timeout Finalized</option>
+                <option value="NO_SUBMISSION">No Submission</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -313,85 +354,120 @@ export const SubmissionsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredSubmissions.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-emerald-950">{sub.teamName}</div>
-                        <div className="text-[11px] font-mono text-slate-500">
-                          {sub.teamCode} {sub.institution ? `• ${sub.institution}` : ''}
-                        </div>
-                      </td>
+                  {filteredSubmissions.map((sub) => {
+                    const isNoSub = sub.submissionStatus === 'NO_SUBMISSION';
+                    const isTimeout = sub.submissionStatus === 'TIMEOUT_FINALIZED' || Boolean(sub.isAutoSubmit);
+                    const isEvaluated = sub.submissionStatus === 'EVALUATED';
+                    const isPending = sub.submissionStatus === 'PENDING';
 
-                      <td className="py-3.5 px-4">
-                        <div className="font-medium text-slate-800">
-                          Round {sub.roundNumber}
-                          {sub.caseNumber ? ` (Case ${sub.caseNumber})` : ''}
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate max-w-xs">
-                          {sub.questionTitle || 'General Relay Submission'}
-                        </div>
-                      </td>
+                    return (
+                      <tr key={sub.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-emerald-950">{sub.teamName}</div>
+                          <div className="text-[11px] font-mono text-slate-500">
+                            {sub.teamCode} {sub.institution ? `• ${sub.institution}` : ''}
+                          </div>
+                        </td>
 
-                      <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600">
-                        <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">
-                          {sub.language}
-                        </span>
-                      </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-medium text-slate-800">
+                            Round {sub.roundNumber}
+                            {sub.caseNumber ? ` (Case ${sub.caseNumber})` : ''}
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate max-w-xs">
+                            {sub.questionTitle || 'General Relay Submission'}
+                          </div>
+                        </td>
 
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            sub.submissionStatus === 'EVALUATED'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : 'bg-amber-100 text-amber-800 border border-amber-200'
-                          }`}
-                        >
-                          {sub.submissionStatus === 'EVALUATED' ? (
-                            <Check className="w-3 h-3 text-emerald-600" />
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600">
+                          {isNoSub ? (
+                            <span className="text-slate-400">—</span>
                           ) : (
-                            <Clock className="w-3 h-3 text-amber-600" />
+                            <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 uppercase text-[10px]">
+                              {sub.language}
+                            </span>
                           )}
-                          <span>{sub.submissionStatus}</span>
-                        </span>
-                      </td>
+                        </td>
 
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                        {sub.score !== null ? (
-                          <span className="text-emerald-700">{sub.score} Marks</span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
+                        <td className="py-3.5 px-4">
+                          {isEvaluated ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>Evaluated{sub.verdict && sub.verdict !== 'EVALUATED' ? ` (${sub.verdict})` : ''}</span>
+                            </span>
+                          ) : isPending ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              <span>Pending Evaluation</span>
+                            </span>
+                          ) : isTimeout ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                              <Clock className="w-3 h-3 text-sky-600" />
+                              <span>Timeout Finalized</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              <AlertCircle className="w-3 h-3 text-slate-400" />
+                              <span>No Submission</span>
+                            </span>
+                          )}
+                        </td>
 
-                      <td className="py-3.5 px-4 text-slate-500 text-[11px]">
-                        {new Date(sub.submittedAt).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                          {sub.score !== null && sub.score !== undefined ? (
+                            <span className="text-emerald-700">{sub.score} Marks</span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
 
-                      <td className="py-3.5 px-4 text-right">
-                        {sub.roundNumber === 1 ? (
-                          <button
-                            onClick={() => handleOpenMcqReview(sub.teamId)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-emerald-700 hover:bg-emerald-50 text-xs font-bold transition"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Review MCQs</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleOpenGradeModal(sub)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition"
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            <span>{sub.submissionStatus === 'EVALUATED' ? 'Re-Grade' : 'Grade'}</span>
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="py-3.5 px-4 text-slate-500 text-[11px]">
+                          {sub.submittedAt ? (
+                            new Date(sub.submittedAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            })
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right">
+                          {isNoSub ? (
+                            <span className="text-[11px] text-slate-400 italic font-mono px-2 py-1">
+                              No Submission
+                            </span>
+                          ) : sub.roundNumber === 1 ? (
+                            <button
+                              onClick={() => handleOpenMcqReview(sub.teamId)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-emerald-700 hover:bg-emerald-50 text-xs font-bold transition cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Review MCQs</span>
+                            </button>
+                          ) : (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenViewModal(sub)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-bold transition cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-slate-500" />
+                                <span>View</span>
+                              </button>
+                              <button
+                                onClick={() => handleOpenGradeModal(sub)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>{sub.submissionStatus === 'EVALUATED' ? 'Re-Grade' : 'Grade'}</span>
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -399,7 +475,7 @@ export const SubmissionsPage: React.FC = () => {
         )}
       </main>
 
-      {/* CODE EVALUATION & GRADING MODAL */}
+      {/* CODE EVALUATION & VIEW MODAL */}
       {gradingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-5xl w-full border border-slate-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
@@ -407,22 +483,29 @@ export const SubmissionsPage: React.FC = () => {
             <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div>
                 <h2 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
-                  <span>Candidate Submission Evaluation</span>
+                  <span>{viewOnlyMode ? 'Submission Inspection & Code Review' : 'Candidate Submission Evaluation'}</span>
                   {selectedSubDetail && (
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800">
                       Round {selectedSubDetail.roundNumber}
                       {selectedSubDetail.caseNumber ? ` • Case ${selectedSubDetail.caseNumber}` : ''}
                     </span>
                   )}
+                  {viewOnlyMode && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">
+                      View Mode
+                    </span>
+                  )}
                 </h2>
                 {selectedSubDetail && (
                   <p className="text-xs text-slate-500 mt-0.5">
                     Team: <strong className="text-slate-800">{selectedSubDetail.teamName}</strong> ({selectedSubDetail.teamCode})
+                    {selectedSubDetail.institution ? ` • ${selectedSubDetail.institution}` : ''}
+                    {selectedSubDetail.score !== null ? ` • Score: ${selectedSubDetail.score} Marks` : ''}
                   </p>
                 )}
               </div>
 
-              <button onClick={() => setGradingModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setGradingModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -431,43 +514,211 @@ export const SubmissionsPage: React.FC = () => {
             {detailLoading || !selectedSubDetail ? (
               <div className="py-20 text-center text-slate-400">
                 <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
-                <p className="text-xs">Loading submission source code and rubric...</p>
+                <p className="text-xs">Loading submission source code and evaluation details...</p>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
-                {/* Left: Code Viewer */}
-                <div className="lg:col-span-7 p-4 space-y-3 bg-slate-900 text-slate-200 overflow-y-auto max-h-[60vh] lg:max-h-none">
-                  <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
-                    <span className="font-mono">Language: {selectedSubDetail.language}</span>
-                    <button
-                      onClick={() => handleCopyCode(selectedSubDetail.sourceCode)}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition text-[11px]"
-                    >
-                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedCode ? 'Copied' : 'Copy Source'}</span>
-                    </button>
+              <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 min-h-0">
+                {/* Left Panel: Inspection & Code Viewer */}
+                <div className="lg:col-span-7 flex flex-col bg-slate-900 text-slate-200 overflow-hidden min-h-[50vh] lg:min-h-0">
+                  {/* Left Tabs */}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950 border-b border-slate-800 text-xs">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setLeftTab('code')}
+                        className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                          leftTab === 'code' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Code2 className="w-3.5 h-3.5" />
+                        <span>Source Code</span>
+                      </button>
+
+                      <button
+                        onClick={() => setLeftTab('tests')}
+                        className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                          leftTab === 'tests' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Terminal className="w-3.5 h-3.5" />
+                        <span>
+                          Test Results{' '}
+                          {Array.isArray(selectedSubDetail.testCaseResults)
+                            ? `(${selectedSubDetail.testCaseResults.length})`
+                            : ''}
+                        </span>
+                      </button>
+
+                      {(selectedSubDetail.roundNumber === 2 || selectedSubDetail.bugReports?.length > 0) && (
+                        <button
+                          onClick={() => setLeftTab('defects')}
+                          className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                            leftTab === 'defects' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Bug className="w-3.5 h-3.5" />
+                          <span>Isolated Defects ({selectedSubDetail.bugReports?.length || 0})</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[11px] text-slate-400 uppercase">
+                        {selectedSubDetail.language}
+                      </span>
+                      {leftTab === 'code' && (
+                        <button
+                          onClick={() => handleCopyCode(selectedSubDetail.sourceCode)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition text-[11px] cursor-pointer"
+                        >
+                          {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <pre className="font-mono text-xs leading-relaxed overflow-x-auto whitespace-pre p-2 bg-slate-950/60 rounded-lg">
-                    {selectedSubDetail.sourceCode}
-                  </pre>
+                  {/* Left Content Area */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">
+                    {leftTab === 'code' && (
+                      <div className="space-y-3">
+                        <pre className="p-3 bg-slate-950/80 rounded-xl overflow-x-auto whitespace-pre leading-relaxed text-slate-100 border border-slate-800/80">
+                          {selectedSubDetail.sourceCode}
+                        </pre>
 
-                  {selectedSubDetail.compileOutput && (
-                    <div className="mt-4 p-3 bg-red-950/40 border border-red-900 rounded-lg text-xs font-mono text-red-200">
-                      <div className="font-bold mb-1">Compiler Output:</div>
-                      <pre className="whitespace-pre-wrap">{selectedSubDetail.compileOutput}</pre>
-                    </div>
-                  )}
+                        {selectedSubDetail.compileOutput && (
+                          <div className="p-3 bg-red-950/40 border border-red-900/60 rounded-xl text-red-200 space-y-1">
+                            <div className="font-bold text-[11px] text-red-400 uppercase">Compiler Diagnostic:</div>
+                            <pre className="whitespace-pre-wrap">{selectedSubDetail.compileOutput}</pre>
+                          </div>
+                        )}
+
+                        {selectedSubDetail.stderr && (
+                          <div className="p-3 bg-amber-950/40 border border-amber-900/60 rounded-xl text-amber-200 space-y-1">
+                            <div className="font-bold text-[11px] text-amber-400 uppercase">Runtime Stderr:</div>
+                            <pre className="whitespace-pre-wrap">{selectedSubDetail.stderr}</pre>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {leftTab === 'tests' && (
+                      <div className="space-y-3">
+                        {Array.isArray(selectedSubDetail.testCaseResults) && selectedSubDetail.testCaseResults.length > 0 ? (
+                          selectedSubDetail.testCaseResults.map((tc: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className={`p-3 rounded-xl border ${
+                                tc.passed
+                                  ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-200'
+                                  : 'bg-red-950/30 border-red-800/60 text-red-200'
+                              } space-y-1.5`}
+                            >
+                              <div className="flex items-center justify-between font-bold">
+                                <span>
+                                  Test Case #{tc.caseIndex ?? idx + 1} {tc.isHidden ? '(Hidden Suite)' : '(Sample)'}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    tc.passed ? 'bg-emerald-900 text-emerald-300' : 'bg-red-900 text-red-300'
+                                  }`}
+                                >
+                                  {tc.status || (tc.passed ? 'ACCEPTED' : 'WRONG_ANSWER')}
+                                </span>
+                              </div>
+
+                              {tc.executionTime && (
+                                <div className="text-[10px] text-slate-400">
+                                  Runtime: {tc.executionTime}s • Memory: {tc.memory ? `${tc.memory} KB` : 'N/A'}
+                                </div>
+                              )}
+
+                              {tc.expectedOutput && (
+                                <div className="text-[11px]">
+                                  <span className="text-slate-400">Expected: </span>
+                                  <span className="text-slate-100">{tc.expectedOutput}</span>
+                                </div>
+                              )}
+
+                              {tc.actualOutput && (
+                                <div className="text-[11px]">
+                                  <span className="text-slate-400">Actual: </span>
+                                  <span className="text-slate-100">{tc.actualOutput}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-8 text-center text-slate-400 font-sans text-xs">
+                            No granular Judge0 test telemetry recorded for this submission.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {leftTab === 'defects' && (
+                      <div className="space-y-3 font-sans">
+                        <div className="text-xs text-slate-300 font-bold">
+                          Round 2 Defect Isolation Roster ({selectedSubDetail.bugReports?.length || 0} Identified):
+                        </div>
+
+                        {selectedSubDetail.bugReports && selectedSubDetail.bugReports.length > 0 ? (
+                          <div className="space-y-2">
+                            {selectedSubDetail.bugReports.map((b: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-emerald-400 font-mono">
+                                    Defect: {b.bugKey}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-mono">
+                                    Line {b.lineNumber}
+                                  </span>
+                                </div>
+                                <div className="p-2 bg-slate-900 rounded font-mono text-slate-300 text-[11px] truncate">
+                                  "{b.selectedText}"
+                                </div>
+                                <div className="text-[10px] text-slate-500">
+                                  Isolated at: {new Date(b.createdAt).toLocaleTimeString()}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-8 text-center text-slate-400 text-xs">
+                            No defects were isolated by the team during the investigation stage.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Right: Rubric Scoring Form */}
+                {/* Right Panel: Rubric Scoring Form */}
                 <div className="lg:col-span-5 p-5 space-y-4 bg-white overflow-y-auto">
                   <form onSubmit={handleSubmitGrade} className="space-y-4 text-xs">
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm mb-1">Evaluation & Scoring Rubric</h3>
-                      <p className="text-[11px] text-slate-500">
-                        Score each criterion according to competition judging guidelines.
-                      </p>
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-sm">
+                          {viewOnlyMode ? 'Evaluation Breakdown' : 'Rubric Scoring & Assessment'}
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          {viewOnlyMode
+                            ? 'Official marks and assessment breakdown for this submission.'
+                            : 'Adjust marks according to competition evaluation guidelines.'}
+                        </p>
+                      </div>
+
+                      {viewOnlyMode && (
+                        <button
+                          type="button"
+                          onClick={() => setViewOnlyMode(false)}
+                          className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition cursor-pointer"
+                        >
+                          Edit Grade
+                        </button>
+                      )}
                     </div>
 
                     {selectedSubDetail.roundNumber === 2 ? (
@@ -478,14 +729,16 @@ export const SubmissionsPage: React.FC = () => {
                             <span>1. Bug Identification & Fix</span>
                             <span className="font-mono text-emerald-800">{r2BugId} / 20</span>
                           </div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={20}
-                            value={r2BugId}
-                            onChange={(e) => setR2BugId(Number(e.target.value))}
-                            className="w-full accent-emerald-600"
-                          />
+                          {!viewOnlyMode && (
+                            <input
+                              type="range"
+                              min={0}
+                              max={20}
+                              value={r2BugId}
+                              onChange={(e) => setR2BugId(Number(e.target.value))}
+                              className="w-full accent-emerald-600"
+                            />
+                          )}
                         </div>
 
                         <div>
@@ -493,14 +746,16 @@ export const SubmissionsPage: React.FC = () => {
                             <span>2. Test Correctness Suite</span>
                             <span className="font-mono text-emerald-800">{r2TestCorrectness} / 50</span>
                           </div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={50}
-                            value={r2TestCorrectness}
-                            onChange={(e) => setR2TestCorrectness(Number(e.target.value))}
-                            className="w-full accent-emerald-600"
-                          />
+                          {!viewOnlyMode && (
+                            <input
+                              type="range"
+                              min={0}
+                              max={50}
+                              value={r2TestCorrectness}
+                              onChange={(e) => setR2TestCorrectness(Number(e.target.value))}
+                              className="w-full accent-emerald-600"
+                            />
+                          )}
                         </div>
 
                         <div>
@@ -508,14 +763,16 @@ export const SubmissionsPage: React.FC = () => {
                             <span>3. Edge Cases & Boundary Logic</span>
                             <span className="font-mono text-emerald-800">{r2EdgeCases} / 20</span>
                           </div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={20}
-                            value={r2EdgeCases}
-                            onChange={(e) => setR2EdgeCases(Number(e.target.value))}
-                            className="w-full accent-emerald-600"
-                          />
+                          {!viewOnlyMode && (
+                            <input
+                              type="range"
+                              min={0}
+                              max={20}
+                              value={r2EdgeCases}
+                              onChange={(e) => setR2EdgeCases(Number(e.target.value))}
+                              className="w-full accent-emerald-600"
+                            />
+                          )}
                         </div>
 
                         <div>
@@ -523,14 +780,16 @@ export const SubmissionsPage: React.FC = () => {
                             <span>4. Code Cleanliness & Style</span>
                             <span className="font-mono text-emerald-800">{r2CodeQuality} / 10</span>
                           </div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={10}
-                            value={r2CodeQuality}
-                            onChange={(e) => setR2CodeQuality(Number(e.target.value))}
-                            className="w-full accent-emerald-600"
-                          />
+                          {!viewOnlyMode && (
+                            <input
+                              type="range"
+                              min={0}
+                              max={10}
+                              value={r2CodeQuality}
+                              onChange={(e) => setR2CodeQuality(Number(e.target.value))}
+                              className="w-full accent-emerald-600"
+                            />
+                          )}
                         </div>
 
                         <div className="pt-2 border-t border-emerald-200 flex justify-between items-center text-sm font-extrabold text-emerald-950">
@@ -552,14 +811,16 @@ export const SubmissionsPage: React.FC = () => {
                               {r3CaseScore} / {selectedSubDetail.caseNumber === 1 ? 20 : selectedSubDetail.caseNumber === 2 ? 25 : 45}
                             </span>
                           </div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={selectedSubDetail.caseNumber === 1 ? 20 : selectedSubDetail.caseNumber === 2 ? 25 : 45}
-                            value={r3CaseScore}
-                            onChange={(e) => setR3CaseScore(Number(e.target.value))}
-                            className="w-full accent-emerald-600"
-                          />
+                          {!viewOnlyMode && (
+                            <input
+                              type="range"
+                              min={0}
+                              max={selectedSubDetail.caseNumber === 1 ? 20 : selectedSubDetail.caseNumber === 2 ? 25 : 45}
+                              value={r3CaseScore}
+                              onChange={(e) => setR3CaseScore(Number(e.target.value))}
+                              className="w-full accent-emerald-600"
+                            />
+                          )}
                         </div>
 
                         {selectedSubDetail.caseNumber === 3 && (
@@ -568,14 +829,16 @@ export const SubmissionsPage: React.FC = () => {
                               <span>Relay Code Quality & Efficiency (Rubric)</span>
                               <span className="font-mono text-emerald-800">{r3CodeQuality} / 10</span>
                             </div>
-                            <input
-                              type="range"
-                              min={0}
-                              max={10}
-                              value={r3CodeQuality}
-                              onChange={(e) => setR3CodeQuality(Number(e.target.value))}
-                              className="w-full accent-emerald-600"
-                            />
+                            {!viewOnlyMode && (
+                              <input
+                                type="range"
+                                min={0}
+                                max={10}
+                                value={r3CodeQuality}
+                                onChange={(e) => setR3CodeQuality(Number(e.target.value))}
+                                className="w-full accent-emerald-600"
+                              />
+                            )}
                           </div>
                         )}
 
@@ -600,27 +863,31 @@ export const SubmissionsPage: React.FC = () => {
                         rows={3}
                         value={evalFeedback}
                         onChange={(e) => setEvalFeedback(e.target.value)}
-                        placeholder="Constructive feedback, edge cases failed, or remarks..."
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+                        disabled={viewOnlyMode}
+                        placeholder={viewOnlyMode ? 'No evaluator comments recorded.' : 'Constructive feedback, edge cases failed, or remarks...'}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs disabled:bg-slate-50 disabled:text-slate-600"
                       />
                     </div>
 
-                    <div className="pt-2 flex items-center justify-end gap-2">
+                    <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => setGradingModalOpen(false)}
-                        className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-bold"
+                        className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-bold cursor-pointer"
                       >
-                        Cancel
+                        {viewOnlyMode ? 'Close' : 'Cancel'}
                       </button>
-                      <button
-                        type="submit"
-                        disabled={gradeSubmitting}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs disabled:opacity-50 inline-flex items-center gap-1.5"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>{gradeSubmitting ? 'Saving...' : 'Finalize Grade'}</span>
-                      </button>
+
+                      {!viewOnlyMode && (
+                        <button
+                          type="submit"
+                          disabled={gradeSubmitting}
+                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>{gradeSubmitting ? 'Saving...' : 'Finalize Grade'}</span>
+                        </button>
+                      )}
                     </div>
                   </form>
                 </div>
@@ -645,7 +912,7 @@ export const SubmissionsPage: React.FC = () => {
                   </p>
                 )}
               </div>
-              <button onClick={() => setMcqModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setMcqModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
