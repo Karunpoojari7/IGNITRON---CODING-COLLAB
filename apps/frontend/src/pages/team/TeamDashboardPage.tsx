@@ -206,8 +206,8 @@ export const TeamDashboardPage: React.FC = () => {
     },
     {
       roundNumber: 3,
-      name: 'Round 3: Final Boss Coding',
-      description: 'Tackle advanced competitive programming challenges in the full CodeMirror workspace.',
+      name: 'Round 3: IGNITRON Event Analytics Engine',
+      description: 'Solve real-world data discovery, statistical anomaly detection, and ranking challenges in Python.',
       durationMinutes: 60,
       maximumMarks: 100,
       status: 'UPCOMING',
@@ -588,7 +588,9 @@ export const TeamDashboardPage: React.FC = () => {
                           navigate(
                             card.roundNumber === 1
                               ? '/team/arena/mcq'
-                              : `/team/workspace?round=${card.roundNumber}`,
+                              : card.roundNumber === 2
+                              ? '/team/arena/bug-hunt'
+                              : '/team/arena/analytics',
                           )
                         }
                         className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-xs"
@@ -609,7 +611,9 @@ export const TeamDashboardPage: React.FC = () => {
                           navigate(
                             card.roundNumber === 1
                               ? '/team/arena/mcq'
-                              : `/team/workspace?round=${card.roundNumber}`,
+                              : card.roundNumber === 2
+                              ? '/team/arena/bug-hunt'
+                              : '/team/arena/analytics',
                           )
                         }
                         className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2 text-center transition-colors"
