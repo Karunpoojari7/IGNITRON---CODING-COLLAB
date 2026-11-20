@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { questionAndArenaService } from '../../services/question-and-arena.service';
-import { QuestionDto, QuestionType, CreateQuestionDto } from '@ignitron/shared';
+import {
+  QuestionDto,
+  QuestionType,
+  CreateQuestionDto,
+  BugHuntPlantedBug,
+  TestCaseDto,
+} from '@ignitron/shared';
 import {
   HelpCircle,
   Plus,
@@ -16,6 +22,9 @@ import {
   X,
   Code,
   Save,
+  Bug,
+  Eye,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const QuestionManagementPage: React.FC = () => {
@@ -27,9 +36,11 @@ export const QuestionManagementPage: React.FC = () => {
 
   // Modal state
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState<boolean>(false);
+  const [previewQuestion, setPreviewQuestion] = useState<QuestionDto | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<QuestionDto | null>(null);
 
-  // Form fields
+  // Base Form fields
   const [formRound, setFormRound] = useState<number>(1);
   const [formType, setFormType] = useState<QuestionType>('MCQ');
   const [formOrder, setFormOrder] = useState<number>(1);
@@ -41,7 +52,23 @@ export const QuestionManagementPage: React.FC = () => {
   const [formCorrectOption, setFormCorrectOption] = useState<number>(0);
   const [formExplanation, setFormExplanation] = useState<string>('');
   const [formStarterCode, setFormStarterCode] = useState<string>('');
-  const [formLanguage, setFormLanguage] = useState<string>('typescript');
+  const [formLanguage, setFormLanguage] = useState<string>('javascript');
+
+  // Round 2 Extended Fields
+  const [formDifficulty, setFormDifficulty] = useState<string>('MEDIUM');
+  const [formIsActive, setFormIsActive] = useState<boolean>(true);
+  const [formPlantedBugs, setFormPlantedBugs] = useState<BugHuntPlantedBug[]>([]);
+  const [formSampleTestCases, setFormSampleTestCases] = useState<TestCaseDto[]>([]);
+  const [formHiddenTestCases, setFormHiddenTestCases] = useState<(TestCaseDto & { isEdgeCase?: boolean })[]>([]);
+
+  // Interactive Code Selection for Planted Bugs
+  const starterCodeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [codeSelectionInfo, setCodeSelectionInfo] = useState<{
+    text: string;
+    line: number;
+    startOffset: number;
+    endOffset: number;
+  } | null>(null);
 
   const fetchQuestions = async () => {
     setLoading(true);
@@ -89,7 +116,18 @@ export const QuestionManagementPage: React.FC = () => {
     setFormCorrectOption(0);
     setFormExplanation('');
     setFormStarterCode('');
-    setFormLanguage('typescript');
+    setFormLanguage(activeRound === 2 ? 'python' : 'javascript');
+    setFormDifficulty('MEDIUM');
+    setFormIsActive(true);
+    setFormPlantedBugs([]);
+    setFormSampleTestCases([
+      { stdin: '', expectedOutput: '', explanation: 'Standard sample test case' },
+    ]);
+    setFormHiddenTestCases([
+      { stdin: '', expectedOutput: '', marks: 25, isEdgeCase: false },
+      { stdin: '', expectedOutput: '', marks: 25, isEdgeCase: true },
+    ]);
+    setCodeSelectionInfo(null);
     setModalOpen(true);
   };
 
@@ -106,8 +144,159 @@ export const QuestionManagementPage: React.FC = () => {
     setFormCorrectOption(q.correctOption ?? 0);
     setFormExplanation(q.explanation || '');
     setFormStarterCode(q.starterCode || '');
-    setFormLanguage(q.language || 'typescript');
+    const resolvedLang = q.language === 'typescript' ? 'javascript' : (q.language || 'javascript');
+    setFormLanguage(resolvedLang);
+    setFormDifficulty(q.rubric?.difficulty || 'MEDIUM');
+    setFormIsActive(q.isActive ?? true);
+    setFormPlantedBugs(q.plantedBugs ? JSON.parse(JSON.stringify(q.plantedBugs)) : []);
+    setFormSampleTestCases(q.sampleTestCases ? JSON.parse(JSON.stringify(q.sampleTestCases)) : []);
+    setFormHiddenTestCases(q.hiddenTestCases ? JSON.parse(JSON.stringify(q.hiddenTestCases)) : []);
+    setCodeSelectionInfo(null);
     setModalOpen(true);
+  };
+
+  const handleStarterCodeSelect = () => {
+    const el = starterCodeTextareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    if (start !== undefined && end !== undefined && start !== end) {
+      const selected = el.value.substring(start, end).trim();
+      if (selected) {
+        const textBefore = el.value.substring(0, start);
+        const line = textBefore.split('\n').length;
+        setCodeSelectionInfo({
+          text: selected,
+          line,
+          startOffset: start,
+          endOffset: end,
+        });
+        return;
+      }
+    }
+    setCodeSelectionInfo(null);
+  };
+
+  const handleStarterCodeChange = (newCode: string) => {
+    setFormStarterCode(newCode);
+
+    // Automatically recalculate or validate offsets for existing planted bugs when code changes
+    if (formType === 'BUG_HUNT' && formPlantedBugs.length > 0) {
+      const updatedBugs = formPlantedBugs.map((bug) => {
+        if (!bug.expression) return bug;
+        // If expression is still at exact startOffset, keep it
+        if (
+          bug.startOffset !== undefined &&
+          newCode.substring(bug.startOffset, bug.startOffset + bug.expression.length) === bug.expression
+        ) {
+          return bug;
+        }
+        // If code shifted, find the updated index
+        const newStart = newCode.indexOf(bug.expression);
+        if (newStart !== -1) {
+          const newLine = newCode.substring(0, newStart).split('\n').length;
+          return {
+            ...bug,
+            startOffset: newStart,
+            endOffset: newStart + bug.expression.length,
+            lineNumber: newLine,
+          };
+        }
+        return bug;
+      });
+      setFormPlantedBugs(updatedBugs);
+    }
+  };
+
+  const handleAddBugFromSelection = () => {
+    if (!codeSelectionInfo) return;
+    const newBugKey = `BUG_${formPlantedBugs.length + 1}_${Date.now().toString().slice(-4)}`;
+    const newBug: BugHuntPlantedBug = {
+      key: newBugKey,
+      name: `Defect #${formPlantedBugs.length + 1}`,
+      description: `Identified defect at line ${codeSelectionInfo.line}`,
+      lineNumber: codeSelectionInfo.line,
+      expression: codeSelectionInfo.text,
+      startOffset: codeSelectionInfo.startOffset,
+      endOffset: codeSelectionInfo.endOffset,
+      correctedExpression: '',
+      notes: '',
+      acceptableTokens: [codeSelectionInfo.text.trim()],
+    };
+    setFormPlantedBugs([...formPlantedBugs, newBug]);
+    setCodeSelectionInfo(null);
+  };
+
+  const handleAddEmptyBug = () => {
+    const newBugKey = `BUG_${formPlantedBugs.length + 1}_${Date.now().toString().slice(-4)}`;
+    const newBug: BugHuntPlantedBug = {
+      key: newBugKey,
+      name: `Defect #${formPlantedBugs.length + 1}`,
+      description: 'Faulty logic defect',
+      lineNumber: 1,
+      expression: '',
+      correctedExpression: '',
+      notes: '',
+      acceptableTokens: [],
+    };
+    setFormPlantedBugs([...formPlantedBugs, newBug]);
+  };
+
+  const handleRemoveBug = (index: number) => {
+    setFormPlantedBugs(formPlantedBugs.filter((_, idx) => idx !== index));
+  };
+
+  const handleUpdateBug = (index: number, field: keyof BugHuntPlantedBug, val: any) => {
+    const updated = [...formPlantedBugs];
+    updated[index] = { ...updated[index], [field]: val };
+    setFormPlantedBugs(updated);
+  };
+
+  const handleAddSampleTest = () => {
+    setFormSampleTestCases([...formSampleTestCases, { stdin: '', expectedOutput: '', explanation: '' }]);
+  };
+
+  const handleRemoveSampleTest = (index: number) => {
+    setFormSampleTestCases(formSampleTestCases.filter((_, idx) => idx !== index));
+  };
+
+  const handleUpdateSampleTest = (index: number, field: keyof TestCaseDto, val: any) => {
+    const updated = [...formSampleTestCases];
+    updated[index] = { ...updated[index], [field]: val };
+    setFormSampleTestCases(updated);
+  };
+
+  const handleAddHiddenTest = () => {
+    setFormHiddenTestCases([
+      ...formHiddenTestCases,
+      { stdin: '', expectedOutput: '', marks: 20, isEdgeCase: false },
+    ]);
+  };
+
+  const handleRemoveHiddenTest = (index: number) => {
+    setFormHiddenTestCases(formHiddenTestCases.filter((_, idx) => idx !== index));
+  };
+
+  const handleUpdateHiddenTest = (index: number, field: string, val: any) => {
+    const updated = [...formHiddenTestCases];
+    updated[index] = { ...updated[index], [field]: val };
+    setFormHiddenTestCases(updated);
+  };
+
+  const handleTogglePublish = async (q: QuestionDto) => {
+    setActionLoading(true);
+    try {
+      await questionAndArenaService.togglePublish(q.id, !q.isActive);
+      setFeedback({
+        type: 'success',
+        message: `Mission "${q.title}" ${!q.isActive ? 'published' : 'unpublished'}.`,
+      });
+      await fetchQuestions();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err?.message || 'Failed to update publication status.' });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleSaveQuestion = async (e: React.FormEvent) => {
@@ -134,6 +323,14 @@ export const QuestionManagementPage: React.FC = () => {
         explanation: formExplanation.trim() || null,
         starterCode: formType !== 'MCQ' ? formStarterCode : null,
         language: formType !== 'MCQ' ? formLanguage : null,
+        isActive: formIsActive,
+        rubric: {
+          ...(editingQuestion?.rubric || {}),
+          difficulty: formDifficulty,
+        },
+        plantedBugs: formType === 'BUG_HUNT' ? formPlantedBugs : null,
+        sampleTestCases: formType !== 'MCQ' ? formSampleTestCases : null,
+        hiddenTestCases: formType !== 'MCQ' ? formHiddenTestCases : null,
       };
 
       if (editingQuestion) {
@@ -154,7 +351,7 @@ export const QuestionManagementPage: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete this question? Questions with participant submissions cannot be deleted.')) {
       return;
     }
     setActionLoading(true);
@@ -200,7 +397,7 @@ export const QuestionManagementPage: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Question</span>
+              <span>{activeRound === 2 ? 'Add Mission' : 'Add Question'}</span>
             </button>
           </div>
         </div>
@@ -229,10 +426,10 @@ export const QuestionManagementPage: React.FC = () => {
         )}
 
         {/* Round Switcher Tabs */}
-        <div className="flex border-b border-slate-200 gap-2">
+        <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveRound(1)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition whitespace-nowrap ${
               activeRound === 1
                 ? 'border-emerald-600 text-emerald-900 bg-emerald-50/50 rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -243,18 +440,18 @@ export const QuestionManagementPage: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveRound(2)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition whitespace-nowrap ${
               activeRound === 2
                 ? 'border-emerald-600 text-emerald-900 bg-emerald-50/50 rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <Layers className="w-4 h-4 text-emerald-600" />
-            <span>Round 2: Bug Hunt Arena (100 Marks)</span>
+            <span>Round 2: Bug Hunt Arena (100 Marks Rubric)</span>
           </button>
           <button
             onClick={() => setActiveRound(3)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition whitespace-nowrap ${
               activeRound === 3
                 ? 'border-emerald-600 text-emerald-900 bg-emerald-50/50 rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -264,6 +461,21 @@ export const QuestionManagementPage: React.FC = () => {
             <span>Round 3: Final Boss (100 Marks: 20 + 25 + 45 + 10)</span>
           </button>
         </div>
+
+        {/* Round 2 Rubric Banner */}
+        {activeRound === 2 && (
+          <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <Bug className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span>
+                <strong>Round 2 Bug Hunt Rubric:</strong> Defect Identification (20 pts) + Test Correctness (50 pts) + Edge Cases (20 pts) + Code Quality & Architecture (10 pts) = <strong>100 Total Marks</strong>.
+              </span>
+            </div>
+            <span className="font-mono font-bold text-emerald-800 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shrink-0 self-start sm:self-auto">
+              100 Max Points
+            </span>
+          </div>
+        )}
 
         {/* Round 3 Scoring Rubric Information Banner */}
         {activeRound === 3 && (
@@ -292,7 +504,7 @@ export const QuestionManagementPage: React.FC = () => {
             <div className="max-w-sm mx-auto">
               <h3 className="text-sm font-bold text-slate-800">No questions found for Round {activeRound}</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Click "Seed Official Bank" above to populate the official 15 MCQs, bug hunt codebase, and boss challenges automatically.
+                Click &quot;Seed Official Bank&quot; above to populate the official 15 MCQs, bug hunt codebase, and boss challenges automatically.
               </p>
             </div>
             <button
@@ -308,10 +520,11 @@ export const QuestionManagementPage: React.FC = () => {
             <div className="flex items-center justify-between text-xs text-slate-500 px-1">
               <span>Showing {questions.length} questions for Round {activeRound}</span>
               <span className="font-mono font-medium">
-                Total Marks:{' '}
-                {activeRound === 3
-                  ? `${questions.reduce((sum, q) => sum + q.marks, 0) + 10} (90 Cases + 10 Rubric/Quality)`
-                  : questions.reduce((sum, q) => sum + q.marks, 0)}
+                {activeRound === 2
+                  ? `Configured Missions: ${questions.length} (Published: ${questions.filter((q) => q.isActive).length})`
+                  : activeRound === 3
+                  ? `Total Marks: ${questions.reduce((sum, q) => sum + q.marks, 0) + 10} (90 Cases + 10 Rubric/Quality)`
+                  : `Total Marks: ${questions.reduce((sum, q) => sum + q.marks, 0)}`}
               </span>
             </div>
 
@@ -319,7 +532,9 @@ export const QuestionManagementPage: React.FC = () => {
               {questions.map((q) => (
                 <div
                   key={q.id}
-                  className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:border-emerald-300 transition"
+                  className={`bg-white rounded-xl border p-5 shadow-xs transition ${
+                    q.isActive ? 'border-slate-200 hover:border-emerald-300' : 'border-amber-200 bg-amber-50/20'
+                  }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="space-y-1.5 flex-1">
@@ -327,6 +542,43 @@ export const QuestionManagementPage: React.FC = () => {
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
                           #{q.orderNumber}
                         </span>
+
+                        {/* Round 2 specific badges */}
+                        {activeRound === 2 && (
+                          <>
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase border ${
+                                q.isActive
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  : 'bg-amber-100 text-amber-800 border-amber-300'
+                              }`}
+                            >
+                              {q.isActive ? '● PUBLISHED' : '○ DRAFT'}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase ${
+                                (q.rubric?.difficulty || 'MEDIUM') === 'EASY'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : (q.rubric?.difficulty || 'MEDIUM') === 'HARD'
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}
+                            >
+                              {q.rubric?.difficulty || 'MEDIUM'}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-purple-100 text-purple-800 border border-purple-200 uppercase">
+                              {q.language || 'javascript'}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                              <Bug className="w-3 h-3" />
+                              {q.plantedBugs?.length || 0} Planted Bugs
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-100 text-slate-700">
+                              {q.sampleTestCases?.length || 0} Sample / {q.hiddenTestCases?.length || 0} Hidden Tests
+                            </span>
+                          </>
+                        )}
+
                         {q.caseNumber && (
                           <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase bg-blue-100 text-blue-800 border border-blue-200">
                             Case {q.caseNumber}
@@ -335,8 +587,20 @@ export const QuestionManagementPage: React.FC = () => {
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-slate-100 text-slate-700">
                           {q.marks} Marks
                         </span>
-                        {q.type !== 'MCQ' && q.language && (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-purple-100 text-purple-800">
+                        {activeRound === 3 && (
+                          <>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              {q.rubric?.format === 'SELECT_CODE' ? 'SELECT CODE' : 'WRITE CODE'}
+                            </span>
+                            {q.rubric?.technology && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                {q.rubric.technology}
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {q.type !== 'MCQ' && activeRound !== 2 && q.language && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-purple-100 text-purple-800 uppercase">
                             {q.language}
                           </span>
                         )}
@@ -349,6 +613,37 @@ export const QuestionManagementPage: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* Round 2 Preview Mission */}
+                      {activeRound === 2 && (
+                        <button
+                          onClick={() => {
+                            setPreviewQuestion(q);
+                            setPreviewModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 text-xs font-semibold transition"
+                          title="Preview participant mission view"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Preview</span>
+                        </button>
+                      )}
+
+                      {/* Round 2 Toggle Publish / Unpublish */}
+                      {activeRound === 2 && (
+                        <button
+                          onClick={() => handleTogglePublish(q)}
+                          disabled={actionLoading}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition ${
+                            q.isActive
+                              ? 'border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100'
+                              : 'border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100'
+                          }`}
+                          title={q.isActive ? 'Unpublish mission' : 'Publish mission to participants'}
+                        >
+                          {q.isActive ? 'Unpublish' : 'Publish'}
+                        </button>
+                      )}
+
                       <button
                         onClick={() => handleOpenEdit(q)}
                         className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-300 transition"
@@ -395,7 +690,7 @@ export const QuestionManagementPage: React.FC = () => {
                     <div className="mt-3 pt-3 border-t border-slate-100">
                       <div className="text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1.5">
                         <Code className="w-3.5 h-3.5" />
-                        <span>Starter Code Template:</span>
+                        <span>{activeRound === 2 ? 'Faulty Starter Code:' : 'Starter Code Template:'}</span>
                       </div>
                       <pre className="text-[11px] font-mono bg-slate-900 text-slate-200 p-2.5 rounded-lg overflow-x-auto max-h-28">
                         {q.starterCode.slice(0, 300)}...
@@ -412,18 +707,35 @@ export const QuestionManagementPage: React.FC = () => {
       {/* CREATE / EDIT MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+          <div
+            className={`bg-white rounded-2xl w-full border border-slate-200 shadow-2xl p-6 space-y-4 my-8 max-h-[92vh] overflow-y-auto ${
+              formType === 'BUG_HUNT' ? 'max-w-4xl' : 'max-w-2xl'
+            }`}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h2 className="text-base font-bold text-emerald-950">
-                {editingQuestion ? 'Edit Question' : 'Create New Competition Question'}
-              </h2>
+              <div>
+                <h2 className="text-base font-bold text-emerald-950 flex items-center gap-2">
+                  {editingQuestion ? 'Edit Competition Question' : 'Create New Competition Question'}
+                  {formType === 'BUG_HUNT' && (
+                    <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                      Round 2 Bug Hunt
+                    </span>
+                  )}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {formType === 'BUG_HUNT'
+                    ? 'Configure mission prompt, faulty code, planted bugs with line ranges, and test suites.'
+                    : 'Configure round parameters, prompt, scoring, and evaluation criteria.'}
+                </p>
+              </div>
               <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveQuestion} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <form onSubmit={handleSaveQuestion} className="space-y-5 text-xs">
+              {/* Basic metadata row */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Target Round</label>
                   <select
@@ -454,7 +766,7 @@ export const QuestionManagementPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Marks</label>
+                  <label className="font-bold text-slate-700 block mb-1">Total Marks</label>
                   <input
                     type="number"
                     value={formMarks}
@@ -465,42 +777,116 @@ export const QuestionManagementPage: React.FC = () => {
                     required
                   />
                 </div>
+
+                {formType === 'BUG_HUNT' ? (
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Difficulty</label>
+                    <select
+                      value={formDifficulty}
+                      onChange={(e) => setFormDifficulty(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold"
+                    >
+                      <option value="EASY">EASY</option>
+                      <option value="MEDIUM">MEDIUM</option>
+                      <option value="HARD">HARD</option>
+                    </select>
+                  </div>
+                ) : formRound === 3 ? (
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Case Number</label>
+                    <select
+                      value={formCaseNumber}
+                      onChange={(e) => setFormCaseNumber(Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+                    >
+                      <option value={1}>Case 1 (Trie Autocomplete - 20)</option>
+                      <option value={2}>Case 2 (Relay Scheduler - 25)</option>
+                      <option value={3}>Case 3 (Boss Flow Router - 45)</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Status</label>
+                    <span className="inline-block px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 font-medium">
+                      Active
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {formRound === 3 && (
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Case Number (1, 2, or 3)</label>
-                  <select
-                    value={formCaseNumber}
-                    onChange={(e) => setFormCaseNumber(Number(e.target.value))}
+              {/* Title & Language row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="font-bold text-slate-700 block mb-1">
+                    {formType === 'BUG_HUNT' ? 'Mission Title' : 'Question Title'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    placeholder={
+                      formType === 'BUG_HUNT'
+                        ? 'e.g. Distributed Token Bucket Rate Limiter Defect'
+                        : 'e.g. Asymptotic Complexity of Binary Heap'
+                    }
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
-                  >
-                    <option value={1}>Case 1 (Trie Autocomplete - 20 Marks)</option>
-                    <option value={2}>Case 2 (Relay Scheduler - 25 Marks)</option>
-                    <option value={3}>Case 3 (Boss Flow Router - 45 Marks)</option>
-                  </select>
+                    required
+                  />
+                </div>
+
+                {formType !== 'MCQ' && (
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Programming Language</label>
+                    <select
+                      value={formLanguage}
+                      onChange={(e) => setFormLanguage(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold"
+                    >
+                      <option value="python">Python 3 (ID: 71)</option>
+                      <option value="cpp">C++17 (ID: 54)</option>
+                      <option value="java">Java 17 (ID: 62)</option>
+                      <option value="c">C GCC (ID: 50)</option>
+                      <option value="javascript">JavaScript (ID: 63)</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Publication status checkbox for Round 2 */}
+              {formType === 'BUG_HUNT' && (
+                <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-emerald-950 block">Published Status</span>
+                    <span className="text-[11px] text-emerald-800">
+                      When checked, participants entering Round 2 will load and attempt this mission.
+                    </span>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-emerald-900">
+                    <input
+                      type="checkbox"
+                      checked={formIsActive}
+                      onChange={(e) => setFormIsActive(e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                    />
+                    <span>Publish Immediately</span>
+                  </label>
                 </div>
               )}
 
+              {/* Description / Instructions */}
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Question Title</label>
-                <input
-                  type="text"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="e.g. Asymptotic Complexity of Binary Heap"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Problem Statement / Prompt</label>
+                <label className="font-bold text-slate-700 block mb-1">
+                  {formType === 'BUG_HUNT' ? 'Mission Description & Operational Objectives' : 'Problem Statement / Prompt'}
+                </label>
                 <textarea
                   rows={4}
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Detailed problem statement or question description (supports Markdown)..."
+                  placeholder={
+                    formType === 'BUG_HUNT'
+                      ? 'Describe the mission scenario, subsystem architecture, and specific debugging instructions...'
+                      : 'Detailed problem statement or question description (supports Markdown)...'
+                  }
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono"
                   required
                 />
@@ -543,43 +929,438 @@ export const QuestionManagementPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Coding Starter Code */}
+              {/* Starter Code Editor */}
               {formType !== 'MCQ' && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="font-bold text-slate-700">Starter Code Template</label>
-                    <select
-                      value={formLanguage}
-                      onChange={(e) => setFormLanguage(e.target.value)}
-                      className="px-2 py-1 border border-slate-200 rounded-md text-xs"
-                    >
-                      <option value="typescript">TypeScript</option>
-                      <option value="python">Python</option>
-                      <option value="cpp">C++</option>
-                      <option value="java">Java</option>
-                    </select>
+                    <div>
+                      <label className="font-bold text-slate-700">
+                        {formType === 'BUG_HUNT' ? 'Faulty Starter Code Editor' : 'Starter Code Template'}
+                      </label>
+                      {formType === 'BUG_HUNT' && (
+                        <p className="text-[11px] text-slate-500">
+                          Highlight any faulty expression below and click &quot;Add Selection as Planted Bug&quot; to auto-populate.
+                        </p>
+                      )}
+                    </div>
+                    {formType === 'BUG_HUNT' && codeSelectionInfo && (
+                      <button
+                        type="button"
+                        onClick={handleAddBugFromSelection}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-[11px] shadow-xs transition"
+                      >
+                        <Bug className="w-3.5 h-3.5" />
+                        <span>Add Selection as Bug (Line {codeSelectionInfo.line})</span>
+                      </button>
+                    )}
                   </div>
+
                   <textarea
-                    rows={6}
+                    ref={starterCodeTextareaRef}
+                    rows={formType === 'BUG_HUNT' ? 12 : 6}
                     value={formStarterCode}
-                    onChange={(e) => setFormStarterCode(e.target.value)}
-                    placeholder="// Starter boilerplate code..."
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono bg-slate-900 text-slate-200"
+                    onChange={(e) => handleStarterCodeChange(e.target.value)}
+                    onSelect={handleStarterCodeSelect}
+                    placeholder="// Paste faulty starter code here..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono bg-slate-900 text-slate-200 leading-relaxed"
+                    required
                   />
+
+                  {formType === 'BUG_HUNT' && codeSelectionInfo && (
+                    <div className="p-2 rounded bg-rose-50 border border-rose-200 text-rose-800 text-[11px] flex items-center justify-between">
+                      <span>
+                        Selected expression at <strong>Line {codeSelectionInfo.line}</strong>: &quot;
+                        <span className="font-mono font-bold">{codeSelectionInfo.text}</span>&quot;
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddBugFromSelection}
+                        className="text-rose-700 hover:underline font-bold"
+                      >
+                        Capture Bug →
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
+              {/* ROUND 2 PLANTED BUGS CONFIGURATION */}
+              {formType === 'BUG_HUNT' && (
+                <div className="space-y-3 pt-3 border-t border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <Bug className="w-4 h-4 text-rose-600" />
+                        <span>Planted Bug Configuration ({formPlantedBugs.length} Total Bugs)</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Participants must directly click or identify each defect to unlock code repair.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddEmptyBug}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Bug</span>
+                    </button>
+                  </div>
+
+                  {formPlantedBugs.length === 0 ? (
+                    <div className="p-4 rounded-xl border border-dashed border-slate-300 text-center text-slate-500 text-xs">
+                      No planted bugs configured yet. Highlight text in the code above or click &quot;Add Bug&quot;.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {formPlantedBugs.map((bug, bIdx) => {
+                        const isExpressionInCode =
+                          !bug.expression || formStarterCode.includes(bug.expression);
+
+                        return (
+                          <div
+                            key={bIdx}
+                            className={`p-3 rounded-xl border text-xs space-y-2.5 transition ${
+                              isExpressionInCode
+                                ? 'bg-slate-50 border-slate-200'
+                                : 'bg-rose-50/60 border-rose-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                  #{bIdx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={bug.name || `Defect #${bIdx + 1}`}
+                                  onChange={(e) => handleUpdateBug(bIdx, 'name', e.target.value)}
+                                  placeholder="Defect Name / Subsystem"
+                                  className="font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 px-1 py-0.5"
+                                />
+                                {!isExpressionInCode && (
+                                  <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    Expression not in starter code!
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveBug(bIdx)}
+                                className="text-slate-400 hover:text-rose-600 p-1"
+                                title="Remove bug"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Unique Key
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bug.key}
+                                  onChange={(e) => handleUpdateBug(bIdx, 'key', e.target.value)}
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Line
+                                </label>
+                                <input
+                                  type="number"
+                                  value={bug.lineNumber}
+                                  onChange={(e) =>
+                                    handleUpdateBug(bIdx, 'lineNumber', Number(e.target.value))
+                                  }
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                                  min={1}
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Range (Offsets)
+                                </label>
+                                <span className="block px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[11px] font-mono text-slate-700 truncate" title={`${bug.startOffset ?? '?'}..${bug.endOffset ?? '?'}`}>
+                                  {bug.startOffset !== undefined && bug.endOffset !== undefined
+                                    ? `${bug.startOffset}..${bug.endOffset}`
+                                    : 'Auto-sync'}
+                                </span>
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Faulty Expression (Exact Token / Substring)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bug.expression}
+                                  onChange={(e) => handleUpdateBug(bIdx, 'expression', e.target.value)}
+                                  placeholder="Exact faulty token or substring in code"
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Corrected Expression
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bug.correctedExpression || ''}
+                                  onChange={(e) =>
+                                    handleUpdateBug(bIdx, 'correctedExpression', e.target.value)
+                                  }
+                                  placeholder="Expected repair code"
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Acceptable Tokens (comma separated)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={(bug.acceptableTokens || []).join(', ')}
+                                  onChange={(e) =>
+                                    handleUpdateBug(
+                                      bIdx,
+                                      'acceptableTokens',
+                                      e.target.value
+                                        .split(',')
+                                        .map((s) => s.trim())
+                                        .filter(Boolean),
+                                    )
+                                  }
+                                  placeholder="e.g. rateLimit, <=, tokens"
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                Defect Explanation / Root Cause
+                              </label>
+                              <input
+                                type="text"
+                                value={bug.description}
+                                onChange={(e) =>
+                                  handleUpdateBug(bIdx, 'description', e.target.value)
+                                }
+                                placeholder="Why this logic is flawed and what symptoms it causes..."
+                                className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs"
+                                required
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TEST SUITES: PUBLIC, HIDDEN & EDGE CASES */}
+              {formType !== 'MCQ' && (
+                <div className="space-y-4 pt-3 border-t border-slate-200">
+                  {/* Public Sample Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Public Sample Test Cases ({formSampleTestCases.length})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddSampleTest}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 transition"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Sample Test</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {formSampleTestCases.map((tc, tcIdx) => (
+                        <div
+                          key={tcIdx}
+                          className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 grid grid-cols-1 sm:grid-cols-3 gap-2"
+                        >
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              Standard Input (stdin)
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={tc.stdin}
+                              onChange={(e) =>
+                                handleUpdateSampleTest(tcIdx, 'stdin', e.target.value)
+                              }
+                              placeholder="Input lines..."
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              Expected Output
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={tc.expectedOutput}
+                              onChange={(e) =>
+                                handleUpdateSampleTest(tcIdx, 'expectedOutput', e.target.value)
+                              }
+                              placeholder="Expected stdout..."
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                              required
+                            />
+                          </div>
+                          <div className="flex flex-col justify-between">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                Explanation
+                              </label>
+                              <input
+                                type="text"
+                                value={tc.explanation || ''}
+                                onChange={(e) =>
+                                  handleUpdateSampleTest(tcIdx, 'explanation', e.target.value)
+                                }
+                                placeholder="Public sample explanation"
+                                className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSampleTest(tcIdx)}
+                              className="self-end text-xs text-rose-600 hover:underline font-bold mt-1"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Hidden & Edge Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        <span>Hidden &amp; Edge-Case Test Cases ({formHiddenTestCases.length})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddHiddenTest}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 transition"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Hidden Test</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {formHiddenTestCases.map((tc, tcIdx) => (
+                        <div
+                          key={tcIdx}
+                          className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/20 grid grid-cols-1 sm:grid-cols-4 gap-2"
+                        >
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              Hidden Input (stdin)
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={tc.stdin}
+                              onChange={(e) =>
+                                handleUpdateHiddenTest(tcIdx, 'stdin', e.target.value)
+                              }
+                              placeholder="Hidden input..."
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              Expected Output
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={tc.expectedOutput}
+                              onChange={(e) =>
+                                handleUpdateHiddenTest(tcIdx, 'expectedOutput', e.target.value)
+                              }
+                              placeholder="Expected stdout..."
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              Points / Weight
+                            </label>
+                            <input
+                              type="number"
+                              value={tc.marks || 10}
+                              onChange={(e) =>
+                                handleUpdateHiddenTest(tcIdx, 'marks', Number(e.target.value))
+                              }
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                            />
+                            <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer text-[10px] font-bold text-amber-900">
+                              <input
+                                type="checkbox"
+                                checked={!!tc.isEdgeCase}
+                                onChange={(e) =>
+                                  handleUpdateHiddenTest(tcIdx, 'isEdgeCase', e.target.checked)
+                                }
+                                className="w-3.5 h-3.5 text-amber-600 rounded border-slate-300"
+                              />
+                              <span>Edge-Case Test</span>
+                            </label>
+                          </div>
+                          <div className="flex flex-col justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveHiddenTest(tcIdx)}
+                              className="self-end text-xs text-rose-600 hover:underline font-bold"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Admin notes */}
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Admin Explanation / Notes</label>
+                <label className="font-bold text-slate-700 block mb-1">Admin Notes / Internal Solution</label>
                 <textarea
                   rows={2}
                   value={formExplanation}
                   onChange={(e) => setFormExplanation(e.target.value)}
-                  placeholder="Explanation of correct solution (visible to admins only)..."
+                  placeholder="Notes for organizers, benchmark solutions, edge cases..."
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
                 />
               </div>
 
+              {/* Submit / Cancel Actions */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
@@ -598,6 +1379,146 @@ export const QuestionManagementPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ROUND 2 MISSION PREVIEW MODAL */}
+      {previewModalOpen && previewQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-3xl w-full border border-slate-200 shadow-2xl p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-100 text-emerald-800">
+                    Mission #{previewQuestion.orderNumber}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                      previewQuestion.isActive
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {previewQuestion.isActive ? 'PUBLISHED' : 'DRAFT'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-purple-100 text-purple-800">
+                    {previewQuestion.language || 'javascript'}
+                  </span>
+                </div>
+                <h2 className="text-lg font-extrabold text-emerald-950 mt-1">
+                  {previewQuestion.title}
+                </h2>
+              </div>
+              <button
+                onClick={() => setPreviewModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Briefing */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Operational Briefing
+              </h4>
+              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
+                {previewQuestion.description}
+              </p>
+            </div>
+
+            {/* Starter Code Viewer with Participant-Aligned Defect Highlights */}
+            {previewQuestion.starterCode && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Code className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Faulty Starter Code (Exact Participant View &amp; Highlights)</span>
+                  </h4>
+                  <span className="text-[11px] font-mono text-slate-500">
+                    {previewQuestion.starterCode.split('\n').length} Lines
+                  </span>
+                </div>
+                <div className="text-xs font-mono bg-slate-950 text-slate-200 p-3 rounded-xl overflow-x-auto max-h-72 leading-relaxed border border-slate-800">
+                  {previewQuestion.starterCode.split('\n').map((lineText, idx) => {
+                    const lineNum = idx + 1;
+                    const bugForLine = previewQuestion.plantedBugs?.find(
+                      (b) =>
+                        b.lineNumber === lineNum ||
+                        (b.expression && b.expression.length > 5 && lineText.includes(b.expression.trim())),
+                    );
+
+                    return (
+                      <div
+                        key={lineNum}
+                        className={`flex items-start px-2 py-0.5 rounded transition-colors ${
+                          bugForLine
+                            ? 'bg-rose-950/70 border-l-4 border-rose-500 text-rose-300 font-semibold shadow-[0_0_8px_rgba(244,63,94,0.35)]'
+                            : 'hover:bg-slate-900/60 text-slate-300'
+                        }`}
+                      >
+                        <span
+                          className={`w-8 shrink-0 text-right pr-3 select-none ${
+                            bugForLine ? 'text-rose-400 font-bold' : 'text-slate-600'
+                          }`}
+                        >
+                          {lineNum}
+                        </span>
+                        <span className="flex-1 whitespace-pre">{lineText}</span>
+                        {bugForLine && (
+                          <span className="ml-2 px-1.5 py-0.2 rounded text-[10px] font-mono uppercase bg-rose-600/30 text-rose-300 border border-rose-500/50 shrink-0 select-none">
+                            {bugForLine.name || 'DEFECT'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Planted Bugs Admin Summary */}
+            {previewQuestion.plantedBugs && previewQuestion.plantedBugs.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Bug className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Planted Defect Checklist ({previewQuestion.plantedBugs.length})</span>
+                </h4>
+                <div className="space-y-1.5">
+                  {previewQuestion.plantedBugs.map((bug, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded-lg bg-rose-50/70 border border-rose-200 text-xs flex items-center justify-between"
+                    >
+                      <div>
+                        <span className="font-mono font-bold text-rose-900 mr-2">
+                          Line {bug.lineNumber}:
+                        </span>
+                        <code className="bg-white px-1.5 py-0.5 rounded text-rose-800 font-mono">
+                          {bug.expression}
+                        </code>
+                        <span className="text-slate-600 ml-2">— {bug.description}</span>
+                      </div>
+                      {bug.correctedExpression && (
+                        <span className="text-[10px] font-mono text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
+                          Fix: {bug.correctedExpression}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-3 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setPreviewModalOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs"
+              >
+                Close Preview
+              </button>
+            </div>
           </div>
         </div>
       )}
