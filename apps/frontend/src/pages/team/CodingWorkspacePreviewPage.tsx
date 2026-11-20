@@ -419,10 +419,34 @@ const Round3Workspace: React.FC = () => {
       });
       setConfirmSubmitOpen(false);
     } catch (err: any) {
-      setSubmitFeedback({
-        type: 'error',
-        message: err?.message || 'Failed to submit solution.',
-      });
+      if (
+        err?.message &&
+        (err.message.toLowerCase().includes('already been submitted') ||
+          err.message.toLowerCase().includes('already submitted'))
+      ) {
+        if (roundNumber === 2) {
+          setIsRoundSubmitted(true);
+        } else if (roundNumber === 3) {
+          setSubmittedCases((prev) => Array.from(new Set([...prev, activeCase])));
+        }
+        setCaseDrafts((prev) => ({
+          ...prev,
+          [activeCase]: {
+            ...(prev[activeCase] || { code, language, version: 1, isLoaded: true }),
+            isSubmitted: true,
+          },
+        }));
+        setSubmitFeedback({
+          type: 'error',
+          message: err?.message || 'This solution has already been officially submitted by your team.',
+        });
+        setConfirmSubmitOpen(false);
+      } else {
+        setSubmitFeedback({
+          type: 'error',
+          message: err?.message || 'Failed to submit solution.',
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

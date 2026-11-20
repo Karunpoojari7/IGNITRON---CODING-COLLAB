@@ -89,8 +89,12 @@ export const McqArenaPage: React.FC = () => {
       setIsSubmitted(state.isSubmitted);
 
       if (state.isSubmitted) {
-        const res = await questionAndArenaService.submitMcqRound();
-        setSubmissionResult(res);
+        try {
+          const res = await questionAndArenaService.submitMcqRound();
+          setSubmissionResult(res);
+        } catch (_) {
+          // If already submitted and breakdown is present
+        }
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to initialize MCQ Arena.');
@@ -187,7 +191,16 @@ export const McqArenaPage: React.FC = () => {
       setIsSubmitted(true);
       setConfirmSubmitOpen(false);
     } catch (err: any) {
-      setError(err?.message || 'Failed to submit answers.');
+      if (err?.message && err.message.toLowerCase().includes('already been submitted')) {
+        setIsSubmitted(true);
+        setConfirmSubmitOpen(false);
+        try {
+          const res = await questionAndArenaService.submitMcqRound();
+          setSubmissionResult(res);
+        } catch (_) {}
+      } else {
+        setError(err?.message || 'Failed to submit answers.');
+      }
     } finally {
       setSubmitting(false);
     }

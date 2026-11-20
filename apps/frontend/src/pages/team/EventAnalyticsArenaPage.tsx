@@ -447,7 +447,11 @@ export const EventAnalyticsArenaPage: React.FC = () => {
       setArenaState(updatedState);
     } catch (err: any) {
       console.error('Submission failed:', err);
-      alert(err?.response?.data?.message || err?.message || 'Submission failed.');
+      const msg = err?.response?.data?.message || err?.message || 'Submission failed.';
+      if (msg.toLowerCase().includes('already been officially submitted')) {
+        setArenaState((prev) => (prev ? { ...prev, isSubmitted: true } : prev));
+      }
+      alert(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -467,7 +471,12 @@ export const EventAnalyticsArenaPage: React.FC = () => {
       setArenaState(updatedState);
     } catch (err: any) {
       console.error('Finalize failed:', err);
-      alert(err?.response?.data?.message || err?.message || 'Failed to finalize round.');
+      const msg = err?.response?.data?.message || err?.message || 'Failed to finalize round.';
+      if (msg.toLowerCase().includes('already been officially submitted')) {
+        setShowFinalModal(false);
+        setArenaState((prev) => (prev ? { ...prev, isSubmitted: true } : prev));
+      }
+      alert(msg);
     } finally {
       setIsFinalizing(false);
     }

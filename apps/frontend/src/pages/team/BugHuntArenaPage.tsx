@@ -326,7 +326,12 @@ export const BugHuntArenaPage: React.FC = () => {
       setArenaState((prev) => (prev ? { ...prev, isSubmitted: true } : prev));
       setActiveStage('results');
     } catch (err: any) {
-      alert(err?.message || 'Final submission failed.');
+      if (err?.message && err.message.toLowerCase().includes('already been submitted')) {
+        setArenaState((prev) => (prev ? { ...prev, isSubmitted: true } : prev));
+        setActiveStage('results');
+      } else {
+        alert(err?.message || 'Final submission failed.');
+      }
     } finally {
       setIsSubmittingFinal(false);
     }

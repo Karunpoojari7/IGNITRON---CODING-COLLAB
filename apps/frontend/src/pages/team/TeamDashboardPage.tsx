@@ -13,7 +13,9 @@ import {
   AnnouncementItem,
   LeaderboardResponseDto,
   CompetitionRoundCardItem,
+  ResultCelebrationType,
 } from '@ignitron/shared';
+import { ResultCelebrationModal } from '../../components/competition/ResultCelebrationModal';
 import {
   Users,
   Building,
@@ -28,6 +30,8 @@ import {
   FileCode,
   ArrowRight,
   X,
+  Heart,
+  Sparkles,
 } from 'lucide-react';
 
 export const TeamDashboardPage: React.FC = () => {
@@ -62,6 +66,72 @@ export const TeamDashboardPage: React.FC = () => {
     } catch (e) {
       console.warn('Could not save dismissed announcement to localStorage', e);
     }
+  };
+
+  // M-04 Animated Celebration & Persistent Announcement State
+  const [celebrationModalOpen, setCelebrationModalOpen] = useState(false);
+  const [activeCelebration, setActiveCelebration] = useState<{
+    id: string;
+    type: ResultCelebrationType;
+    title: string;
+    message: string;
+    teamName: string;
+    roundName?: string;
+    nextRoundName?: string;
+    winnerTeamName?: string;
+    winnerScore?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!teamStatus) return;
+
+    if (teamStatus.winnerAnnouncement) {
+      const ann = teamStatus.winnerAnnouncement;
+      const seenKey = `ignitron_celebration_seen_${ann.id}_${user?.id || 'team'}`;
+      const payload = {
+        id: ann.id,
+        type: ann.type,
+        title: ann.title,
+        message: ann.message,
+        teamName: teamStatus.teamName,
+        winnerTeamName: ann.winnerTeamName,
+        winnerScore: ann.winnerScore,
+      };
+      setActiveCelebration(payload);
+      if (!localStorage.getItem(seenKey)) {
+        setCelebrationModalOpen(true);
+      }
+    } else if (teamStatus.qualificationAnnouncement) {
+      const ann = teamStatus.qualificationAnnouncement;
+      const seenKey = `ignitron_celebration_seen_${ann.id}_${user?.id || 'team'}`;
+      const payload = {
+        id: ann.id,
+        type: ann.type,
+        title: ann.title,
+        message: ann.message,
+        teamName: teamStatus.teamName,
+        roundName: ann.roundName,
+        nextRoundName: ann.targetRoundName,
+      };
+      setActiveCelebration(payload);
+      if (!localStorage.getItem(seenKey)) {
+        setCelebrationModalOpen(true);
+      }
+    } else {
+      setActiveCelebration(null);
+    }
+  }, [teamStatus, user?.id]);
+
+  const handleCloseCelebration = () => {
+    if (activeCelebration) {
+      const seenKey = `ignitron_celebration_seen_${activeCelebration.id}_${user?.id || 'team'}`;
+      try {
+        localStorage.setItem(seenKey, 'true');
+      } catch (e) {
+        console.warn('Could not save seen celebration to localStorage', e);
+      }
+    }
+    setCelebrationModalOpen(false);
   };
 
   const timer = useServerTimer(
@@ -102,6 +172,18 @@ export const TeamDashboardPage: React.FC = () => {
     const interval = setInterval(loadAnnouncements, 15000);
     return () => clearInterval(interval);
   }, []);
+
+  // Synchronize localStorage dismissed announcements with competition reset (STANDBY)
+  useEffect(() => {
+    if (compState?.status === 'STANDBY') {
+      try {
+        localStorage.removeItem(storageKey);
+        setDismissedIds([]);
+      } catch (e) {
+        console.warn('Could not reset dismissed announcements in localStorage', e);
+      }
+    }
+  }, [compState?.status, storageKey]);
 
   if (!user || user.type !== 'TEAM') {
     return null;
@@ -308,6 +390,91 @@ export const TeamDashboardPage: React.FC = () => {
             </div>
           </div>
         )}
+        {/* M-04 Persistent Result & Qualification Announcement Card */}
+        {activeCelebration && (
+          <div
+            className={`p-5 rounded-3xl border shadow-sm transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in ${
+              activeCelebration.type === 'GRAND_WINNER'
+                ? 'bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border-amber-300 text-amber-950'
+                : activeCelebration.type === 'QUALIFIED'
+                ? 'bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/5 border-emerald-300 text-emerald-950'
+                : activeCelebration.type === 'ELIMINATED'
+                ? 'bg-gradient-to-r from-indigo-500/15 via-purple-500/10 to-indigo-500/5 border-indigo-200 text-indigo-950'
+                : 'bg-gradient-to-r from-slate-500/15 via-slate-500/10 to-slate-500/5 border-slate-300 text-slate-900'
+            }`}
+          >
+            <div className="flex items-start sm:items-center gap-4">
+              <div
+                className={`p-3 rounded-2xl border shrink-0 ${
+                  activeCelebration.type === 'GRAND_WINNER'
+                    ? 'bg-amber-100 border-amber-300 text-amber-700'
+                    : activeCelebration.type === 'QUALIFIED'
+                    ? 'bg-emerald-100 border-emerald-300 text-emerald-700'
+                    : activeCelebration.type === 'ELIMINATED'
+                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                    : 'bg-slate-100 border-slate-300 text-slate-700'
+                }`}
+              >
+                {activeCelebration.type === 'GRAND_WINNER' ? (
+                  <Trophy className="w-6 h-6 animate-bounce" />
+                ) : activeCelebration.type === 'QUALIFIED' ? (
+                  <Award className="w-6 h-6" />
+                ) : activeCelebration.type === 'ELIMINATED' ? (
+                  <Heart className="w-6 h-6" />
+                ) : (
+                  <Sparkles className="w-6 h-6" />
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase border ${
+                      activeCelebration.type === 'GRAND_WINNER'
+                        ? 'bg-amber-200/80 text-amber-900 border-amber-300'
+                        : activeCelebration.type === 'QUALIFIED'
+                        ? 'bg-emerald-200/80 text-emerald-900 border-emerald-300'
+                        : activeCelebration.type === 'ELIMINATED'
+                        ? 'bg-indigo-200/80 text-indigo-900 border-indigo-300'
+                        : 'bg-slate-200 text-slate-900 border-slate-300'
+                    }`}
+                  >
+                    {activeCelebration.type === 'GRAND_WINNER'
+                      ? '🏆 CHAMPION DECLARED'
+                      : activeCelebration.type === 'QUALIFIED'
+                      ? '✨ STAGE QUALIFIED'
+                      : activeCelebration.type === 'ELIMINATED'
+                      ? 'STAGE CONCLUDED'
+                      : 'OFFICIAL RESULT'}
+                  </span>
+                  <h3 className="font-bold text-sm tracking-tight text-slate-900">
+                    {activeCelebration.title}
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+                  {activeCelebration.message}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setCelebrationModalOpen(true)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
+                activeCelebration.type === 'GRAND_WINNER'
+                  ? 'bg-amber-500 hover:bg-amber-400 text-amber-950'
+                  : activeCelebration.type === 'QUALIFIED'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : activeCelebration.type === 'ELIMINATED'
+                  ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                  : 'bg-slate-800 hover:bg-slate-700 text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Replay Celebration / Review Details</span>
+            </button>
+          </div>
+        )}
+
         {/* Official Tournament Winner Banner */}
         {(leaderboard as any)?.winnerTeam && (
           <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-emerald-500/15 border-2 border-amber-400 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-5 animate-in fade-in">
@@ -866,6 +1033,22 @@ export const TeamDashboardPage: React.FC = () => {
             </div>
           </div>
         </aside>
+      )}
+
+      {/* M-04 Animated Result Experience Modal */}
+      {activeCelebration && (
+        <ResultCelebrationModal
+          isOpen={celebrationModalOpen}
+          onClose={handleCloseCelebration}
+          type={activeCelebration.type}
+          title={activeCelebration.title}
+          message={activeCelebration.message}
+          teamName={activeCelebration.teamName}
+          roundName={activeCelebration.roundName}
+          nextRoundName={activeCelebration.nextRoundName}
+          winnerTeamName={activeCelebration.winnerTeamName}
+          winnerScore={activeCelebration.winnerScore}
+        />
       )}
     </div>
   );
