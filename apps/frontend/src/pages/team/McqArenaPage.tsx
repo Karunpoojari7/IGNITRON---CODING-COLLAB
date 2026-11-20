@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { questionAndArenaService } from '../../services/question-and-arena.service';
 import { useCompetitionState, useServerTimer } from '../../hooks/useCompetition';
+import { useAuth } from '../../context/AuthContext';
 import {
   SanitizedQuestionDto,
   McqSubmissionResultDto,
@@ -13,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Send,
-  HelpCircle,
   RefreshCw,
   Check,
   ShieldAlert,
@@ -24,10 +24,17 @@ import {
   Eye,
   PauseCircle,
   Lock,
+  Flame,
+  ChevronDown,
+  LogOut,
+  Info,
+  User,
 } from 'lucide-react';
 
 export const McqArenaPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const teamUser = user?.type === 'TEAM' ? (user as any) : null;
   const { data: compState } = useCompetitionState();
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -186,6 +193,11 @@ export const McqArenaPage: React.FC = () => {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/', { replace: true });
+  };
+
   const currentQuestion = questions[currentIndex];
   const answeredCount = Object.values(answers).filter((a) => a.selectedOption !== null).length;
   const flaggedCount = Object.values(answers).filter((a) => a.isFlagged).length;
@@ -193,11 +205,14 @@ export const McqArenaPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center p-4">
-        <div className="text-center space-y-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-emerald-600 mx-auto" />
-          <p className="text-sm font-bold text-emerald-950">Preparing Round 1 MCQ Arena...</p>
-        </div>
+      <div className="min-h-screen bg-[#020D0A] text-[#00F5A0] flex flex-col items-center justify-center p-4 font-mono">
+        <RefreshCw className="w-10 h-10 animate-spin text-[#00F5A0] mb-4" />
+        <h2 className="text-lg font-bold tracking-wider uppercase text-white">
+          Preparing Round 1 MCQ Arena
+        </h2>
+        <p className="text-xs text-emerald-400/70 mt-1">
+          Loading 15 screening challenges and initializing authoritative timer...
+        </p>
       </div>
     );
   }
@@ -215,26 +230,26 @@ export const McqArenaPage: React.FC = () => {
       (Boolean(compState?.currentRoundNumber) && (compState?.currentRoundNumber ?? 0) > 1);
 
     return (
-      <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-xl p-8 text-center space-y-5">
+      <div className="min-h-screen bg-[#020D0A] text-slate-100 flex items-center justify-center p-4 font-sans selection:bg-emerald-500/30">
+        <div className="max-w-md w-full bg-[#031712] rounded-3xl border border-[#0D3E2E] shadow-2xl p-8 text-center space-y-5">
           <div
             className={`w-16 h-16 rounded-2xl ${
               isLockedPreRound
-                ? 'bg-amber-50 border border-amber-300 text-amber-600'
-                : 'bg-rose-50 border border-rose-300 text-rose-600'
+                ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                : 'bg-rose-500/15 border border-rose-500/40 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.25)]'
             } flex items-center justify-center mx-auto`}
           >
             {isLockedPreRound ? <Lock className="w-8 h-8" /> : <ShieldAlert className="w-8 h-8" />}
           </div>
           <div className="space-y-2">
-            <h1 className="text-xl font-extrabold text-slate-900">
+            <h1 className="text-xl font-extrabold text-white">
               {isRoundConcluded
                 ? 'Round 1 Concluded'
                 : isLockedPreRound
                 ? 'Round 1 MCQ Arena Locked'
                 : 'Arena Access Restricted'}
             </h1>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-slate-400 leading-relaxed font-mono">
               {isRoundConcluded
                 ? 'Round 1 has concluded. Submissions and question access are now closed.'
                 : error
@@ -244,7 +259,7 @@ export const McqArenaPage: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/team/dashboard')}
-            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00F5A0] hover:from-[#00F5A0] hover:to-[#34D399] text-black font-black font-mono text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(0,245,160,0.35)]"
           >
             <span>Return to Team Dashboard</span>
             <ArrowRight className="w-4 h-4" />
@@ -257,73 +272,76 @@ export const McqArenaPage: React.FC = () => {
   // Submitted Completion Screen (Only shown when not reviewing)
   if (isSubmitted && submissionResult && !reviewMode) {
     return (
-      <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-xl p-8 text-center space-y-6">
-          <div className="w-16 h-16 bg-emerald-100 rounded-3xl border border-emerald-300 flex items-center justify-center mx-auto text-emerald-700 shadow-xs">
+      <div className="min-h-screen bg-[#020D0A] text-slate-100 flex items-center justify-center p-4 font-sans selection:bg-emerald-500/30">
+        <div className="max-w-md w-full bg-[#031712] rounded-3xl border border-[#0D3E2E] shadow-2xl p-8 text-center space-y-6">
+          <div className="w-16 h-16 bg-amber-500/15 rounded-3xl border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
             <Trophy className="w-8 h-8" />
           </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl font-extrabold text-emerald-950">Round 1 Completed!</h1>
-            <p className="text-xs text-slate-500">
+          <div className="space-y-1.5">
+            <h1 className="text-2xl font-black text-white">Round 1 Completed!</h1>
+            <p className="text-xs text-slate-400 font-mono">
               Your team's multiple-choice answers have been submitted and automatically evaluated.
             </p>
           </div>
 
           {/* Prominent Post-Submission Waiting Notification */}
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-left text-xs text-emerald-950 flex items-start gap-3 shadow-2xs">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="p-4 bg-[#04241B] border border-[#00F5A0]/40 rounded-2xl text-left text-xs text-emerald-200 flex items-start gap-3 shadow-md">
+            <CheckCircle2 className="w-5 h-5 text-[#00F5A0] shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <span className="font-bold block text-emerald-900">Submission Received Successfully!</span>
-              <p className="text-[11px] text-emerald-800 leading-relaxed">
-                Your answers have been recorded. The administrators will now evaluate the round and announce shortlisted teams on the dashboard and announcements.
+              <span className="font-bold block text-white font-mono">
+                Submission Received Successfully!
+              </span>
+              <p className="text-[11px] text-emerald-300/80 leading-relaxed">
+                Your answers have been recorded. The administrators will now evaluate the round and announce shortlisted teams on the dashboard.
               </p>
             </div>
           </div>
 
           {/* Score Card */}
-          <div className="bg-gradient-to-b from-emerald-50 to-white rounded-2xl border border-emerald-200 p-6 space-y-3">
-            <div className="text-xs font-mono font-bold text-emerald-800 uppercase tracking-wider">
+          <div className="bg-[#010906] rounded-2xl border border-[#0D3E2E] p-6 space-y-3">
+            <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
               Official Round 1 Score
             </div>
-            <div className="text-4xl font-black font-mono text-emerald-950">
-              {submissionResult.score.toFixed(1)} <span className="text-lg font-bold text-emerald-700">/ 30</span>
+            <div className="text-4xl font-black font-mono text-[#00F5A0] shadow-[0_0_15px_rgba(0,245,160,0.3)]">
+              {submissionResult.score.toFixed(1)}{' '}
+              <span className="text-lg font-bold text-emerald-600">/ 30</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-emerald-100">
-              <div className="p-2 rounded-lg bg-white border border-emerald-100">
-                <span className="text-slate-500 block text-[10px]">Correct Answers</span>
-                <span className="font-bold text-emerald-900 font-mono">
+            <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-[#0D3E2E]">
+              <div className="p-2.5 rounded-xl bg-[#02130F] border border-[#0A261C]">
+                <span className="text-slate-400 block text-[10px] font-mono">Correct Answers</span>
+                <span className="font-bold text-[#00F5A0] font-mono text-sm">
                   {submissionResult.correctCount} / {submissionResult.totalQuestions}
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-white border border-emerald-100">
-                <span className="text-slate-500 block text-[10px]">Attempted</span>
-                <span className="font-bold text-slate-900 font-mono">
+              <div className="p-2.5 rounded-xl bg-[#02130F] border border-[#0A261C]">
+                <span className="text-slate-400 block text-[10px] font-mono">Attempted</span>
+                <span className="font-bold text-white font-mono text-sm">
                   {submissionResult.answeredCount} / {submissionResult.totalQuestions}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-left text-xs text-blue-900 flex items-start gap-2.5">
-            <ShieldAlert className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-            <p className="text-[11px] leading-relaxed">
-              <strong>Shortlisting Threshold:</strong> The top 50% scoring teams will qualify to enter Round 2 (Bug Hunt Arena). Check the official leaderboard for updates.
+          <div className="p-3.5 bg-blue-950/40 border border-blue-500/30 rounded-xl text-left text-xs text-blue-200 flex items-start gap-2.5">
+            <ShieldAlert className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed font-mono">
+              <strong>Shortlisting Threshold:</strong> Top qualifying teams will advance to Round 2 (Bug Hunt Arena).
             </p>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2.5 pt-1">
             <button
               onClick={() => setReviewMode(true)}
-              className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center justify-center gap-2 border border-slate-300"
+              className="w-full py-2.5 rounded-xl bg-[#010906] hover:bg-[#04241B] text-slate-200 hover:text-white font-mono font-bold text-xs transition-colors flex items-center justify-center gap-2 border border-[#0D3E2E]"
             >
-              <Eye className="w-4 h-4 text-slate-600" />
+              <Eye className="w-4 h-4 text-[#00F5A0]" />
               <span>Review Submitted Answers</span>
             </button>
 
             <button
               onClick={() => navigate('/team/dashboard')}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-xs transition flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl bg-[#00F5A0] hover:bg-[#34D399] text-black font-black font-mono text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,245,160,0.4)] transition-all flex items-center justify-center gap-2"
             >
               <span>Return to Team Dashboard</span>
               <ArrowRight className="w-4 h-4" />
@@ -334,159 +352,266 @@ export const McqArenaPage: React.FC = () => {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // MAIN COMPETITION DASHBOARD (MATCHING REFERENCE SCREENSHOT)
+  // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#f8faf9] flex flex-col">
-      {/* If in Review Mode, render compact non-header review toolbar directly under RootLayout Navbar */}
-      {reviewMode ? (
-        <div className="bg-slate-900 border-b border-slate-800 text-slate-100 px-4 sm:px-6 py-2.5 shadow-xs sticky top-16 z-20">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setReviewMode(false)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-slate-700 shadow-2xs transition cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Scorecard</span>
-              </button>
-              <div className="h-4 w-px bg-slate-700 hidden sm:block" />
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-mono text-emerald-300 font-extrabold uppercase">
-                  R1
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-slate-100">
-                  Round 1: Submitted Answers Review
-                </span>
-                <span className="px-2 py-0.5 rounded bg-amber-950/80 border border-amber-600/40 text-[10px] font-mono text-amber-300 font-bold uppercase">
-                  Read-Only Mode
-                </span>
-              </div>
-            </div>
+    <div className="min-h-screen max-h-screen bg-[#020D0A] text-slate-100 flex flex-col overflow-hidden font-sans select-none relative">
+      {/* Background ambient radial gradients & starry wave glow at bottom */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_40%_at_50%_-10%,rgba(0,245,160,0.08),transparent_70%)]" />
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_60%_30%_at_50%_110%,rgba(0,245,160,0.05),transparent)]" />
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-950/80 border border-emerald-700/80 text-emerald-200 font-mono text-xs font-bold">
-                <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                <span>Score: {submissionResult?.score.toFixed(1)} / 30 pts</span>
-              </div>
-              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 font-mono text-[11px]">
-                <Eye className="w-3 h-3 text-slate-400" />
-                <span>Responses Locked</span>
-              </div>
+      {/* Decorative Bottom-Left Wave Graphics matching reference */}
+      <svg
+        className="absolute bottom-0 left-0 w-[550px] h-[160px] pointer-events-none opacity-25 z-0"
+        viewBox="0 0 600 200"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M-50 180 C 100 120, 250 190, 400 130 C 500 90, 580 150, 650 110"
+          stroke="#00F5A0"
+          strokeWidth="1.5"
+          strokeDasharray="3 6"
+        />
+        <path
+          d="M-50 195 C 120 140, 220 200, 380 145 C 480 110, 550 170, 650 130"
+          stroke="#00F5A0"
+          strokeWidth="1"
+          strokeOpacity="0.6"
+        />
+      </svg>
+
+      {/* ===================================================================== */}
+      {/* 1. TOP NAVIGATION BAR (Bar 1: ~64px)                                  */}
+      {/* ===================================================================== */}
+      <div
+        role="navigation"
+        aria-label="Global Arena Navigation"
+        className="h-16 px-6 bg-[#020F0B]/95 border-b border-[#0D382B] flex items-center justify-between shrink-0 z-30 backdrop-blur-md"
+      >
+        {/* Left: Flame Logo + IGNITRON 2K26 + CODING COLLAB */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-red-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+            <Flame className="w-5 h-5 text-amber-400 fill-amber-400/80 animate-pulse" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-extrabold text-white tracking-wider leading-none">
+              IGNITRON 2K26
+            </span>
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#00F5A0] font-bold leading-none mt-1">
+              CODING COLLAB
+            </span>
+          </div>
+        </div>
+
+        {/* Center: 3 Round Navigation Pills */}
+        <div className="flex items-center gap-3">
+          {/* Round 1 (Active Glowing Pill) */}
+          <div className="px-5 py-1.5 rounded-full bg-[#04241B] border-2 border-[#00F5A0] text-[#00F5A0] font-mono text-xs font-bold shadow-[0_0_15px_rgba(0,245,160,0.35)] flex items-center gap-2">
+            <span>Round 1</span>
+          </div>
+
+          {/* Round 2 (Dark Inactive Pill) */}
+          <Link
+            to="/team/arena/bug-hunt"
+            className="px-4 py-1.5 rounded-full bg-[#031812] border border-[#0F4A37] text-slate-400 hover:text-slate-200 font-mono text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            <span>Round 2</span>
+          </Link>
+
+          {/* Round 3 (Locked Pill) */}
+          <Link
+            to="/team/arena/analytics"
+            className="px-4 py-1.5 rounded-full bg-[#031812] border border-[#0F4A37] text-slate-400 hover:text-slate-200 font-mono text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            <span>Round 3</span>
+            <Lock className="w-3 h-3 text-slate-500" />
+          </Link>
+        </div>
+
+        {/* Right: Team Dropdown, Dashboard Link, Workspace Link, Logout */}
+        <div className="flex items-center gap-5">
+          {/* Team Dropdown Pill */}
+          <div className="px-3.5 py-1.5 rounded-xl bg-[#031913] border border-[#0E4735] flex items-center gap-2.5 shadow-inner">
+            <div className="w-6 h-6 rounded-lg bg-[#00F5A0]/15 border border-[#00F5A0]/40 flex items-center justify-center text-[#00F5A0]">
+              <User className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col text-left font-mono leading-tight">
+              <span className="text-xs font-bold text-white">
+                Team: {teamUser?.teamName || 'Bankai'}
+              </span>
+              <span className="text-[10px] text-emerald-400/80">
+                {teamUser?.teamCode || 'IGN-E031'}
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-emerald-500 ml-1" />
+          </div>
+
+          {/* Direct Text Links */}
+          <Link
+            to="/team/dashboard"
+            className="text-xs font-mono font-semibold text-slate-300 hover:text-white transition-colors"
+          >
+            Dashboard
+          </Link>
+
+          <Link
+            to="/team/workspace"
+            className="text-xs font-mono font-semibold text-slate-300 hover:text-white transition-colors"
+          >
+            Workspace
+          </Link>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            title="Log out"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 transition-colors cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* ===================================================================== */}
+      {/* 2. SECOND TOOLBAR (Top Arena Compact Toolbar: ~52px)                  */}
+      {/* ===================================================================== */}
+      {/* Top Arena Compact Toolbar */}
+      {reviewMode ? (
+        /* Read-Only Review Mode Toolbar */
+        <div className="sticky top-0 z-20 h-14 px-6 bg-[#031712] border-b border-[#0D382B] flex items-center justify-between shrink-0 shadow-md">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setReviewMode(false)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#010906] hover:bg-[#04241B] text-white text-xs font-mono font-bold border border-[#0D3E2E] transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Score Card</span>
+            </button>
+            <span className="px-2.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-[11px] font-mono text-amber-300 font-bold uppercase">
+              Read-Only Review Mode — Viewing submitted answers
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-3.5 py-1 rounded-xl bg-[#04241B] border border-[#00F5A0]/40 text-[#00F5A0] font-mono text-xs font-bold shadow-sm">
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              <span>Score: {submissionResult?.score.toFixed(1)} / 30 pts</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#010906] border border-[#0A261C] text-slate-400 font-mono text-[11px]">
+              <Eye className="w-3.5 h-3.5" />
+              <span>Responses Locked</span>
             </div>
           </div>
         </div>
       ) : (
-        /* Top Arena Compact Toolbar & Server Timer Bar during active round (NO duplicate header) */
-        <div className="bg-slate-900 border-b border-slate-800 text-slate-100 sticky top-16 z-20 px-4 sm:px-6 py-2.5 shadow-sm">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-            {/* Left: Dashboard return link, Round Badge & Name, and Autosave status */}
-            <div className="flex items-center gap-2.5">
-              <Link
-                to="/team/dashboard"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition"
-                title="Return to Team Dashboard"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
-                <span className="hidden sm:inline">Dashboard</span>
-              </Link>
+        /* Active Round Compact Toolbar (Round 1: MCQ Arena) */
+        <div className="sticky top-0 z-20 h-14 px-6 bg-[#02130F]/95 border-b border-[#0D382B] flex items-center justify-between shrink-0 backdrop-blur-md">
+          {/* Left: < Dashboard button + R1 badge + Round 1 – MCQ Arena */}
+          <div className="flex items-center gap-3">
+            <Link
+              to="/team/dashboard"
+              className="px-3.5 py-1.5 rounded-xl border border-[#0D3E2E] bg-[#02130F] hover:bg-[#031C15] text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
+              <span>Dashboard</span>
+            </Link>
 
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-mono font-extrabold uppercase">
-                  R1
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-slate-100">
-                  Round 1: MCQ Arena
-                </span>
+            <span className="px-2.5 py-0.5 rounded-lg bg-[#00F5A0]/20 border border-[#00F5A0]/50 text-[#00F5A0] font-mono font-black text-xs">
+              R1
+            </span>
+
+            <h1 className="text-base font-bold text-white tracking-wide">
+              Round 1 – MCQ Arena
+            </h1>
+
+            {/* Autosave feedback */}
+            {!isSubmitted && (
+              <div className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono text-slate-400 ml-2 pl-2 border-l border-[#0D382B]">
+                {savingStatus === 'saving' ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
+                    <span className="text-amber-400">Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3 h-3 text-[#00F5A0]" />
+                    <span className="text-emerald-400/80">Answers synced</span>
+                  </>
+                )}
               </div>
+            )}
+          </div>
 
-              {/* Autosave Status Indicator */}
-              {!isSubmitted && (
-                <div className="hidden md:flex items-center gap-1.5 text-[11px] font-mono text-slate-400 ml-2 pl-2 border-l border-slate-800">
-                  {savingStatus === 'saving' ? (
-                    <>
-                      <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span>Answers synced</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Center: Authoritative Server Timer */}
-            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-950/90 border border-slate-700/80 font-mono shadow-inner">
-              <Clock
-                className={`w-3.5 h-3.5 ${
-                  timer.secondsLeft < 300 ? 'text-red-400 animate-pulse' : 'text-emerald-400'
-                }`}
-              />
-              <span className="text-[11px] text-slate-400 hidden sm:inline">Time Remaining:</span>
-              <span
-                className={`text-xs sm:text-sm font-black ${
-                  timer.secondsLeft < 300 ? 'text-red-400' : 'text-emerald-300'
-                }`}
-              >
-                {timer.formatted}
+          {/* Right: Time Remaining + Attempted + Submit Round 1 */}
+          <div className="flex items-center gap-3.5">
+            {/* Time Remaining Card */}
+            <div className="px-3.5 py-1.5 rounded-xl border border-[#0D3E2E] bg-[#02130F] flex items-center gap-2 font-mono shadow-inner">
+              <Clock className="w-4 h-4 text-[#E7B948]" />
+              <span className="text-xs text-slate-300">Time Remaining:</span>
+              <span className="text-sm font-black text-[#FFD45A] tracking-wider leading-none shadow-[0_0_8px_#FFD45A]">
+                {timer.formatted.replace(':', ' : ')}
               </span>
             </div>
 
-            {/* Right: Question attempted progress and Submit action */}
-            <div className="flex items-center gap-2.5">
-              <div className="hidden lg:flex items-center gap-1 text-[11px] font-mono text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-lg border border-slate-700/60">
-                <span>Attempted:</span>
-                <strong className="text-emerald-300">
-                  {answeredCount} / {questions.length}
-                </strong>
-              </div>
-
-              <button
-                onClick={() => setConfirmSubmitOpen(true)}
-                disabled={isSubmitted || effectiveIsPaused}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition disabled:opacity-50 cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Submit Round 1</span>
-              </button>
+            {/* Attempted Counter */}
+            <div className="px-3.5 py-1.5 rounded-xl border border-[#0D3E2E] bg-[#02130F] text-xs font-mono flex items-center gap-1.5 shadow-inner">
+              <span className="text-slate-400">Attempted:</span>
+              <strong className="text-[#00F5A0] font-bold">
+                {answeredCount} / {questions.length}
+              </strong>
             </div>
+
+            {/* Submit Button */}
+            <button
+              onClick={() => setConfirmSubmitOpen(true)}
+              disabled={isSubmitted || effectiveIsPaused}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00D98A] to-[#00F5A0] hover:from-[#00F5A0] hover:to-[#34D399] text-black font-mono font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_15px_rgba(0,245,160,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5 text-black" />
+              <span>Submit Round 1</span>
+            </button>
           </div>
         </div>
       )}
 
       {/* Paused Banner */}
       {effectiveIsPaused && !isSubmitted && (
-        <div className="bg-amber-500 text-white px-4 py-2.5 text-xs font-mono font-bold flex items-center justify-center gap-2 shadow-xs">
-          <PauseCircle className="w-4 h-4 animate-pulse" />
+        <div className="bg-amber-500/20 border-b border-amber-500/40 text-amber-300 px-4 py-2 text-xs font-mono font-bold flex items-center justify-center gap-2 shadow-sm z-20">
+          <PauseCircle className="w-4 h-4 animate-pulse text-amber-400" />
           <span>Tournament paused by Administrator. Timer and submissions are temporarily held.</span>
         </div>
       )}
 
+      {/* Error alert if any */}
       {error && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 w-full">
-          <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-            <span>{error}</span>
-          </div>
+        <div className="mx-6 mt-3 p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-red-200 text-xs font-mono flex items-center gap-2 z-20">
+          <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Question Navigator Sidebar (4 cols) */}
-        <aside className="lg:col-span-4 space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 font-mono">
+      {/* ===================================================================== */}
+      {/* 3. MAIN WORKSPACE (Left 5x3 Grid + Right Question Panel)              */}
+      {/* ===================================================================== */}
+      <main className="flex-1 flex gap-4 px-6 py-4 min-h-0 overflow-hidden z-10 max-w-[1600px] w-full mx-auto">
+        {/* ------------------------------------------------------------------- */}
+        {/* LEFT SIDEBAR: Question Navigator (5x3) + Scoring Rules (~300px)     */}
+        {/* ------------------------------------------------------------------- */}
+        <aside className="w-[300px] shrink-0 flex flex-col gap-3.5 overflow-y-auto pr-0.5 scrollbar-none">
+          {/* Card 1: Question Navigator */}
+          <div className="rounded-2xl border border-[#0D3E2E] bg-[#02130F]/90 p-4 backdrop-blur-md flex flex-col gap-3 shadow-lg shrink-0">
+            <div className="flex items-center justify-between border-b border-[#0D382B] pb-2.5">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
                 Question Navigator
-              </h2>
-              <span className="text-xs font-mono font-bold text-emerald-800">
+              </span>
+              <span className="text-xs font-mono text-slate-400">
                 {answeredCount} / {questions.length} Answered
               </span>
             </div>
 
-            {/* Grid of 15 questions */}
+            {/* Exactly 15 Questions arranged in 5 columns x 3 rows */}
             <div className="grid grid-cols-5 gap-2">
               {questions.map((q, idx) => {
                 const ans = answers[q.id];
@@ -494,106 +619,130 @@ export const McqArenaPage: React.FC = () => {
                 const isFlagged = ans && ans.isFlagged;
                 const isCurrent = idx === currentIndex;
 
-                let btnStyle = 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200';
-                if (isAnswered && isFlagged) {
-                  btnStyle = 'bg-amber-500 text-white border-amber-600 ring-2 ring-emerald-400';
+                let stateClasses = 'bg-[#010906] border-[#0A261C] text-slate-400 hover:border-emerald-700/60';
+                if (isCurrent) {
+                  stateClasses = 'border-2 border-[#00F5A0] bg-[#04281E] text-white shadow-[0_0_12px_rgba(0,245,160,0.4)] ring-1 ring-[#00F5A0]';
+                } else if (isAnswered && isFlagged) {
+                  stateClasses = 'border-2 border-amber-400 bg-amber-950/70 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)]';
                 } else if (isAnswered) {
-                  btnStyle = 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700';
+                  stateClasses = 'border border-[#00F5A0]/60 bg-[#04241B] text-[#00F5A0] font-bold';
                 } else if (isFlagged) {
-                  btnStyle = 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600';
+                  stateClasses = 'border border-amber-400 bg-amber-950/60 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)]';
                 }
 
                 return (
                   <button
                     key={q.id}
                     onClick={() => setCurrentIndex(idx)}
-                    className={`h-10 rounded-xl font-mono text-xs font-bold border transition flex items-center justify-center relative ${btnStyle} ${
-                      isCurrent ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
-                    }`}
+                    className={`h-10 rounded-xl font-mono text-xs font-bold border transition-all flex items-center justify-center relative cursor-pointer ${stateClasses}`}
                   >
                     <span>{idx + 1}</span>
                     {isFlagged && (
-                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-white" />
+                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
                     )}
                   </button>
                 );
               })}
             </div>
 
-            {/* Legend */}
-            <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-[10px] text-slate-500">
+            {/* Status Indicator Legend */}
+            <div className="pt-2.5 border-t border-[#0D382B] flex items-center justify-between text-[11px] font-mono text-slate-300">
               <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-emerald-600 shrink-0" />
+                <span className="w-3 h-2 rounded-sm bg-[#00F5A0] shadow-[0_0_4px_#00F5A0]" />
                 <span>Answered</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-amber-500 shrink-0" />
+                <span className="w-3 h-2 rounded-sm bg-[#F59E0B] shadow-[0_0_4px_#f59e0b]" />
                 <span>Flagged</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-slate-200 shrink-0" />
-                <span>Unanswered</span>
+                <span className="w-3 h-2 rounded-sm bg-[#0A261C] border border-[#0D3E2E]" />
+                <span className="text-slate-400">Unanswered</span>
               </div>
             </div>
           </div>
 
-          {/* Quick Round Guidelines Card */}
-          <div className="bg-emerald-50/50 rounded-2xl border border-emerald-200/80 p-4 text-xs space-y-2 text-emerald-950">
-            <div className="font-bold flex items-center gap-1.5">
-              <HelpCircle className="w-4 h-4 text-emerald-700" />
-              <span>Scoring Rules</span>
+          {/* Card 2: Scoring Rules */}
+          <div className="rounded-2xl border border-[#0D3E2E] bg-[#02130F]/90 p-4 backdrop-blur-md flex flex-col gap-2.5 shadow-lg shrink-0">
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-[#00F5A0]" />
+              <span className="text-xs font-mono font-bold text-slate-200">
+                Scoring Rules
+              </span>
             </div>
-            <ul className="list-disc list-inside text-[11px] text-slate-600 space-y-1">
-              <li>Exactly 15 questions × 2 marks each = 30 total marks.</li>
-              <li>No negative marking for incorrect choices.</li>
-              <li>Answers are automatically saved to the cloud on selection.</li>
+
+            <ul className="space-y-1.5 text-[11px] font-mono text-slate-300">
+              <li className="flex items-start gap-1.5 leading-snug">
+                <span className="text-[#00F5A0] shrink-0">•</span>
+                <span>Exactly 15 questions × 2 marks each = 30 total marks.</span>
+              </li>
+              <li className="flex items-start gap-1.5 leading-snug">
+                <span className="text-[#00F5A0] shrink-0">•</span>
+                <span>No negative marking for incorrect choices.</span>
+              </li>
+              <li className="flex items-start gap-1.5 leading-snug">
+                <span className="text-[#00F5A0] shrink-0">•</span>
+                <span>Answers are automatically saved to the cloud on selection.</span>
+              </li>
             </ul>
           </div>
         </aside>
 
-        {/* Right: Active Question Card (8 cols) */}
-        <section className="lg:col-span-8 flex flex-col">
+        {/* ------------------------------------------------------------------- */}
+        {/* RIGHT COLUMN: Main Active Question Card (flex-1)                    */}
+        {/* ------------------------------------------------------------------- */}
+        <section className="flex-1 flex flex-col min-w-0 overflow-y-auto pl-0.5 scrollbar-thin">
           {currentQuestion ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs flex-1 flex flex-col justify-between space-y-6">
-              <div className="space-y-4">
-                {/* Question Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
-                      Question {currentIndex + 1} of {questions.length}
+            <div className="rounded-2xl border border-[#0D3E2E] bg-[#02130F]/95 p-6 backdrop-blur-md flex flex-col justify-between shadow-2xl relative min-h-[500px] flex-1">
+              <div>
+                {/* Header Row: QUESTION X OF 15 + +2 Marks + Flag Question */}
+                <div className="flex items-center justify-between pb-3 border-b border-[#0D382B]">
+                  <div className="flex items-center gap-3">
+                    <span className="px-3.5 py-1 rounded-full border border-[#00F5A0]/60 bg-[#00F5A0]/15 text-[#00F5A0] font-mono font-bold text-xs shadow-sm">
+                      QUESTION {currentIndex + 1} OF {questions.length}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold text-slate-600 bg-slate-100">
-                      +{currentQuestion.marks} Marks
+                    <span className="px-3 py-1 rounded-full border border-[#0D3E2E] bg-[#010906] text-slate-300 font-mono text-xs font-semibold">
+                      +{currentQuestion.marks || 2} Marks
                     </span>
                   </div>
 
                   {!reviewMode && !isSubmitted && (
                     <button
                       onClick={handleToggleFlag}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition ${
+                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                         answers[currentQuestion.id]?.isFlagged
-                          ? 'border-amber-400 bg-amber-50 text-amber-800'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                          ? 'border-2 border-amber-400 bg-amber-950/50 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                          : 'border border-[#0D3E2E] bg-[#010906] hover:bg-[#031C15] text-slate-300 hover:text-white'
                       }`}
                     >
-                      <Flag className="w-3.5 h-3.5" />
-                      <span>{answers[currentQuestion.id]?.isFlagged ? 'Flagged for Review' : 'Flag Question'}</span>
+                      <Flag
+                        className={`w-3.5 h-3.5 ${
+                          answers[currentQuestion.id]?.isFlagged
+                            ? 'text-amber-400 fill-amber-400'
+                            : 'text-slate-400'
+                        }`}
+                      />
+                      <span>
+                        {answers[currentQuestion.id]?.isFlagged
+                          ? 'Flagged for Review'
+                          : 'Flag Question'}
+                      </span>
                     </button>
                   )}
                 </div>
 
-                {/* Question Title & Prompt */}
-                <div className="space-y-2">
-                  <h3 className="text-base sm:text-lg font-bold text-emerald-950">
+                {/* Question Title & Description */}
+                <div className="mt-5 mb-6 space-y-2">
+                  <h2 className="text-xl font-bold text-white tracking-wide">
                     {currentQuestion.title}
-                  </h3>
-                  <div className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  </h2>
+                  <div className="text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
                     {currentQuestion.description}
                   </div>
                 </div>
 
-                {/* 4 Radio Options */}
-                <div className="space-y-3 pt-3">
+                {/* 4 Selectable Answer Cards (A, B, C, D) */}
+                <div className="space-y-3 pt-1">
                   {currentQuestion.options?.map((optionText, optIdx) => {
                     const isSelected = answers[currentQuestion.id]?.selectedOption === optIdx;
 
@@ -601,38 +750,47 @@ export const McqArenaPage: React.FC = () => {
                       <div
                         key={optIdx}
                         onClick={() => handleSelectOption(optIdx)}
-                        className={`p-4 rounded-xl border transition flex items-center gap-3.5 ${
+                        className={`p-4 rounded-xl border transition-all flex items-center justify-between ${
                           reviewMode || isSubmitted || effectiveIsPaused
                             ? 'cursor-default'
-                            : 'cursor-pointer hover:border-slate-300 hover:bg-slate-50/50'
+                            : 'cursor-pointer'
                         } ${
                           isSelected
-                            ? 'border-emerald-600 bg-emerald-50/80 shadow-xs'
-                            : 'border-slate-200'
+                            ? 'border-2 border-[#00F5A0] bg-[#04281E]/80 shadow-[0_0_15px_rgba(0,245,160,0.25)]'
+                            : 'border border-[#0D3E2E] bg-[#010906]/80 hover:border-emerald-700/60 hover:bg-[#02130F]'
                         }`}
                       >
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs font-mono shrink-0 transition ${
-                            isSelected
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-slate-100 text-slate-600 border border-slate-300'
-                          }`}
-                        >
-                          {String.fromCharCode(65 + optIdx)}
+                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                          {/* Option Badge Circle */}
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center font-mono font-bold text-xs shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-[#00F5A0] text-black font-black shadow-[0_0_8px_#00F5A0]'
+                                : 'bg-[#02130F] text-slate-300 border border-[#0D3E2E]'
+                            }`}
+                          >
+                            {String.fromCharCode(65 + optIdx)}
+                          </div>
+
+                          {/* Option Text */}
+                          <span
+                            className={`text-sm font-mono truncate ${
+                              isSelected ? 'font-bold text-white' : 'text-slate-300'
+                            }`}
+                          >
+                            {optionText}
+                          </span>
                         </div>
 
-                        <span className={`text-xs sm:text-sm flex-1 ${isSelected ? 'font-bold text-emerald-950' : 'text-slate-800'}`}>
-                          {optionText}
-                        </span>
-
+                        {/* Selected Checkmark Indicator */}
                         {isSelected && (
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-2 shrink-0 ml-3">
                             {reviewMode && (
-                              <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300 hidden sm:inline">
+                              <span className="text-[10px] font-mono font-bold text-[#00F5A0] bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded-md hidden sm:inline">
                                 Your Selection
                               </span>
                             )}
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            <CheckCircle2 className="w-5 h-5 text-[#00F5A0]" />
                           </div>
                         )}
                       </div>
@@ -641,33 +799,38 @@ export const McqArenaPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Navigation Footer */}
-              <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+              {/* Bottom Navigation Toolbar */}
+              <div className="pt-4 border-t border-[#0D382B] flex items-center justify-between mt-8">
+                {/* Previous Button */}
                 <button
                   disabled={currentIndex === 0}
                   onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                  className="inline-flex items-center gap-1 px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition disabled:opacity-40"
+                  className="px-5 py-2 rounded-xl border border-[#0D3E2E] bg-[#010906] hover:bg-[#031C15] text-slate-400 hover:text-white font-mono font-bold text-xs flex items-center gap-1.5 disabled:opacity-30 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   <span>Previous</span>
                 </button>
 
-                <div className="text-xs text-slate-400 font-mono">
+                {/* Question Position */}
+                <div className="text-xs font-mono font-bold text-slate-400">
                   {currentIndex + 1} / {questions.length}
                 </div>
 
+                {/* Next / Submit Button */}
                 {currentIndex < questions.length - 1 ? (
                   <button
-                    onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
-                    className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition"
+                    onClick={() =>
+                      setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))
+                    }
+                    className="px-6 py-2 rounded-xl bg-[#00F5A0] hover:bg-[#34D399] text-black font-black font-mono text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,245,160,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                   >
                     <span>Next</span>
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 stroke-[3]" />
                   </button>
                 ) : reviewMode || isSubmitted ? (
                   <button
                     onClick={() => setReviewMode(false)}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00F5A0] text-black font-black font-mono text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,245,160,0.4)] transition-all hover:scale-[1.02]"
                   >
                     <span>Back to Score Card</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -675,74 +838,82 @@ export const McqArenaPage: React.FC = () => {
                 ) : (
                   <button
                     onClick={() => setConfirmSubmitOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
+                    className="px-6 py-2 rounded-xl bg-gradient-to-r from-[#00D98A] to-[#00F5A0] hover:from-[#00F5A0] hover:to-[#34D399] text-black font-black font-mono text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,245,160,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                   >
-                    <span>Review & Submit</span>
-                    <Send className="w-3.5 h-3.5" />
+                    <span>Review &amp; Submit</span>
+                    <Send className="w-3.5 h-3.5 text-black" />
                   </button>
                 )}
               </div>
             </div>
           ) : (
-            <div className="p-8 text-center text-slate-400">No questions available.</div>
+            <div className="p-8 text-center text-slate-400 font-mono text-xs">
+              No questions available.
+            </div>
           )}
         </section>
       </main>
 
-      {/* CONFIRMATION MODAL - Strictly guarded: Never show in review mode or once submitted */}
+      {/* ===================================================================== */}
+      {/* 4. SUBMISSION CONFIRMATION MODAL                                      */}
+      {/* ===================================================================== */}
       {confirmSubmitOpen && !isSubmitted && !reviewMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fade-in">
+          <div className="bg-[#031712] rounded-3xl max-w-md w-full border border-[#00F5A0]/50 shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#0D382B] pb-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-[#00F5A0] border border-emerald-500/30 flex items-center justify-center shrink-0">
                 <Send className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-emerald-950">Submit Round 1 MCQ Arena?</h3>
-                <p className="text-xs text-slate-500">
-                  Please review your attempt summary before final submission.
+                <h3 className="text-base font-bold text-white">Submit Round 1 MCQ Arena?</h3>
+                <p className="text-xs text-slate-400 font-mono">
+                  Review your attempt summary before final submission.
                 </p>
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
+            <div className="p-4 bg-[#010906] rounded-xl border border-[#0D3E2E] space-y-2 text-xs font-mono">
               <div className="flex justify-between">
-                <span className="text-slate-600">Total Questions:</span>
-                <span className="font-bold text-slate-900">{questions.length}</span>
+                <span className="text-slate-400">Total Questions:</span>
+                <span className="font-bold text-white">{questions.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-emerald-700 font-bold">Answered:</span>
-                <span className="font-bold text-emerald-700">{answeredCount}</span>
+                <span className="text-[#00F5A0] font-bold">Answered:</span>
+                <span className="font-bold text-[#00F5A0]">{answeredCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-amber-700">Flagged for Review:</span>
-                <span className="font-bold text-amber-700">{flaggedCount}</span>
+                <span className="text-amber-400">Flagged for Review:</span>
+                <span className="font-bold text-amber-400">{flaggedCount}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Unanswered:</span>
-                <span className="font-bold text-slate-500">{unansweredCount}</span>
+                <span className="font-bold text-slate-400">{unansweredCount}</span>
               </div>
             </div>
 
             {unansweredCount > 0 && (
-              <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+              <p className="text-[11px] font-mono text-amber-300 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/30">
                 You still have <strong>{unansweredCount} unanswered questions</strong>. Once submitted, answers cannot be edited.
               </p>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 font-mono text-xs">
               <button
                 onClick={() => setConfirmSubmitOpen(false)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 font-bold text-xs hover:bg-slate-50"
+                className="px-4 py-2 border border-[#0D3E2E] rounded-xl text-slate-300 hover:text-white font-bold hover:bg-[#04241B] transition-colors"
               >
                 Keep Answering
               </button>
               <button
                 onClick={() => handleFinalSubmit(false)}
                 disabled={submitting}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 inline-flex items-center gap-1.5"
+                className="px-5 py-2 bg-gradient-to-r from-[#00D98A] to-[#00F5A0] hover:from-[#00F5A0] hover:to-[#34D399] text-black font-black uppercase tracking-wider rounded-xl shadow-[0_0_15px_rgba(0,245,160,0.4)] disabled:opacity-50 inline-flex items-center gap-1.5 transition-all"
               >
-                {submitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                {submitting ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-black" />
+                ) : (
+                  <Check className="w-3.5 h-3.5 text-black stroke-[3]" />
+                )}
                 <span>{submitting ? 'Submitting...' : 'Confirm Submission'}</span>
               </button>
             </div>

@@ -269,7 +269,7 @@ export class TokenBucketLimiter {
         roundNumber: 2,
         caseNumber: 1,
         sourceCode: r2DraftCode,
-        language: 'typescript',
+        language: 'javascript',
       },
       teamCookie,
     );
@@ -287,7 +287,7 @@ export class TokenBucketLimiter {
         roundNumber: 2,
         caseNumber: 1,
         sourceCode: r2DraftCode,
-        language: 'typescript',
+        language: 'javascript',
       },
       teamCookie,
     );

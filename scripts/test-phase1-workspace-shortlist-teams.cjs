@@ -8,6 +8,8 @@
  * 4. Coding Workspaces (R2 & R3): Typography, sample test execution, and strict Case 1/2/3 isolation
  */
 
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const assert = require('assert');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -150,7 +152,7 @@ async function runPhase1Verification() {
           roundId: round3.id,
           caseNumber: 1,
           sourceCode: '// Case 1 Code',
-          language: 'typescript',
+          language: 'java',
           version: 1,
         },
       });

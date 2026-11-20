@@ -173,7 +173,7 @@ async function runPhase31Verification() {
       description: 'Isolate race condition in cache lock.',
       marks: 100,
       starterCode: 'let locked = false;',
-      language: 'typescript',
+      language: 'javascript',
       rubric: { bugIdentification: 20, testCorrectness: 50, edgeCases: 20, codeQuality: 10 },
     }, adminCookie);
     assert(createBug.statusCode === 201, 'Admin creates Bug Hunt question');
