@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { Judge0ClientService } from '../code-execution/judge0-client.service';
 import {
   AuthTeamUser,
   McqArenaStateDto,
@@ -13,13 +14,64 @@ import {
   McqSubmissionResultDto,
   SanitizedQuestionDto,
   QuestionType,
+  OFFICIAL_JUDGE0_LANGUAGES,
+  EXECUTION_LIMITS,
+  BugHuntArenaStateDto,
+  ReportBugDto,
+  ReportBugResultDto,
 } from '@ignitron/shared';
+import {
+  OFFICIAL_ROUND2_JS_STARTER,
+  OFFICIAL_ROUND2_PLANTED_BUGS,
+} from './questions.service';
 
 @Injectable()
 export class ArenaService {
   private readonly logger = new Logger(ArenaService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly judge0Client: Judge0ClientService,
+  ) {}
+
+  /**
+   * Strictly verify that the calling participant has the active team terminal session
+   */
+  async verifyActiveParticipantSession(teamUser: AuthTeamUser): Promise<void> {
+    if (!teamUser?.activeParticipant?.id) {
+      throw new ForbiddenException(
+        'Participant context required. Please authenticate with your participant identity.',
+      );
+    }
+
+    const activeSession = await this.prisma.teamSession.findFirst({
+      where: {
+        teamId: teamUser.id,
+        participantId: teamUser.activeParticipant.id,
+        status: 'ACTIVE',
+      },
+      orderBy: { lastActivityAt: 'desc' },
+    });
+
+    if (!activeSession) {
+      throw new ForbiddenException(
+        'Participant does not hold the active team terminal session. Please authenticate or request relay handover.',
+      );
+    }
+  }
+
+  /**
+   * Normalize output by trimming lines and whitespace
+   */
+  private normalizeOutput(out: string | null | undefined): string {
+    if (!out) return '';
+    return out
+      .trim()
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n');
+  }
 
   /**
    * Helper to fetch round by roundNumber
@@ -391,6 +443,360 @@ export class ArenaService {
   }
 
   // ============================================================================
+  // ROUND 2: BUG HUNT ARENA (INVESTIGATION & CODE REPAIR WORKFLOW)
+  // ============================================================================
+
+  /**
+   * Contestant: Get current Bug Hunt arena state (Mission briefing, faulty code, isolated defects)
+   */
+  async getBugHuntArenaState(teamUser: AuthTeamUser): Promise<BugHuntArenaStateDto> {
+    const { round, progress, state, isRoundActive, isPaused, remainingSeconds } =
+      await this.assertRoundAccess(teamUser, 2, 'READ');
+
+    // 1. Resolve which Round 2 question this team is currently solving:
+    // If team has already reported bugs or saved a draft, preserve that exact question
+    const existingReport = await this.prisma.teamBugReport.findFirst({
+      where: { teamId: teamUser.id },
+      select: { questionId: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let question = null;
+    if (existingReport?.questionId) {
+      question = await this.prisma.question.findUnique({
+        where: { id: existingReport.questionId },
+      });
+    }
+
+    if (!question) {
+      // Find the currently published active Round 2 question
+      question = await this.prisma.question.findFirst({
+        where: { roundId: round.id, isActive: true },
+        orderBy: { orderNumber: 'asc' },
+      });
+    }
+
+    if (!question) {
+      throw new NotFoundException('No active Round 2 Bug Hunt mission is currently published.');
+    }
+
+    const plantedBugs = (question.plantedBugs as any[]) ||
+      (question.title === 'Bug Hunt: Distributed Token Bucket Rate Limiter' ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
+
+    // Fetch team's already identified bugs for this question
+    const teamReports = await this.prisma.teamBugReport.findMany({
+      where: { teamId: teamUser.id, questionId: question.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const isInvestigationComplete = plantedBugs.length > 0 ? teamReports.length >= plantedBugs.length : true;
+    const isSubmitted = progress.participationStatus === 'SUBMITTED';
+
+    return {
+      roundNumber: 2,
+      questionId: question.id,
+      title: question.title,
+      description: question.description,
+      faultyCode: question.starterCode || '',
+      language: question.language || 'javascript',
+      totalRequired: plantedBugs.length,
+      identifiedCount: teamReports.length,
+      isInvestigationComplete,
+      isRepairUnlocked: isInvestigationComplete,
+      isSubmitted,
+      score: progress.score !== null ? Number(progress.score) : null,
+      scoreBreakdown: progress.scoreBreakdown,
+      // Strictly sanitize: Only return info for bugs the team has ALREADY isolated! Never expose un-identified bugs or planted answer locations.
+      identifiedBugs: teamReports.map((r) => {
+        const bugDef = plantedBugs.find((b) => b.key === r.bugKey);
+        return {
+          bugKey: r.bugKey,
+          selectedText: r.selectedText,
+          lineNumber: r.lineNumber,
+          startOffset: bugDef?.startOffset ?? null,
+          endOffset: bugDef?.endOffset ?? null,
+          identifiedAt: r.createdAt.toISOString(),
+          bugName: bugDef?.name || r.bugKey,
+          description: bugDef?.description,
+        };
+      }),
+      sampleTestCases: (question.sampleTestCases as any[]) || [],
+      remainingSeconds,
+      isPaused,
+      deadlineAt: state?.deadlineAt ? state.deadlineAt.toISOString() : null,
+    };
+  }
+
+  /**
+   * Contestant: Validate and record an identified defect token/expression selection
+   */
+  async reportBug(teamUser: AuthTeamUser, dto: ReportBugDto): Promise<ReportBugResultDto> {
+    await this.verifyActiveParticipantSession(teamUser);
+
+    const { round, progress } = await this.assertRoundAccess(teamUser, 2, 'WRITE');
+
+    if (progress.participationStatus === 'SUBMITTED') {
+      throw new BadRequestException('Round 2 has already been submitted by your team.');
+    }
+
+    const question = await this.prisma.question.findFirst({
+      where: { id: dto.questionId, roundId: round.id },
+    });
+
+    if (!question) {
+      throw new NotFoundException('Round 2 Bug Hunt question not found.');
+    }
+
+    const plantedBugs = (question.plantedBugs as any[]) ||
+      (question.title === 'Bug Hunt: Distributed Token Bucket Rate Limiter' ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
+
+    // Fetch existing identified defects for this team
+    const existingReports = await this.prisma.teamBugReport.findMany({
+      where: { teamId: teamUser.id, questionId: question.id },
+    });
+    const identifiedKeySet = new Set(existingReports.map((r) => r.bugKey));
+
+    const selectedText = (dto.selectedText || '').trim();
+    const selLine = dto.lineNumber;
+    const selStart = dto.startOffset;
+    const selEnd = dto.endOffset;
+
+    const formatIdentified = (reports: typeof existingReports) =>
+      reports.map((r) => {
+        const bugDef = plantedBugs.find((b) => b.key === r.bugKey);
+        return {
+          bugKey: r.bugKey,
+          selectedText: r.selectedText,
+          lineNumber: r.lineNumber,
+          startOffset: bugDef?.startOffset ?? null,
+          endOffset: bugDef?.endOffset ?? null,
+          identifiedAt: r.createdAt.toISOString(),
+          bugName: bugDef?.name || r.bugKey,
+          description: bugDef?.description,
+        };
+      });
+
+    // 0. Validate Non-Empty, Non-Whitespace, Non-Comment
+    if (!selectedText || /^\s*$/.test(selectedText)) {
+      return {
+        isCorrect: false,
+        message: 'Empty or whitespace selection cannot be reported as a defect.',
+        identifiedCount: existingReports.length,
+        totalRequired: plantedBugs.length,
+        isInvestigationComplete: existingReports.length >= plantedBugs.length,
+        isRepairUnlocked: existingReports.length >= plantedBugs.length,
+        identifiedBugs: formatIdentified(existingReports),
+      };
+    }
+
+    if (
+      selectedText.startsWith('//') ||
+      selectedText.startsWith('/*') ||
+      selectedText.startsWith('*')
+    ) {
+      return {
+        isCorrect: false,
+        message: 'Comments and documentation cannot be reported as defects.',
+        identifiedCount: existingReports.length,
+        totalRequired: plantedBugs.length,
+        isInvestigationComplete: existingReports.length >= plantedBugs.length,
+        isRepairUnlocked: existingReports.length >= plantedBugs.length,
+        identifiedBugs: formatIdentified(existingReports),
+      };
+    }
+
+    // Find which planted bug (if any) matches the contestant's selection
+    let matchedBug: (typeof plantedBugs)[0] | null = null;
+
+    // Phase 1: Source Offset Range Match (highest fidelity: exact source character coordinates)
+    if (selStart !== undefined && selEnd !== undefined) {
+      for (const bug of plantedBugs) {
+        if (bug.startOffset !== undefined && bug.endOffset !== undefined) {
+          const intersects =
+            Math.max(selStart, bug.startOffset - 3) <= Math.min(selEnd, bug.endOffset + 3);
+
+          if (intersects) {
+            const acceptable: string[] =
+              Array.isArray(bug.acceptableTokens) && bug.acceptableTokens.length > 0
+                ? bug.acceptableTokens
+                : [bug.expression];
+
+            const isTokenMatch =
+              acceptable.some((tok) => {
+                const clean = (tok || '').trim();
+                if (!clean) return false;
+                return (
+                  selectedText === clean ||
+                  selectedText.includes(clean) ||
+                  clean.includes(selectedText)
+                );
+              }) ||
+              bug.expression.includes(selectedText) ||
+              selectedText.includes(bug.expression.trim());
+
+            if (isTokenMatch) {
+              matchedBug = bug;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Phase 2: Expression & Token Match with Line Disambiguation (used when offsets are not passed)
+    if (!matchedBug) {
+      for (const bug of plantedBugs) {
+        // Line number disambiguation:
+        if (bug.key === 'BUG_ILLEGAL_CONSUME_DEDUCTION') {
+          // Reject clicks on the valid if-branch (lines 32-35 in clean code, lines 55-58 in old code)
+          const isValidBranchLine =
+            selLine !== undefined &&
+            (selLine === 32 || selLine === 33 || selLine === 34 || selLine === 35 ||
+             selLine === 55 || selLine === 56 || selLine === 57 || selLine === 58);
+          if (isValidBranchLine) {
+            continue;
+          }
+
+          const isFaultyBranchLine =
+            selLine === undefined ||
+            Math.abs(selLine - bug.lineNumber) <= 2 ||
+            selLine === 37 ||
+            selLine === 38 ||
+            selLine === 60 ||
+            selLine === 61;
+
+          if (!isFaultyBranchLine) {
+            continue;
+          }
+        } else if (selLine !== undefined) {
+          const lineMatches =
+            selLine === bug.lineNumber ||
+            Math.abs(selLine - bug.lineNumber) <= 1 ||
+            (bug.key === 'BUG_INTEGER_TRUNCATION' && (selLine === 38 || selLine === 39 || selLine === 19)) ||
+            (bug.key === 'BUG_CLOCK_SKEW_NEGATIVE' && (selLine === 41 || selLine === 42 || selLine === 21 || selLine === 25)) ||
+            (bug.key === 'BUG_CAPACITY_OVERFLOW' && (selLine === 42 || selLine === 43 || selLine === 22 || selLine === 26));
+
+          if (!lineMatches) {
+            continue;
+          }
+        }
+
+        const acceptable: string[] =
+          Array.isArray(bug.acceptableTokens) && bug.acceptableTokens.length > 0
+            ? bug.acceptableTokens
+            : [bug.expression];
+
+        const tokenMatch = acceptable.some((token: string) => {
+          const clean = (token || '').trim();
+          if (!clean) return false;
+          if (selectedText === clean) return true;
+          if (selectedText.includes(clean) && clean.length >= 4) return true;
+          if (selectedText.length >= 4 && clean.includes(selectedText)) return true;
+          return false;
+        }) || bug.expression.includes(selectedText) || selectedText.includes(bug.expression.trim());
+
+        if (tokenMatch) {
+          matchedBug = bug;
+          break;
+        }
+      }
+    }
+
+    // Case A: Correct Bug Match Found
+    if (matchedBug) {
+      // Check if duplicate
+      if (identifiedKeySet.has(matchedBug.key)) {
+        return {
+          isCorrect: false,
+          isDuplicate: true,
+          bugKey: matchedBug.key,
+          bugName: matchedBug.name,
+          message: `This defect (${matchedBug.name}) has already been isolated by your team.`,
+          identifiedCount: existingReports.length,
+          totalRequired: plantedBugs.length,
+          isInvestigationComplete: existingReports.length >= plantedBugs.length,
+          isRepairUnlocked: existingReports.length >= plantedBugs.length,
+          identifiedBugs: formatIdentified(existingReports),
+        };
+      }
+
+      // Persist newly identified bug
+      const newReport = await this.prisma.teamBugReport.create({
+        data: {
+          teamId: teamUser.id,
+          questionId: question.id,
+          bugKey: matchedBug.key,
+          selectedText: dto.selectedText,
+          lineNumber: dto.lineNumber || matchedBug.lineNumber,
+          identifiedBy: teamUser.activeParticipant.id,
+        },
+      });
+
+      const updatedReports = [...existingReports, newReport];
+      const newCount = updatedReports.length;
+      const isComplete = newCount >= plantedBugs.length;
+      const bugIdMarks = Math.round((newCount / plantedBugs.length) * 20 * 100) / 100;
+
+      // Update intermediate score breakdown in progress
+      await this.prisma.teamRoundProgress.update({
+        where: { id: progress.id },
+        data: {
+          score: bugIdMarks,
+          scoreBreakdown: {
+            bugIdentification: bugIdMarks,
+            bugsIdentified: newCount,
+            totalPlantedBugs: plantedBugs.length,
+            stage: isComplete ? 'REPAIR_UNLOCKED' : 'INVESTIGATION',
+          },
+        },
+      });
+
+      // Activity log
+      await this.prisma.activityLog.create({
+        data: {
+          actorType: 'TEAM',
+          actorId: teamUser.id,
+          action: 'BUG_HUNT_ISOLATE_DEFECT',
+          description: `Participant "${teamUser.activeParticipant.fullName}" (${teamUser.teamCode}) isolated defect: ${matchedBug.name} (${newCount}/${plantedBugs.length}).`,
+          metadata: {
+            teamId: teamUser.id,
+            participantId: teamUser.activeParticipant.id,
+            bugKey: matchedBug.key,
+            bugName: matchedBug.name,
+            newCount,
+            totalRequired: plantedBugs.length,
+          },
+        },
+      });
+
+      return {
+        isCorrect: true,
+        isDuplicate: false,
+        bugKey: matchedBug.key,
+        bugName: matchedBug.name,
+        message: `Defect Confirmed: ${matchedBug.name}! (${newCount}/${plantedBugs.length} defects isolated)`,
+        identifiedCount: newCount,
+        totalRequired: plantedBugs.length,
+        isInvestigationComplete: isComplete,
+        isRepairUnlocked: isComplete,
+        identifiedBugs: formatIdentified(updatedReports),
+      };
+    }
+
+    // Case B: Incorrect selection
+    return {
+      isCorrect: false,
+      isDuplicate: false,
+      message: 'No defect found at the selected token or expression. Review the execution flow and try again.',
+      identifiedCount: existingReports.length,
+      totalRequired: plantedBugs.length,
+      isInvestigationComplete: existingReports.length >= plantedBugs.length,
+      isRepairUnlocked: existingReports.length >= plantedBugs.length,
+      identifiedBugs: formatIdentified(existingReports),
+    };
+  }
+
+  // ============================================================================
   // WORKSPACE DRAFTS & CODE SUBMISSIONS (ROUNDS 2 & 3)
   // Strict case draft isolation (Case 1, 2, 3) and independent submission state
   // ============================================================================
@@ -413,13 +819,33 @@ export class ArenaService {
     });
 
     // Default starter code from question if draft does not exist
-    const question = await this.prisma.question.findFirst({
-      where: {
-        roundId: round.id,
-        caseNumber: roundNumber === 3 ? caseNumber : null,
-      },
-      orderBy: { orderNumber: 'asc' },
-    });
+    let question = null;
+    if (roundNumber === 2) {
+      const existingReport = await this.prisma.teamBugReport.findFirst({
+        where: { teamId: teamUser.id },
+        select: { questionId: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existingReport?.questionId) {
+        question = await this.prisma.question.findUnique({
+          where: { id: existingReport.questionId },
+        });
+      }
+      if (!question) {
+        question = await this.prisma.question.findFirst({
+          where: { roundId: round.id, isActive: true },
+          orderBy: { orderNumber: 'asc' },
+        });
+      }
+    } else {
+      question = await this.prisma.question.findFirst({
+        where: {
+          roundId: round.id,
+          caseNumber: roundNumber === 3 ? caseNumber : null,
+        },
+        orderBy: { orderNumber: 'asc' },
+      });
+    }
 
     let isCaseSubmitted = false;
     let submissionId: string | null = null;
@@ -475,10 +901,22 @@ export class ArenaService {
       }
     }
 
+    const isRound2BugHunt = roundNumber === 2;
+    const resolvedLanguage =
+      draft?.language && draft.language !== 'typescript'
+        ? draft.language
+        : question?.language === 'typescript'
+          ? 'javascript'
+          : (question?.language || (isRound2BugHunt ? 'javascript' : 'cpp'));
+
+    const resolvedSourceCode =
+      draft?.sourceCode
+        ? draft.sourceCode
+        : (question?.starterCode || '// Write your solution here\n');
+
     return {
-      sourceCode:
-        draft?.sourceCode ?? (question?.starterCode || '// Write your solution here\n'),
-      language: draft?.language ?? (question?.language || 'typescript'),
+      sourceCode: resolvedSourceCode,
+      language: resolvedLanguage,
       version: draft?.version ?? 0,
       updatedAt: draft?.updatedAt ? draft.updatedAt.toISOString() : new Date().toISOString(),
       isSubmitted: roundNumber === 2 ? progress.participationStatus === 'SUBMITTED' : isCaseSubmitted,
@@ -504,8 +942,39 @@ export class ArenaService {
   ) {
     const { round, progress } = await this.assertRoundAccess(teamUser, roundNumber, 'WRITE');
 
-    if (roundNumber === 2 && progress.participationStatus === 'SUBMITTED') {
-      throw new BadRequestException('Round 2 has already been submitted by your team.');
+    if (roundNumber === 2) {
+      if (progress.participationStatus === 'SUBMITTED') {
+        throw new BadRequestException('Round 2 has already been submitted by your team.');
+      }
+      const existingReport = await this.prisma.teamBugReport.findFirst({
+        where: { teamId: teamUser.id },
+        select: { questionId: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      let r2Q = null;
+      if (existingReport?.questionId) {
+        r2Q = await this.prisma.question.findUnique({
+          where: { id: existingReport.questionId },
+        });
+      }
+      if (!r2Q) {
+        r2Q = await this.prisma.question.findFirst({
+          where: { roundId: round.id, isActive: true },
+          orderBy: { orderNumber: 'asc' },
+        });
+      }
+      if (r2Q) {
+        const plantedBugs = (r2Q.plantedBugs as any[]) ||
+          (r2Q.title === 'Bug Hunt: Distributed Token Bucket Rate Limiter' ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
+        const bugReports = await this.prisma.teamBugReport.findMany({
+          where: { teamId: teamUser.id, questionId: r2Q.id },
+        });
+        if (plantedBugs.length > 0 && bugReports.length < plantedBugs.length) {
+          throw new ForbiddenException(
+            `Code repair is locked. You must identify all ${plantedBugs.length} defects (${bugReports.length}/${plantedBugs.length} identified) in the Bug Investigation stage before editing code.`,
+          );
+        }
+      }
     }
 
     if (roundNumber === 3) {
@@ -566,7 +1035,7 @@ export class ArenaService {
   }
 
   /**
-   * Submit final code for Round 2 or Round 3 case
+   * Submit final code for Round 2 or Round 3 case with automated Judge0 evaluation
    */
   async submitCode(
     teamUser: AuthTeamUser,
@@ -575,21 +1044,73 @@ export class ArenaService {
     sourceCode: string,
     language: string,
   ) {
+    // 1. Session Mutex Enforcement
+    await this.verifyActiveParticipantSession(teamUser);
+
+    // 2. Validate Language
+    const langKey = language?.toLowerCase();
+    const langConfig = OFFICIAL_JUDGE0_LANGUAGES.find((l) => l.key === langKey);
+    if (!langConfig) {
+      throw new BadRequestException(
+        `Language "${language}" is not supported for execution. Supported languages: C++ (cpp), Java (java), Python (python), JavaScript (javascript).`,
+      );
+    }
+
+    // 3. Validate Source Code Size
+    if (Buffer.byteLength(sourceCode, 'utf8') > EXECUTION_LIMITS.MAX_SOURCE_CODE_SIZE_BYTES) {
+      throw new BadRequestException(
+        `Source code exceeds maximum allowed size of ${EXECUTION_LIMITS.MAX_SOURCE_CODE_SIZE_BYTES / 1024} KB`,
+      );
+    }
+
+    // 4. Assert Round Access (active status, timer, countdown, pause, eligibility)
     const { round, progress } = await this.assertRoundAccess(teamUser, roundNumber, 'SUBMIT');
 
-    // Resolve question
-    const question = await this.prisma.question.findFirst({
-      where: {
-        roundId: round.id,
-        caseNumber: roundNumber === 3 ? caseNumber : null,
-      },
-      orderBy: { orderNumber: 'asc' },
-    });
+    // 5. Resolve Question
+    let question = null;
+    if (roundNumber === 2) {
+      const existingReport = await this.prisma.teamBugReport.findFirst({
+        where: { teamId: teamUser.id },
+        select: { questionId: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existingReport?.questionId) {
+        question = await this.prisma.question.findUnique({
+          where: { id: existingReport.questionId },
+        });
+      }
+      if (!question) {
+        question = await this.prisma.question.findFirst({
+          where: { roundId: round.id, isActive: true },
+          orderBy: { orderNumber: 'asc' },
+        });
+      }
+    } else {
+      question = await this.prisma.question.findFirst({
+        where: {
+          roundId: round.id,
+          caseNumber: roundNumber === 3 ? caseNumber : null,
+        },
+        orderBy: { orderNumber: 'asc' },
+      });
+    }
 
-    // Check if already submitted
+    // 6. Prevent Duplicate Submissions & Enforce Investigation Completion for Round 2
     if (roundNumber === 2) {
       if (progress.participationStatus === 'SUBMITTED') {
         throw new BadRequestException('Round 2 has already been submitted by your team.');
+      }
+      if (question) {
+        const plantedBugs = (question.plantedBugs as any[]) ||
+          (question.title === 'Bug Hunt: Distributed Token Bucket Rate Limiter' ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
+        const bugReports = await this.prisma.teamBugReport.findMany({
+          where: { teamId: teamUser.id, questionId: question.id },
+        });
+        if (plantedBugs.length > 0 && bugReports.length < plantedBugs.length) {
+          throw new ForbiddenException(
+            `Round 2 submission locked. You must isolate all ${plantedBugs.length} defects (${bugReports.length}/${plantedBugs.length} identified) in the Bug Investigation stage before submitting your repair.`,
+          );
+        }
       }
     } else if (roundNumber === 3 && question) {
       const existingSub = await this.prisma.submission.findFirst({
@@ -600,26 +1121,302 @@ export class ArenaService {
       }
     }
 
-    // Create Submission record
+    // 7. Java Normalization: Ensure public class is named Main for Judge0 compatibility
+    let codeToExecute = sourceCode;
+    if (langConfig.key === 'java') {
+      codeToExecute = codeToExecute.replace(/public\s+class\s+[A-Za-z0-9_]+/g, 'public class Main');
+    }
+
+    // 8. Assemble Test Cases to Evaluate (both sample and hidden)
+    interface EvalTestCase {
+      caseIndex: number;
+      isHidden: boolean;
+      stdin: string;
+      expectedOutput: string;
+      marks?: number;
+    }
+
+    const testCasesToRun: EvalTestCase[] = [];
+    let tcIndex = 1;
+
+    const samples = Array.isArray(question?.sampleTestCases)
+      ? (question.sampleTestCases as Array<{ stdin?: string; expectedOutput?: string }>)
+      : [];
+    for (const s of samples) {
+      testCasesToRun.push({
+        caseIndex: tcIndex++,
+        isHidden: false,
+        stdin: s.stdin ?? '',
+        expectedOutput: s.expectedOutput ?? '',
+      });
+    }
+
+    const hidden = Array.isArray(question?.hiddenTestCases)
+      ? (question.hiddenTestCases as Array<{ stdin?: string; expectedOutput?: string; marks?: number }>)
+      : [];
+    for (const h of hidden) {
+      testCasesToRun.push({
+        caseIndex: tcIndex++,
+        isHidden: true,
+        stdin: h.stdin ?? '',
+        expectedOutput: h.expectedOutput ?? '',
+        marks: h.marks,
+      });
+    }
+
+    // Fallback if no test cases configured: run once with empty input
+    if (testCasesToRun.length === 0) {
+      testCasesToRun.push({
+        caseIndex: 1,
+        isHidden: false,
+        stdin: '',
+        expectedOutput: '',
+      });
+    }
+
+    // 9. Execute Test Cases Against Judge0
+    const allTestCaseResults: any[] = [];
+    let passedCount = 0;
+    let hasCompilationError = false;
+    let hasTimeLimitExceeded = false;
+    let hasRuntimeError = false;
+    let firstCompileOutput: string | null = null;
+    let firstStderr: string | null = null;
+    let lastStdout: string | null = null;
+    let firstToken: string | null = null;
+    let maxExecutionTime: number = 0;
+    let maxMemoryUsage: number = 0;
+
+    for (const tc of testCasesToRun) {
+      let execRes: any;
+      try {
+        execRes = await this.judge0Client.execute(
+          codeToExecute,
+          langConfig.id,
+          tc.stdin,
+          EXECUTION_LIMITS.DEFAULT_CPU_TIME_LIMIT_SECONDS,
+          EXECUTION_LIMITS.DEFAULT_MEMORY_LIMIT_KB,
+        );
+      } catch (err: any) {
+        this.logger.error(`Judge0 execution failed for test case ${tc.caseIndex}: ${err.message}`);
+        execRes = {
+          status: { id: 13, description: 'Internal Error' },
+          stdout: null,
+          stderr: err?.message || 'Execution service unreachable',
+          compile_output: null,
+          time: null,
+          memory: null,
+          token: null,
+        };
+      }
+
+      if (!firstToken && execRes.token) {
+        firstToken = execRes.token;
+      }
+
+      const normStatus = this.judge0Client.normalizeStatus(execRes.status);
+      const timeNum = execRes.time ? parseFloat(execRes.time) : 0;
+      const memNum = execRes.memory ? Number(execRes.memory) : 0;
+      if (timeNum > maxExecutionTime) maxExecutionTime = timeNum;
+      if (memNum > maxMemoryUsage) maxMemoryUsage = memNum;
+
+      if (execRes.compile_output && !firstCompileOutput) {
+        firstCompileOutput = execRes.compile_output;
+      }
+      if (execRes.stderr && !firstStderr) {
+        firstStderr = execRes.stderr;
+      }
+      if (execRes.stdout) {
+        lastStdout = execRes.stdout;
+      }
+
+      let casePassed = false;
+      let caseStatus = 'WRONG_ANSWER';
+
+      if (normStatus.isCompilationError) {
+        hasCompilationError = true;
+        caseStatus = 'COMPILATION_ERROR';
+        allTestCaseResults.push({
+          caseIndex: tc.caseIndex,
+          isHidden: tc.isHidden,
+          passed: false,
+          status: 'COMPILATION_ERROR',
+          executionTime: timeNum ? String(timeNum) : null,
+          memory: memNum || null,
+          stdin: tc.stdin,
+          expectedOutput: tc.expectedOutput,
+          actualOutput: execRes.stdout || null,
+          compileOutput: execRes.compile_output || null,
+          stderr: execRes.stderr || null,
+        });
+        // Stop evaluating further test cases on compilation error
+        break;
+      } else if (normStatus.isTimeLimitExceeded) {
+        hasTimeLimitExceeded = true;
+        caseStatus = 'TIME_LIMIT_EXCEEDED';
+      } else if (normStatus.isRuntimeError) {
+        hasRuntimeError = true;
+        caseStatus = 'RUNTIME_ERROR';
+      } else if (normStatus.isSuccess) {
+        if (tc.expectedOutput) {
+          const normActual = this.normalizeOutput(execRes.stdout);
+          const normExpected = this.normalizeOutput(tc.expectedOutput);
+          if (normActual === normExpected) {
+            casePassed = true;
+            caseStatus = 'ACCEPTED';
+            passedCount++;
+          } else {
+            caseStatus = 'WRONG_ANSWER';
+          }
+        } else {
+          casePassed = true;
+          caseStatus = 'ACCEPTED';
+          passedCount++;
+        }
+      }
+
+      allTestCaseResults.push({
+        caseIndex: tc.caseIndex,
+        isHidden: tc.isHidden,
+        passed: casePassed,
+        status: caseStatus,
+        executionTime: timeNum ? String(timeNum) : null,
+        memory: memNum || null,
+        stdin: tc.stdin,
+        expectedOutput: tc.expectedOutput,
+        actualOutput: execRes.stdout || null,
+        compileOutput: execRes.compile_output || null,
+        stderr: execRes.stderr || null,
+      });
+    }
+
+    // 10. Compute Score and Final Submission Status
+    const totalQuestionMarks = Number(
+      question?.marks ?? (roundNumber === 2 ? 100 : caseNumber === 1 ? 20 : caseNumber === 2 ? 25 : 45),
+    );
+
+    let finalSubmissionStatus: 'ACCEPTED' | 'WRONG_ANSWER' | 'COMPILATION_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
+    let calculatedScore = 0;
+    let scoreBreakdownToSave: any = null;
+
+    if (roundNumber === 2) {
+      // OFFICIAL ROUND 2 SCORING (100 MARKS):
+      // - Bug Identification: 20
+      // - Test Correctness: 50
+      // - Edge Cases: 20
+      // - Code Quality: 10
+      const bugIdScore = 20;
+      let testCorrectnessScore = 0;
+      let edgeCasesScore = 0;
+      let codeQualityScore = 0;
+
+      const sampleTests = testCasesToRun.filter((tc) => !tc.isHidden);
+      const hiddenTests = testCasesToRun.filter((tc) => tc.isHidden);
+
+      const samplePassed = sampleTests.filter((tc) => allTestCaseResults[tc.caseIndex - 1]?.passed).length;
+      const hiddenPassed = hiddenTests.filter((tc) => allTestCaseResults[tc.caseIndex - 1]?.passed).length;
+
+      if (hasCompilationError) {
+        finalSubmissionStatus = 'COMPILATION_ERROR';
+        testCorrectnessScore = 0;
+        edgeCasesScore = 0;
+        codeQualityScore = 0;
+        calculatedScore = bugIdScore; // Retain 20 marks for bug identification
+      } else {
+        if (sampleTests.length > 0) {
+          testCorrectnessScore = Math.round((samplePassed / sampleTests.length) * 50 * 100) / 100;
+        }
+        if (hiddenTests.length > 0) {
+          edgeCasesScore = Math.round((hiddenPassed / hiddenTests.length) * 20 * 100) / 100;
+        }
+        if (passedCount === testCasesToRun.length && testCasesToRun.length > 0) {
+          codeQualityScore = 10;
+          finalSubmissionStatus = 'ACCEPTED';
+        } else {
+          codeQualityScore = 0;
+          if (hasTimeLimitExceeded) {
+            finalSubmissionStatus = 'TIME_LIMIT_EXCEEDED';
+          } else if (hasRuntimeError) {
+            finalSubmissionStatus = 'RUNTIME_ERROR';
+          } else {
+            finalSubmissionStatus = 'WRONG_ANSWER';
+          }
+        }
+        calculatedScore = bugIdScore + testCorrectnessScore + edgeCasesScore + codeQualityScore;
+        calculatedScore = Math.min(100, Math.max(0, calculatedScore));
+      }
+
+      scoreBreakdownToSave = {
+        bugIdentification: bugIdScore,
+        testCorrectness: testCorrectnessScore,
+        edgeCases: edgeCasesScore,
+        codeQuality: codeQualityScore,
+        samplePassed,
+        totalSampleTests: sampleTests.length,
+        hiddenPassed,
+        totalHiddenTests: hiddenTests.length,
+        totalScore: calculatedScore,
+      };
+    } else {
+      if (hasCompilationError) {
+        finalSubmissionStatus = 'COMPILATION_ERROR';
+        calculatedScore = 0;
+      } else if (passedCount === testCasesToRun.length && testCasesToRun.length > 0) {
+        finalSubmissionStatus = 'ACCEPTED';
+        calculatedScore = totalQuestionMarks;
+      } else {
+        if (hasTimeLimitExceeded) {
+          finalSubmissionStatus = 'TIME_LIMIT_EXCEEDED';
+        } else if (hasRuntimeError) {
+          finalSubmissionStatus = 'RUNTIME_ERROR';
+        } else {
+          finalSubmissionStatus = 'WRONG_ANSWER';
+        }
+        calculatedScore = Math.round(((passedCount / testCasesToRun.length) * totalQuestionMarks) * 100) / 100;
+      }
+      scoreBreakdownToSave = {
+        testCasesPassed: passedCount,
+        totalTestCases: testCasesToRun.length,
+        score: calculatedScore,
+      };
+    }
+
+    const now = new Date();
+
+    // 11. Create Persistent Submission Record
     const submission = await this.prisma.submission.create({
       data: {
         teamId: teamUser.id,
         roundId: round.id,
         questionId: question?.id || null,
-        language,
+        language: langConfig.key,
         sourceCode,
-        submissionStatus: 'PENDING',
+        stdin: testCasesToRun[0]?.stdin || null,
+        stdout: lastStdout,
+        stderr: firstStderr,
+        compileOutput: firstCompileOutput,
+        executionTime: maxExecutionTime > 0 ? String(maxExecutionTime) : null,
+        memoryUsage: maxMemoryUsage > 0 ? maxMemoryUsage : null,
+        submissionStatus: finalSubmissionStatus,
+        score: calculatedScore,
+        judge0Token: firstToken,
         isTestRun: false,
+        testCaseResults: allTestCaseResults,
+        submittedAt: now,
+        evaluatedAt: now,
       },
     });
 
-    // Update progress status
+    // 12. Update Team Round Progress with Server-Authoritative Score
     if (roundNumber === 2) {
       await this.prisma.teamRoundProgress.update({
         where: { id: progress.id },
         data: {
           participationStatus: 'SUBMITTED',
-          submittedAt: new Date(),
+          submittedAt: now,
+          evaluatedAt: now,
+          score: calculatedScore,
+          scoreBreakdown: scoreBreakdownToSave,
         },
       });
     } else if (roundNumber === 3) {
@@ -629,7 +1426,7 @@ export class ArenaService {
       const totalCases = r3Questions.length || 3;
       const allSubs = await this.prisma.submission.findMany({
         where: { teamId: teamUser.id, roundId: round.id, isTestRun: false },
-        select: { questionId: true },
+        select: { questionId: true, score: true },
       });
       const submittedQSet = new Set(allSubs.map((s) => s.questionId));
       const submittedCases: number[] = [];
@@ -640,21 +1437,32 @@ export class ArenaService {
       }
       const isAllCasesSubmitted = submittedCases.length >= totalCases;
       const currentBreakdown = (progress.scoreBreakdown as any) || {};
+      const updatedCaseScores: Record<string, number> = {
+        ...(currentBreakdown.caseScores || {}),
+        [caseNumber]: calculatedScore,
+      };
+      const totalR3Score: number = Object.values(updatedCaseScores).reduce<number>(
+        (sum, val) => sum + Number(val || 0),
+        0,
+      );
 
       await this.prisma.teamRoundProgress.update({
         where: { id: progress.id },
         data: {
           participationStatus: isAllCasesSubmitted ? 'SUBMITTED' : 'IN_PROGRESS',
-          submittedAt: isAllCasesSubmitted ? new Date() : (progress.submittedAt || null),
+          submittedAt: isAllCasesSubmitted ? now : (progress.submittedAt || null),
+          evaluatedAt: now,
+          score: totalR3Score,
           scoreBreakdown: {
             ...currentBreakdown,
             submittedCases,
+            caseScores: updatedCaseScores,
           },
         },
       });
     }
 
-    // Log submission
+    // 13. Audit Log
     await this.prisma.activityLog.create({
       data: {
         actorType: 'TEAM',
@@ -662,22 +1470,59 @@ export class ArenaService {
         action: 'SUBMIT_CODE',
         description: `Team "${teamUser.teamName}" (${teamUser.teamCode}) submitted code for Round ${roundNumber}${
           roundNumber === 3 ? ` Case ${caseNumber}` : ''
-        }.`,
+        }. Verdict: ${finalSubmissionStatus}, Score: ${calculatedScore}/${totalQuestionMarks} (${passedCount}/${testCasesToRun.length} test cases passed).`,
         metadata: {
           teamId: teamUser.id,
           roundNumber,
           caseNumber,
           submissionId: submission.id,
-          language,
+          language: langConfig.key,
+          status: finalSubmissionStatus,
+          score: calculatedScore,
+          passedCount,
+          totalCount: testCasesToRun.length,
         },
       },
+    });
+
+    // 14. Sanitize Test Case Results for Contestant
+    // Hidden test cases NEVER leak stdin, expectedOutput, actualOutput, or stderr!
+    const sanitizedTestCaseResults = allTestCaseResults.map((tc) => {
+      if (tc.isHidden) {
+        return {
+          caseIndex: tc.caseIndex,
+          isHidden: true,
+          passed: tc.passed,
+          status: tc.status,
+          executionTime: tc.executionTime,
+          memory: tc.memory,
+        };
+      }
+      return {
+        caseIndex: tc.caseIndex,
+        isHidden: false,
+        passed: tc.passed,
+        status: tc.status,
+        executionTime: tc.executionTime,
+        memory: tc.memory,
+        stdin: tc.stdin,
+        expectedOutput: tc.expectedOutput,
+        actualOutput: tc.actualOutput,
+      };
     });
 
     return {
       submissionId: submission.id,
       status: submission.submissionStatus,
+      score: calculatedScore,
+      maximumMarks: totalQuestionMarks,
+      passedTestCases: passedCount,
+      totalTestCases: testCasesToRun.length,
+      testCaseResults: sanitizedTestCaseResults,
       submittedAt: submission.submittedAt.toISOString(),
-      message: 'Code submitted successfully and queued for evaluation.',
+      message: finalSubmissionStatus === 'ACCEPTED'
+        ? 'All test cases passed successfully!'
+        : `Submission evaluated: ${passedCount}/${testCasesToRun.length} test cases passed. Status: ${finalSubmissionStatus}.`,
     };
   }
 }
