@@ -13,6 +13,8 @@ out/
 .env
 .env.*
 !.env.example
+judge0.local.conf
+*.local.conf
 
 # Certificates & Private Keys
 *.pem
