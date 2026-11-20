@@ -1,0 +1,1068 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+import { PrismaService } from '../database/prisma.service';
+import { Judge0ClientService } from '../code-execution/judge0-client.service';
+import { ArenaService } from './arena.service';
+import {
+  AuthTeamUser,
+  AnalyticsArenaStateDto,
+  AnalyticsQuestionDto,
+  DatasetMetaDto,
+  DatasetFileMetaDto,
+  SaveAnalyticsDraftDto,
+  SelectAnalyticsOptionDto,
+  SubmitAnalyticsQuestionDto,
+  AnalyticsSubmissionResultDto,
+  AnalyticsTestCaseResultDto,
+} from '@ignitron/shared';
+import {
+  ROUND3_QUESTIONS_CONFIG,
+  Round3QuestionConfig,
+  ROUND3_CODE_QUALITY_RUBRIC,
+} from './data/round3-questions.config';
+
+function resolveDatasetDir(): string {
+  const candidates = [
+    path.resolve(__dirname, './data/master_dataset'),
+    path.resolve(__dirname, '../../src/competition/data/master_dataset'),
+    path.resolve(process.cwd(), 'apps/backend/src/competition/data/master_dataset'),
+    path.resolve(process.cwd(), 'src/competition/data/master_dataset'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return c;
+    }
+  }
+  return candidates[0];
+}
+
+const DATASET_DIR = resolveDatasetDir();
+
+const DATASET_FILES_INFO: Record<string, { title: string; description: string }> = {
+  'participants.csv': {
+    title: 'Tournament Participants Roster',
+    description: 'Demographic and academic profiles for 100 tournament contestants across 50 collegiate teams.',
+  },
+  'teams.csv': {
+    title: 'Collegiate Teams Master Directory',
+    description: '50 competing collegiate teams with institutional affiliations, slots, and registration timestamps.',
+  },
+  'round_performance.csv': {
+    title: 'Multi-Round Performance Telemetry',
+    description: '300 granular participant performance records spanning Round 1 (MCQ), Round 2 (Bug Hunt), and Round 3.',
+  },
+  'submission_logs.csv': {
+    title: 'Code Execution Submission Logs',
+    description: '1,000 real-time telemetry records tracking language runtimes, memory, execution times, and verdicts.',
+  },
+  'event_activity.csv': {
+    title: 'System Security & Event Activity Audit',
+    description: '500 audit logs detailing client session logins, relay handovers, test runs, and system alerts.',
+  },
+};
+
+@Injectable()
+export class EventAnalyticsService implements OnModuleInit {
+  private readonly logger = new Logger(EventAnalyticsService.name);
+  private cachedDatasetMeta: DatasetMetaDto | null = null;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly judge0Client: Judge0ClientService,
+    private readonly arenaService: ArenaService,
+  ) {}
+
+  async onModuleInit() {
+    try {
+      await this.syncOfficialRound3Questions();
+    } catch (err: any) {
+      this.logger.error(`Failed to sync official Round 3 questions: ${err?.message}`, err?.stack);
+    }
+  }
+
+  // ============================================================================
+  // QUESTION SYNCHRONIZATION
+  // ============================================================================
+
+  async syncOfficialRound3Questions() {
+    const round3 = await this.prisma.competitionRound.findFirst({
+      where: { roundNumber: 3 },
+    });
+
+    if (!round3) {
+      this.logger.warn('Round 3 not found in competition_rounds table; skipping question sync.');
+      return;
+    }
+
+    this.logger.log(`Syncing ${ROUND3_QUESTIONS_CONFIG.length} official Round 3 Event Analytics questions...`);
+
+    for (const qConfig of ROUND3_QUESTIONS_CONFIG) {
+      const existing = await this.prisma.question.findFirst({
+        where: {
+          roundId: round3.id,
+          orderNumber: qConfig.orderNumber,
+        },
+      });
+
+      const optionsData = qConfig.options.map((opt) => ({
+        key: opt.key,
+        label: opt.label,
+        code: opt.code,
+        explanation: opt.explanation,
+      }));
+
+      // Options index: A -> 0, B -> 1, C -> 2, D -> 3
+      const correctOptionIndex =
+        qConfig.correctOptionKey === 'A'
+          ? 0
+          : qConfig.correctOptionKey === 'B'
+          ? 1
+          : qConfig.correctOptionKey === 'C'
+          ? 2
+          : 3;
+
+      const questionData = {
+        title: qConfig.title,
+        caseNumber: qConfig.caseNumber,
+        type: 'CODING_CASE' as const,
+        description: qConfig.description,
+        starterCode: qConfig.starterCode,
+        language: 'python',
+        marks: qConfig.marks,
+        options: optionsData as any,
+        correctOption: correctOptionIndex,
+        sampleTestCases: qConfig.sampleTestCases as any,
+        hiddenTestCases: qConfig.hiddenTestCases as any,
+        rubric: {
+          difficulty: qConfig.difficulty,
+          technology: qConfig.technology,
+          concept: qConfig.concept,
+          format: qConfig.format,
+          correctOptionKey: qConfig.correctOptionKey,
+          caseTitle: qConfig.caseTitle,
+        } as any,
+        isActive: true,
+      };
+
+      if (existing) {
+        await this.prisma.question.update({
+          where: { id: existing.id },
+          data: questionData,
+        });
+      } else {
+        await this.prisma.question.create({
+          data: {
+            roundId: round3.id,
+            orderNumber: qConfig.orderNumber,
+            ...questionData,
+          },
+        });
+      }
+    }
+
+    this.logger.log('Round 3 Event Analytics questions synchronized successfully.');
+  }
+
+  // ============================================================================
+  // DATASET EXPLORER & PREVIEWS
+  // ============================================================================
+
+  getDatasetMeta(): DatasetMetaDto {
+    if (this.cachedDatasetMeta) {
+      return this.cachedDatasetMeta;
+    }
+
+    const files: DatasetFileMetaDto[] = [];
+    const fileKeys = ['participants.csv', 'teams.csv', 'round_performance.csv', 'submission_logs.csv', 'event_activity.csv'];
+
+    for (const filename of fileKeys) {
+      const filePath = path.join(DATASET_DIR, filename);
+      if (!fs.existsSync(filePath)) {
+        continue;
+      }
+
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length === 0) continue;
+
+      const headers = this.parseCsvLine(lines[0]);
+      const previewRows: Record<string, any>[] = [];
+
+      for (let i = 1; i < Math.min(lines.length, 11); i++) {
+        const vals = this.parseCsvLine(lines[i]);
+        const row: Record<string, any> = {};
+        headers.forEach((h, idx) => {
+          row[h] = vals[idx] !== undefined ? vals[idx] : null;
+        });
+        previewRows.push(row);
+      }
+
+      const info = DATASET_FILES_INFO[filename] || {
+        title: filename,
+        description: 'Simulated dataset file.',
+      };
+
+      files.push({
+        filename,
+        title: info.title,
+        description: info.description,
+        recordCount: lines.length - 1,
+        columns: headers,
+        previewRows,
+      });
+    }
+
+    this.cachedDatasetMeta = {
+      datasetName: 'IGNITRON_EVENT_INTELLIGENCE_DATASET_2026',
+      version: '2026.1',
+      description:
+        'Comprehensive multi-round competitive programming tournament telemetry and analytics dataset across 50 collegiate teams and 100 participants.',
+      files,
+    };
+
+    return this.cachedDatasetMeta;
+  }
+
+  getDatasetFilePath(filename: string): { fullPath: string; mimeType: string } {
+    const allowed = [
+      'participants.csv',
+      'teams.csv',
+      'round_performance.csv',
+      'submission_logs.csv',
+      'event_activity.csv',
+      'master_dataset.json',
+    ];
+
+    if (!allowed.includes(filename)) {
+      throw new NotFoundException(`File "${filename}" does not exist in dataset.`);
+    }
+
+    const fullPath = path.join(DATASET_DIR, filename);
+    if (!fs.existsSync(fullPath)) {
+      throw new NotFoundException(`File "${filename}" not found on disk.`);
+    }
+
+    const mimeType = filename.endsWith('.json') ? 'application/json' : 'text/csv';
+    return { fullPath, mimeType };
+  }
+
+  getDatasetPreview(filename: string, page = 1, limit = 20, search?: string) {
+    const { fullPath } = this.getDatasetFilePath(filename);
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length === 0) {
+      return { totalRows: 0, page: 1, limit, totalPages: 0, columns: [], rows: [] };
+    }
+
+    const headers = this.parseCsvLine(lines[0]);
+    let allRows: Record<string, any>[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const vals = this.parseCsvLine(lines[i]);
+      const row: Record<string, any> = {};
+      headers.forEach((h, idx) => {
+        row[h] = vals[idx] !== undefined ? vals[idx] : null;
+      });
+      allRows.push(row);
+    }
+
+    if (search && search.trim().length > 0) {
+      const q = search.trim().toLowerCase();
+      allRows = allRows.filter((r) =>
+        Object.values(r).some((v) => String(v).toLowerCase().includes(q)),
+      );
+    }
+
+    const totalRows = allRows.length;
+    const totalPages = Math.ceil(totalRows / limit) || 1;
+    const p = Math.max(1, Math.min(page, totalPages));
+    const startIdx = (p - 1) * limit;
+    const rows = allRows.slice(startIdx, startIdx + limit);
+
+    return {
+      totalRows,
+      page: p,
+      limit,
+      totalPages,
+      columns: headers,
+      rows,
+    };
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let insideQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (insideQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          insideQuotes = !insideQuotes;
+        }
+      } else if (char === ',' && !insideQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  // ============================================================================
+  // ARENA STATE RETRIEVAL
+  // ============================================================================
+
+  async getAnalyticsArenaState(teamUser: AuthTeamUser): Promise<AnalyticsArenaStateDto> {
+    const { round, progress, state, remainingSeconds } = await this.arenaService.assertRoundAccess(
+      teamUser,
+      3,
+      'READ',
+    );
+
+    const questions = await this.prisma.question.findMany({
+      where: { roundId: round.id, isActive: true },
+      orderBy: { orderNumber: 'asc' },
+    });
+
+    // Load team's draft codes
+    const drafts = await this.prisma.workspaceDraft.findMany({
+      where: { teamId: teamUser.id, roundId: round.id },
+    });
+    const draftsByOrder = new Map<number, string>();
+    drafts.forEach((d) => draftsByOrder.set(d.caseNumber, d.sourceCode));
+
+    // Load team's MCQ answers (for Q1, Q3, Q5)
+    const mcqAnswers = await this.prisma.teamMcqAnswer.findMany({
+      where: { teamId: teamUser.id, question: { roundId: round.id } },
+      include: { question: true },
+    });
+    const mcqByQuestionId = new Map<string, 'A' | 'B' | 'C' | 'D'>();
+    mcqAnswers.forEach((ans) => {
+      if (ans.selectedOption !== null && ans.selectedOption !== undefined) {
+        const key =
+          ans.selectedOption === 0
+            ? 'A'
+            : ans.selectedOption === 1
+            ? 'B'
+            : ans.selectedOption === 2
+            ? 'C'
+            : 'D';
+        mcqByQuestionId.set(ans.questionId, key);
+      }
+    });
+
+    // Load team's submissions
+    const submissions = await this.prisma.submission.findMany({
+      where: {
+        teamId: teamUser.id,
+        roundId: round.id,
+        isTestRun: false,
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+    const subByQuestionId = new Map<string, any>();
+    submissions.forEach((s) => {
+      if (s.questionId && !subByQuestionId.has(s.questionId)) {
+        subByQuestionId.set(s.questionId, s);
+      }
+    });
+
+    const questionDtos: AnalyticsQuestionDto[] = questions.map((q) => {
+      const qConfig = ROUND3_QUESTIONS_CONFIG.find((c) => c.orderNumber === q.orderNumber);
+      const isSelectCode = qConfig?.format === 'SELECT_CODE';
+
+      const selectedOption = mcqByQuestionId.get(q.id) || null;
+      const savedCode = draftsByOrder.get(q.orderNumber) || q.starterCode || '';
+      const sub = subByQuestionId.get(q.id);
+
+      let status: 'UNATTEMPTED' | 'DRAFT' | 'SAVED' | 'SUBMITTED' = 'UNATTEMPTED';
+      if (sub) {
+        status = 'SUBMITTED';
+      } else if (isSelectCode && selectedOption) {
+        status = 'SAVED';
+      } else if (draftsByOrder.has(q.orderNumber)) {
+        status = 'DRAFT';
+      }
+
+      // Format options: omit correct answer and internal explanations for participants!
+      const sanitizedOptions = qConfig?.options.map((opt) => ({
+        key: opt.key,
+        label: opt.label,
+        code: opt.code,
+      }));
+
+      const sanitizedSamples = (qConfig?.sampleTestCases || []).map((s) => ({
+        caseIndex: s.caseIndex,
+        name: s.name,
+        stdin: s.stdin,
+        expectedOutput: s.expectedOutput,
+        explanation: s.explanation,
+      }));
+
+      return {
+        id: q.id,
+        orderNumber: q.orderNumber,
+        caseNumber: (q.caseNumber || qConfig?.caseNumber || 1) as 1 | 2 | 3,
+        caseTitle: qConfig?.caseTitle || `Case ${q.caseNumber}`,
+        title: q.title,
+        difficulty: qConfig?.difficulty || 'MEDIUM',
+        marks: Number(q.marks),
+        format: qConfig?.format || 'WRITE_CODE',
+        technology: qConfig?.technology || 'Python',
+        concept: qConfig?.concept || 'Analytics',
+        description: q.description,
+        fixtureDescription: qConfig?.fixtureDescription,
+        fixtureTable: qConfig?.fixtureTable,
+        options: sanitizedOptions,
+        starterCode: q.starterCode || qConfig?.starterCode || '',
+        sampleTestCases: sanitizedSamples,
+        status,
+        selectedOption,
+        savedCode,
+        score: sub?.score !== null && sub?.score !== undefined ? Number(sub.score) : null,
+        isSubmitted: !!sub,
+      };
+    });
+
+    // Group into 3 cases
+    const cases = [
+      {
+        caseNumber: 1 as const,
+        caseTitle: 'Case 1 – Data Discovery & Fundamentals',
+        caseDescription: 'Validate dataset metrics, compute weighted scores, and aggregate preliminary leaderboards.',
+        totalMarks: 20,
+        questions: questionDtos.filter((q) => q.caseNumber === 1),
+      },
+      {
+        caseNumber: 2 as const,
+        caseTitle: 'Case 2 – Data Engineering & Integrity',
+        caseDescription: 'Isolate anomalies, detect duplicate records, and clean telemetry log streams.',
+        totalMarks: 25,
+        questions: questionDtos.filter((q) => q.caseNumber === 2),
+      },
+      {
+        caseNumber: 3 as const,
+        caseTitle: 'Case 3 – Data Intelligence & Advanced Analytics',
+        caseDescription: 'Implement multi-tier ranking algorithms and execute top-K decision analytics.',
+        totalMarks: 45,
+        questions: questionDtos.filter((q) => q.caseNumber === 3),
+      },
+    ];
+
+    const dataset = this.getDatasetMeta();
+    const isSubmitted = progress.participationStatus === 'SUBMITTED';
+
+    return {
+      roundNumber: 3,
+      roundName: 'IGNITRON Event Analytics Engine',
+      roundStatus: round.status,
+      remainingSeconds,
+      isPaused: state?.isPaused ?? false,
+      isSubmitted,
+      totalScore: Number(progress.score || 0),
+      scoreBreakdown: progress.scoreBreakdown,
+      cases,
+      dataset,
+      activeParticipantId: teamUser.activeParticipant?.id,
+      activeParticipantName: teamUser.activeParticipant?.fullName,
+    };
+  }
+
+  // ============================================================================
+  // DRAFTING & OPTION SELECTION
+  // ============================================================================
+
+  async saveDraft(teamUser: AuthTeamUser, dto: SaveAnalyticsDraftDto) {
+    await this.arenaService.verifyActiveParticipantSession(teamUser);
+    const { round, progress } = await this.arenaService.assertRoundAccess(teamUser, 3, 'WRITE');
+
+    if (progress.participationStatus === 'SUBMITTED') {
+      throw new BadRequestException('Round 3 has already been submitted by your team.');
+    }
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: dto.questionId },
+    });
+    if (!question || question.roundId !== round.id) {
+      throw new NotFoundException('Question not found in Round 3.');
+    }
+
+    const draft = await this.prisma.workspaceDraft.upsert({
+      where: {
+        teamId_roundId_caseNumber: {
+          teamId: teamUser.id,
+          roundId: round.id,
+          caseNumber: question.orderNumber,
+        },
+      },
+      update: {
+        sourceCode: dto.sourceCode,
+        language: 'python',
+        lastEditedByParticipantId: teamUser.activeParticipant?.id,
+        version: { increment: 1 },
+      },
+      create: {
+        teamId: teamUser.id,
+        roundId: round.id,
+        caseNumber: question.orderNumber,
+        sourceCode: dto.sourceCode,
+        language: 'python',
+        lastEditedByParticipantId: teamUser.activeParticipant?.id,
+        version: 1,
+      },
+    });
+
+    return {
+      success: true,
+      caseNumber: draft.caseNumber,
+      version: draft.version,
+      updatedAt: draft.updatedAt.toISOString(),
+    };
+  }
+
+  async selectOption(teamUser: AuthTeamUser, dto: SelectAnalyticsOptionDto) {
+    await this.arenaService.verifyActiveParticipantSession(teamUser);
+    const { round, progress } = await this.arenaService.assertRoundAccess(teamUser, 3, 'WRITE');
+
+    if (progress.participationStatus === 'SUBMITTED') {
+      throw new BadRequestException('Round 3 has already been submitted by your team.');
+    }
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: dto.questionId },
+    });
+    if (!question || question.roundId !== round.id) {
+      throw new NotFoundException('Question not found in Round 3.');
+    }
+
+    const optionMap: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+    const optionIdx = optionMap[dto.selectedOption];
+    if (optionIdx === undefined) {
+      throw new BadRequestException('Invalid option selected. Must be A, B, C, or D.');
+    }
+
+    const answer = await this.prisma.teamMcqAnswer.upsert({
+      where: {
+        id: (
+          await this.prisma.teamMcqAnswer.findFirst({
+            where: { teamId: teamUser.id, questionId: question.id },
+            select: { id: true },
+          })
+        )?.id || 'non_existent_id',
+      },
+      update: {
+        selectedOption: optionIdx,
+        updatedAt: new Date(),
+      },
+      create: {
+        teamId: teamUser.id,
+        questionId: question.id,
+        selectedOption: optionIdx,
+      },
+    });
+
+    return {
+      success: true,
+      questionId: question.id,
+      selectedOption: dto.selectedOption,
+      savedAt: answer.updatedAt.toISOString(),
+    };
+  }
+
+  // ============================================================================
+  // SAMPLE TEST RUN (PREVIEW & DEBUGGING)
+  // ============================================================================
+
+  async executeSampleTest(teamUser: AuthTeamUser, questionId: string, sourceCode: string) {
+    await this.arenaService.verifyActiveParticipantSession(teamUser);
+    await this.arenaService.assertRoundAccess(teamUser, 3, 'READ');
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+    });
+    if (!question) {
+      throw new NotFoundException('Question not found.');
+    }
+
+    const qConfig = ROUND3_QUESTIONS_CONFIG.find((c) => c.orderNumber === question.orderNumber);
+    const sampleTests = qConfig?.sampleTestCases || [];
+
+    if (sampleTests.length === 0) {
+      throw new BadRequestException('No sample test cases configured for this question.');
+    }
+
+    const codeToRun = this.wrapPythonHarness(sourceCode);
+    const results: AnalyticsTestCaseResultDto[] = [];
+    let passedCount = 0;
+
+    for (const tc of sampleTests) {
+      let execRes: any;
+      try {
+        execRes = await this.judge0Client.execute(
+          codeToRun,
+          71, // Python 3
+          tc.stdin,
+          5, // 5 seconds limit
+          128000, // 128 MB limit
+        );
+      } catch (err: any) {
+        execRes = {
+          status: { id: 13, description: 'Internal Error' },
+          stdout: null,
+          stderr: err?.message || 'Judge0 execution error',
+          compile_output: null,
+          time: null,
+          memory: null,
+        };
+      }
+
+      const norm = this.judge0Client.normalizeStatus(execRes.status);
+      let passed = false;
+      let statusStr = 'WRONG_ANSWER';
+
+      if (norm.isCompilationError) {
+        statusStr = 'COMPILATION_ERROR';
+      } else if (norm.isTimeLimitExceeded) {
+        statusStr = 'TIME_LIMIT_EXCEEDED';
+      } else if (norm.isRuntimeError) {
+        statusStr = 'RUNTIME_ERROR';
+      } else if (norm.isSuccess) {
+        const actual = (execRes.stdout || '').trim();
+        const expected = tc.expectedOutput.trim();
+        if (this.deepEqualWithTolerance(actual, expected)) {
+          passed = true;
+          statusStr = 'ACCEPTED';
+          passedCount++;
+        }
+      }
+
+      results.push({
+        caseIndex: tc.caseIndex,
+        isHidden: false,
+        passed,
+        status: statusStr,
+        executionTime: execRes.time ? String(execRes.time) : null,
+        memory: execRes.memory ? Number(execRes.memory) : null,
+        stdin: tc.stdin,
+        expectedOutput: tc.expectedOutput,
+        actualOutput: execRes.stdout || null,
+        compileOutput: execRes.compile_output || null,
+        stderr: execRes.stderr || null,
+      });
+
+      if (norm.isCompilationError) break;
+    }
+
+    return {
+      passedTests: passedCount,
+      totalTests: sampleTests.length,
+      allPassed: passedCount === sampleTests.length,
+      testCaseResults: results,
+    };
+  }
+
+  // ============================================================================
+  // QUESTION SUBMISSION & GRADING
+  // ============================================================================
+
+  async submitQuestion(
+    teamUser: AuthTeamUser,
+    dto: SubmitAnalyticsQuestionDto,
+  ): Promise<AnalyticsSubmissionResultDto> {
+    await this.arenaService.verifyActiveParticipantSession(teamUser);
+    const { round, progress } = await this.arenaService.assertRoundAccess(teamUser, 3, 'SUBMIT');
+
+    if (progress.participationStatus === 'SUBMITTED') {
+      throw new BadRequestException('Round 3 has already been officially submitted by your team.');
+    }
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: dto.questionId },
+    });
+    if (!question || question.roundId !== round.id) {
+      throw new NotFoundException('Question not found in Round 3.');
+    }
+
+    const qConfig = ROUND3_QUESTIONS_CONFIG.find((c) => c.orderNumber === question.orderNumber);
+    if (!qConfig) {
+      throw new NotFoundException('Configuration for question not found.');
+    }
+
+    const maxMarks = qConfig.marks;
+    let awardedScore = 0;
+    let finalStatus: 'ACCEPTED' | 'WRONG_ANSWER' | 'COMPILATION_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED' = 'WRONG_ANSWER';
+    let message = '';
+    let testResults: AnalyticsTestCaseResultDto[] = [];
+    let passedCount = 0;
+    let totalCount = 0;
+    let stdout: string | null = null;
+    let stderr: string | null = null;
+    let compileOutput: string | null = null;
+    let sourceCodeStored = dto.sourceCode || '';
+
+    if (qConfig.format === 'SELECT_CODE') {
+      const selectedKey = dto.selectedOption;
+      if (!selectedKey) {
+        throw new BadRequestException('Option selection (A, B, C, or D) is required for this question.');
+      }
+
+      // Record selection in TeamMcqAnswer
+      const optionMap: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+      await this.prisma.teamMcqAnswer.upsert({
+        where: {
+          id: (
+            await this.prisma.teamMcqAnswer.findFirst({
+              where: { teamId: teamUser.id, questionId: question.id },
+              select: { id: true },
+            })
+          )?.id || 'non_existent_id',
+        },
+        update: { selectedOption: optionMap[selectedKey], updatedAt: new Date() },
+        create: {
+          teamId: teamUser.id,
+          questionId: question.id,
+          selectedOption: optionMap[selectedKey],
+        },
+      });
+
+      const isCorrect = selectedKey === qConfig.correctOptionKey;
+      if (isCorrect) {
+        awardedScore = maxMarks;
+        finalStatus = 'ACCEPTED';
+        message = `Option ${selectedKey} is correct! Awarded ${awardedScore}/${maxMarks} marks.`;
+      } else {
+        awardedScore = 0;
+        finalStatus = 'WRONG_ANSWER';
+        message = `Option ${selectedKey} is incorrect. Awarded 0/${maxMarks} marks.`;
+      }
+
+      testResults = [
+        {
+          caseIndex: 1,
+          isHidden: false,
+          passed: isCorrect,
+          status: finalStatus,
+          expectedOutput: `Option ${qConfig.correctOptionKey}`,
+          actualOutput: `Option ${selectedKey}`,
+        },
+      ];
+      passedCount = isCorrect ? 1 : 0;
+      totalCount = 1;
+      sourceCodeStored = dto.sourceCode || `# Selected Option: ${selectedKey}\n`;
+    } else {
+      // WRITE_CODE format (Q2, Q4, Q6)
+      if (!dto.sourceCode || dto.sourceCode.trim().length === 0) {
+        throw new BadRequestException('Source code is required for analytical coding questions.');
+      }
+
+      const allTestCases = [...qConfig.sampleTestCases, ...qConfig.hiddenTestCases];
+      totalCount = allTestCases.length;
+
+      const codeToRun = this.wrapPythonHarness(dto.sourceCode);
+      let hasCompilationError = false;
+      let hasRuntimeError = false;
+      let hasTimeLimit = false;
+
+      for (const tc of allTestCases) {
+        let execRes: any;
+        try {
+          execRes = await this.judge0Client.execute(
+            codeToRun,
+            71,
+            tc.stdin,
+            5,
+            128000,
+          );
+        } catch (err: any) {
+          execRes = {
+            status: { id: 13, description: 'Internal Error' },
+            stdout: null,
+            stderr: err?.message || 'Judge0 execution error',
+            compile_output: null,
+            time: null,
+            memory: null,
+          };
+        }
+
+        const norm = this.judge0Client.normalizeStatus(execRes.status);
+        if (execRes.compile_output && !compileOutput) compileOutput = execRes.compile_output;
+        if (execRes.stderr && !stderr) stderr = execRes.stderr;
+        if (execRes.stdout) stdout = execRes.stdout;
+
+        let passed = false;
+        let caseStatus = 'WRONG_ANSWER';
+
+        if (norm.isCompilationError) {
+          hasCompilationError = true;
+          caseStatus = 'COMPILATION_ERROR';
+        } else if (norm.isTimeLimitExceeded) {
+          hasTimeLimit = true;
+          caseStatus = 'TIME_LIMIT_EXCEEDED';
+        } else if (norm.isRuntimeError) {
+          hasRuntimeError = true;
+          caseStatus = 'RUNTIME_ERROR';
+        } else if (norm.isSuccess) {
+          const actual = (execRes.stdout || '').trim();
+          const expected = tc.expectedOutput.trim();
+          if (this.deepEqualWithTolerance(actual, expected)) {
+            passed = true;
+            caseStatus = 'ACCEPTED';
+            passedCount++;
+          }
+        }
+
+        testResults.push({
+          caseIndex: tc.caseIndex,
+          isHidden: tc.isHidden,
+          passed,
+          status: caseStatus,
+          executionTime: execRes.time ? String(execRes.time) : null,
+          memory: execRes.memory ? Number(execRes.memory) : null,
+          stdin: tc.isHidden ? undefined : tc.stdin,
+          expectedOutput: tc.isHidden ? undefined : tc.expectedOutput,
+          actualOutput: tc.isHidden ? undefined : execRes.stdout || null,
+          compileOutput: tc.isHidden ? undefined : execRes.compile_output || null,
+          stderr: tc.isHidden ? undefined : execRes.stderr || null,
+        });
+
+        if (norm.isCompilationError) break;
+      }
+
+      if (hasCompilationError) {
+        finalStatus = 'COMPILATION_ERROR';
+        awardedScore = 0;
+        message = 'Python syntax or module error during execution.';
+      } else if (passedCount === totalCount && totalCount > 0) {
+        finalStatus = 'ACCEPTED';
+        awardedScore = maxMarks;
+        message = `All ${totalCount} test suites passed! Full marks awarded.`;
+      } else {
+        if (hasTimeLimit) {
+          finalStatus = 'TIME_LIMIT_EXCEEDED';
+        } else if (hasRuntimeError) {
+          finalStatus = 'RUNTIME_ERROR';
+        } else {
+          finalStatus = 'WRONG_ANSWER';
+        }
+        awardedScore = Math.round((passedCount / totalCount) * maxMarks * 100) / 100;
+        message = `Evaluated: ${passedCount}/${totalCount} test cases passed. Awarded ${awardedScore}/${maxMarks} marks.`;
+      }
+    }
+
+    const now = new Date();
+
+    // Persist Submission
+    const submission = await this.prisma.submission.create({
+      data: {
+        teamId: teamUser.id,
+        roundId: round.id,
+        questionId: question.id,
+        language: 'python',
+        sourceCode: sourceCodeStored,
+        stdout,
+        stderr,
+        compileOutput,
+        submissionStatus: finalStatus,
+        score: awardedScore,
+        isTestRun: false,
+        testCaseResults: testResults as any,
+        submittedAt: now,
+        evaluatedAt: now,
+      },
+    });
+
+    // Update TeamRoundProgress
+    const currentBreakdown = (progress.scoreBreakdown as any) || {};
+    const questionScores: Record<string, number> = {
+      ...(currentBreakdown.questionScores || {}),
+      [`q${question.orderNumber}`]: awardedScore,
+    };
+
+    // Aggregate Case scores
+    const case1Score = (questionScores['q1'] || 0) + (questionScores['q2'] || 0);
+    const case2Score = (questionScores['q3'] || 0) + (questionScores['q4'] || 0);
+    const case3Score = (questionScores['q5'] || 0) + (questionScores['q6'] || 0);
+    const codeQualityScore = Number(currentBreakdown.codeQuality || 0);
+
+    const totalRoundScore = Math.min(100, Math.max(0, case1Score + case2Score + case3Score + codeQualityScore));
+
+    await this.prisma.teamRoundProgress.update({
+      where: { id: progress.id },
+      data: {
+        score: totalRoundScore,
+        evaluatedAt: now,
+        scoreBreakdown: {
+          ...currentBreakdown,
+          questionScores,
+          case1Score,
+          case2Score,
+          case3Score,
+          codeQuality: codeQualityScore,
+          totalScore: totalRoundScore,
+        },
+      },
+    });
+
+    // Activity log
+    await this.prisma.activityLog.create({
+      data: {
+        actorType: 'TEAM',
+        actorId: teamUser.id,
+        action: 'SUBMIT_ROUND3_QUESTION',
+        description: `Team "${teamUser.teamName}" submitted ${qConfig.title} (Case ${qConfig.caseNumber}). Verdict: ${finalStatus}, Score: ${awardedScore}/${maxMarks}.`,
+        metadata: {
+          questionId: question.id,
+          orderNumber: question.orderNumber,
+          caseNumber: qConfig.caseNumber,
+          verdict: finalStatus,
+          score: awardedScore,
+          passedCount,
+          totalCount,
+        },
+      },
+    });
+
+    return {
+      submissionId: submission.id,
+      questionId: question.id,
+      orderNumber: question.orderNumber,
+      caseNumber: qConfig.caseNumber,
+      status: finalStatus,
+      isCorrect: finalStatus === 'ACCEPTED',
+      score: awardedScore,
+      maximumMarks: maxMarks,
+      passedCount,
+      totalCount,
+      message,
+      stdout,
+      stderr,
+      compileOutput,
+      testCaseResults: testResults,
+    };
+  }
+
+  // ============================================================================
+  // FINALIZE ROUND 3
+  // ============================================================================
+
+  async finalizeRound3(teamUser: AuthTeamUser) {
+    await this.arenaService.verifyActiveParticipantSession(teamUser);
+    const { round, progress } = await this.arenaService.assertRoundAccess(teamUser, 3, 'SUBMIT');
+
+    if (progress.participationStatus === 'SUBMITTED') {
+      return {
+        success: true,
+        message: 'Round 3 has already been officially submitted.',
+        totalScore: Number(progress.score || 0),
+        submittedAt: progress.submittedAt?.toISOString(),
+      };
+    }
+
+    const now = new Date();
+    await this.prisma.teamRoundProgress.update({
+      where: { id: progress.id },
+      data: {
+        participationStatus: 'SUBMITTED',
+        submittedAt: now,
+      },
+    });
+
+    await this.prisma.activityLog.create({
+      data: {
+        actorType: 'TEAM',
+        actorId: teamUser.id,
+        action: 'FINALIZE_ROUND3',
+        description: `Team "${teamUser.teamName}" officially finalized Round 3 Event Analytics Engine. Total Score: ${progress.score}/100.`,
+        metadata: {
+          teamId: teamUser.id,
+          totalScore: progress.score,
+          scoreBreakdown: progress.scoreBreakdown,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Round 3 Event Analytics Engine submitted successfully!',
+      totalScore: Number(progress.score || 0),
+      submittedAt: now.toISOString(),
+    };
+  }
+
+  // ============================================================================
+  // HARNESS & COMPARISON UTILITIES
+  // ============================================================================
+
+  private wrapPythonHarness(code: string): string {
+    if (code.includes("if __name__ == '__main__':")) {
+      return code;
+    }
+    return `${code}
+
+if __name__ == '__main__':
+    import sys, json
+    try:
+        _raw = sys.stdin.read().strip()
+        _data = json.loads(_raw) if _raw else {}
+    except Exception as _e:
+        _data = {}
+    try:
+        _res = solve(_data)
+        print(json.dumps(_res, default=str))
+    except Exception as _e:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
+`;
+  }
+
+  private deepEqualWithTolerance(actualStr: string, expectedStr: string, tolerance = 1e-3): boolean {
+    try {
+      const act = JSON.parse(actualStr);
+      const exp = JSON.parse(expectedStr);
+      return this.compareObjects(act, exp, tolerance);
+    } catch {
+      return actualStr.trim() === expectedStr.trim();
+    }
+  }
+
+  private compareObjects(a: any, b: any, tol: number): boolean {
+    if (typeof a === 'number' && typeof b === 'number') {
+      return Math.abs(a - b) <= tol;
+    }
+    if (typeof a !== typeof b) return false;
+    if (a === null || b === null) return a === b;
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) {
+        if (!this.compareObjects(a[i], b[i], tol)) return false;
+      }
+      return true;
+    }
+    if (typeof a === 'object') {
+      const keysA = Object.keys(a);
+      const keysB = Object.keys(b);
+      if (keysA.length !== keysB.length) return false;
+      for (const k of keysA) {
+        if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
+        if (!this.compareObjects(a[k], b[k], tol)) return false;
+      }
+      return true;
+    }
+    return String(a).trim() === String(b).trim();
+  }
+}
