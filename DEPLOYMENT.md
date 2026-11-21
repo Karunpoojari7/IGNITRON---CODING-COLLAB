@@ -230,3 +230,21 @@ After deploying to Render and Vercel, verify all systems:
   node scripts/test-phase2-competition-control.cjs
   node scripts/test-phase2-access-control.cjs
   ```
+
+
+## Production Service Checklist & Health Probes
+
+### Frontend Deployment (Vercel)
+- **Framework:** Vite React SPA
+- **Root Directory:** `apps/frontend`
+- **Build Command:** `npm run build -w @ignitron/shared && npm run build -w @ignitron/frontend`
+- **Output Directory:** `dist`
+- **Environment Variables:** `VITE_API_URL` pointing to active Render backend.
+
+### Backend Deployment (Render)
+- **Runtime:** Node.js 20+
+- **Root Directory:** Repository root
+- **Build Command:** `npm run build:shared && npm run build -w @ignitron/backend`
+- **Start Command:** `node apps/backend/dist/index.js`
+- **Health Check Endpoint:** `/health`
+- **TiDB Cloud Database:** Requires SSL verification `ssl={"rejectUnauthorized":true}`.
