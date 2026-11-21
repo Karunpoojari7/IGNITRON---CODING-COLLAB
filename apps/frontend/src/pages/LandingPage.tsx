@@ -172,40 +172,28 @@ export const LandingPage: React.FC = () => {
         {/* SECTION 1: CENTERED HERO SECTION                                   */}
         {/* ================================================================= */}
         <section className="relative pt-4 sm:pt-8 pb-12 sm:pb-20 text-center max-w-5xl mx-auto px-4 sm:px-6">
-          {/* Official Institution & Tournament 3-Logo Showcase Banner */}
-          <div className="flex items-center justify-center gap-3 sm:gap-7 mb-7 animate-fade-in">
-            {/* Left: GM University Logo */}
-            <div className="p-2 sm:p-2.5 rounded-2xl bg-black/50 border border-amber-500/40 backdrop-blur-md shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:scale-105 transition-transform flex items-center justify-center">
-              <img
-                src="/gmu-logo.png"
-                alt="GM University"
-                className="h-9 sm:h-12 w-auto object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.35)]"
-              />
-            </div>
+          {/* Institutional Co-Branding: GM University & Ignitron 2K26 (Pure Logos, No Cards) */}
+          <div className="flex items-center justify-center gap-6 sm:gap-10 mb-6 animate-fade-in">
+            <img
+              src="/gmu-logo.png"
+              alt="GM University"
+              className="h-12 sm:h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(245,158,11,0.45)] hover:scale-105 transition-transform"
+            />
+            <div className="h-8 sm:h-12 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent" />
+            <img
+              src="/ignitron-logo.png"
+              alt="IGNITRON 2K26"
+              className="h-10 sm:h-14 w-auto object-contain drop-shadow-[0_0_15px_rgba(16,185,129,0.45)] hover:scale-105 transition-transform"
+            />
+          </div>
 
-            {/* Glowing Divider */}
-            <div className="h-8 sm:h-10 w-px bg-gradient-to-b from-transparent via-emerald-400/50 to-transparent" />
-
-            {/* Center: Coding Collab Logo */}
-            <div className="p-2 sm:p-3 rounded-2xl bg-black/60 border border-emerald-500/50 backdrop-blur-md shadow-[0_0_25px_rgba(16,185,129,0.35)] hover:scale-105 transition-transform flex items-center justify-center">
-              <img
-                src="/coding-collab-logo.png"
-                alt="Coding Collab"
-                className="h-10 sm:h-14 md:h-16 w-auto object-contain drop-shadow-[0_0_20px_rgba(16,185,129,0.6)]"
-              />
-            </div>
-
-            {/* Glowing Divider */}
-            <div className="h-8 sm:h-10 w-px bg-gradient-to-b from-transparent via-emerald-400/50 to-transparent" />
-
-            {/* Right: IGNITRON 2K26 Logo */}
-            <div className="p-2 sm:p-2.5 rounded-2xl bg-black/50 border border-emerald-500/40 backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform flex items-center justify-center">
-              <img
-                src="/ignitron-logo.jpg"
-                alt="IGNITRON 2K26"
-                className="h-9 sm:h-12 w-auto object-contain rounded-xl drop-shadow-[0_0_10px_rgba(16,185,129,0.35)]"
-              />
-            </div>
+          {/* Official Coding Collab Event Emblem (Pure Logo, No Card) */}
+          <div className="flex justify-center mb-6 sm:mb-8 animate-fade-in">
+            <img
+              src="/coding-collab-logo.png"
+              alt="IGNITRON 2K26 Coding Collab"
+              className="w-64 sm:w-80 md:w-96 h-auto object-contain drop-shadow-[0_0_40px_rgba(16,185,129,0.55)] hover:scale-105 transition-transform duration-300"
+            />
           </div>
 
           {/* Top Status Badge */}

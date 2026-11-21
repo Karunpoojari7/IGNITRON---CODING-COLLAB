@@ -230,7 +230,7 @@ export const RegisterPage: React.FC = () => {
           <div className="h-6 w-px bg-emerald-500/30" />
           <img src="/coding-collab-logo.png" alt="Coding Collab" className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_0_12px_rgba(16,185,129,0.35)]" />
           <div className="h-6 w-px bg-emerald-500/30" />
-          <img src="/ignitron-logo.jpg" alt="IGNITRON 2K26" className="h-7 sm:h-8 w-auto object-contain rounded drop-shadow-[0_0_10px_rgba(16,185,129,0.2)]" />
+          <img src="/ignitron-logo.png" alt="IGNITRON 2K26" className="h-8 sm:h-10 w-auto object-contain drop-shadow-[0_0_10px_rgba(16,185,129,0.2)]" />
         </div>
 
         {/* Page Header */}

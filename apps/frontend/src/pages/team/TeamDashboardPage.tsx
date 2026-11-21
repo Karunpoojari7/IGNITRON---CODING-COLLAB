@@ -371,7 +371,7 @@ export const TeamDashboardPage: React.FC = () => {
           <div className="flex items-center gap-2.5 sm:gap-3">
             <img src="/gmu-logo.png" alt="GM University" className="h-8 w-auto object-contain" />
             <div className="h-6 w-px bg-slate-200" />
-            <img src="/ignitron-logo.jpg" alt="IGNITRON 2K26" className="h-7 w-auto object-contain rounded" />
+            <img src="/ignitron-logo.png" alt="IGNITRON 2K26" className="h-7 w-auto object-contain" />
             <div className="h-6 w-px bg-slate-200" />
             <img src="/coding-collab-logo.png" alt="Coding Collab" className="h-7 w-auto object-contain bg-slate-900 px-1.5 py-0.5 rounded shadow-xs" />
           </div>

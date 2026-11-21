@@ -55,3 +55,6 @@ coverage/
 .cache/
 tmp/
 
+
+.npm-cache/
+apps/frontend/.npm-cache/
