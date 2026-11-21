@@ -138,7 +138,7 @@ export const LandingPage: React.FC = () => {
               src="/coding-collab-logo.png"
               alt="IGNITRON 2K26 Coding Collab"
               loading="eager"
-              className="h-16 sm:h-22 md:h-26 w-auto object-contain drop-shadow-[0_0_35px_rgba(16,185,129,0.65)] hover:scale-105 transition-transform duration-300 shrink-0"
+              className="h-16 sm:h-24 md:h-28 w-auto object-contain drop-shadow-[0_0_35px_rgba(16,185,129,0.65)] hover:scale-105 transition-transform duration-300 shrink-0"
             />
             <div className="h-10 sm:h-14 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent shrink-0" />
             <img
@@ -431,11 +431,10 @@ export const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* LEFT PANEL: Competition Rules & Regulations */}
             <div
-              className={`relative p-7 sm:p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between overflow-hidden ${
-                highlightRules
-                  ? 'border-2 border-emerald-400 ring-2 ring-emerald-400/40 bg-[#02180d]'
-                  : 'border border-emerald-500/30 bg-[#02130a]/85 shadow-2xl'
-              }`}
+              className={`relative p-7 sm:p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between overflow-hidden ${highlightRules
+                ? 'border-2 border-emerald-400 ring-2 ring-emerald-400/40 bg-[#02180d]'
+                : 'border border-emerald-500/30 bg-[#02130a]/85 shadow-2xl'
+                }`}
             >
               {/* Glowing Watermark in Background */}
               <div className="absolute -bottom-6 -right-6 text-emerald-500/10 font-mono font-black text-8xl sm:text-9xl pointer-events-none select-none">
