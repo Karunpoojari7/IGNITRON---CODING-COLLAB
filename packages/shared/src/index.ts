@@ -37,7 +37,7 @@ export const OFFICIAL_ROUNDS_CONFIG = [
   },
   {
     roundNumber: 3,
-    name: 'Final Boss Coding',
+    name: 'Final Coding',
     description:
       'Complex multi-stage team code relay programming challenge against timed rigorous test suites.',
     durationMinutes: 60,

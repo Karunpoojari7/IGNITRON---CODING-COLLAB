@@ -65,7 +65,7 @@ INSERT INTO `competition_rounds` (
 (
     'round-3-final-boss',
     3,
-    'Final Boss Coding',
+    'Final Coding',
     'Round 3 of IGNITRON 2K26 Code Relay: Complex multi-stage team code relay programming challenge against timed test suites.',
     60,
     100.00,

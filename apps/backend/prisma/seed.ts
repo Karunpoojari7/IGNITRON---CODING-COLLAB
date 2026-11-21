@@ -31,7 +31,7 @@ export const OFFICIAL_ROUNDS = [
   },
   {
     roundNumber: 3,
-    name: 'Final Boss Coding',
+    name: 'Final Coding',
     description:
       'Round 3 of IGNITRON 2K26 Code Relay: Complex multi-stage team code relay programming challenge against timed test suites.',
     durationMinutes: 60,
