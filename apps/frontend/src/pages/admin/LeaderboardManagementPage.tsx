@@ -255,7 +255,7 @@ export const LeaderboardManagementPage: React.FC = () => {
               <option value="all">Overall Tournament</option>
               <option value="1">Round 1: MCQ Arena</option>
               <option value="2">Round 2: Bug Hunt Arena</option>
-              <option value="3">Round 3: Final Boss Coding</option>
+              <option value="3">Round 3: Final Coding</option>
             </select>
           </div>
         </div>

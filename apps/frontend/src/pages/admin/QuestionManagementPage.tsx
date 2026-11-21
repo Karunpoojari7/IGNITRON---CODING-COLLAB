@@ -458,7 +458,7 @@ export const QuestionManagementPage: React.FC = () => {
             }`}
           >
             <Clock className="w-4 h-4 text-emerald-600" />
-            <span>Round 3: Final Boss (100 Marks: 20 + 25 + 45 + 10)</span>
+            <span>Round 3: Final (100 Marks: 20 + 25 + 45 + 10)</span>
           </button>
         </div>
 
@@ -749,7 +749,7 @@ export const QuestionManagementPage: React.FC = () => {
                   >
                     <option value={1}>Round 1 (MCQ)</option>
                     <option value={2}>Round 2 (Bug Hunt)</option>
-                    <option value={3}>Round 3 (Final Boss)</option>
+                    <option value={3}>Round 3 (Final)</option>
                   </select>
                 </div>
 

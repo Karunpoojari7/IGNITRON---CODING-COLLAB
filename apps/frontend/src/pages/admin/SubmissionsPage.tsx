@@ -274,7 +274,7 @@ export const SubmissionsPage: React.FC = () => {
               { id: 'all', label: 'All Rounds' },
               { id: '1', label: 'Round 1: MCQ Arena' },
               { id: '2', label: 'Round 2: Bug Hunt Arena' },
-              { id: '3', label: 'Round 3: Final Boss Coding' },
+              { id: '3', label: 'Round 3: Final Coding' },
             ].map((tab) => (
               <button
                 key={tab.id}

@@ -36,7 +36,7 @@ const COMPETITION_STEPS: Array<{ status: CompetitionStatus; label: string; desc:
   { status: 'ROUND_1_EVALUATION', label: 'R1 Evaluation', desc: 'Top 50% Shortlisting' },
   { status: 'ROUND_2_ACTIVE', label: 'Round 2 Live', desc: 'Bug Hunt Arena (40m)' },
   { status: 'ROUND_2_EVALUATION', label: 'R2 Evaluation', desc: 'Final 5-8 Shortlisting' },
-  { status: 'ROUND_3_ACTIVE', label: 'Round 3 Live', desc: 'Final Boss Coding (60m)' },
+  { status: 'ROUND_3_ACTIVE', label: 'Round 3 Live', desc: 'Final Coding (60m)' },
   { status: 'FINAL_EVALUATION', label: 'Final Evaluation', desc: 'Scoring & Placements' },
   { status: 'COMPLETED', label: 'Completed', desc: 'Results Published' },
 ];
@@ -892,7 +892,7 @@ export const CompetitionControlPage: React.FC = () => {
               </div>
             </div>
 
-            {/* CARD 3: Round 3 — Final Boss Coding */}
+            {/* CARD 3: Round 3 — Final Coding */}
             <div
               className={`p-6 rounded-2xl border transition-all flex flex-col justify-between ${
                 compState?.status === 'ROUND_3_ACTIVE'
@@ -927,7 +927,7 @@ export const CompetitionControlPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-base font-bold text-emerald-950">Round 3: Final Boss</h3>
+                  <h3 className="text-base font-bold text-emerald-950">Round 3: Final</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     3 progressive algorithmic cases: 20 + 25 + 45 (+10 code quality).
                   </p>
@@ -1009,7 +1009,7 @@ export const CompetitionControlPage: React.FC = () => {
                       className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Start Round 3: Final Boss</span>
+                      <span>Start Round 3: Final</span>
                     </button>
                   </div>
                 )}
@@ -1131,7 +1131,7 @@ export const CompetitionControlPage: React.FC = () => {
                     <h3 className="text-lg font-bold text-emerald-950 flex items-center gap-2">
                       <Users className="w-5 h-5 text-emerald-600" />
                       <span>
-                        Shortlist Teams for Round {targetRound}: {targetRound === 2 ? 'Bug Hunt Arena' : 'Final Boss Coding'}
+                        Shortlist Teams for Round {targetRound}: {targetRound === 2 ? 'Bug Hunt Arena' : 'Final Coding'}
                       </span>
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">
