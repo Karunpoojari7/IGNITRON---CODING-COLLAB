@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Menu,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -20,6 +21,7 @@ export const Navbar: React.FC = () => {
 
   const [adminMoreOpen, setAdminMoreOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -431,7 +433,7 @@ export const Navbar: React.FC = () => {
             {/* Right: Admin User + Role Badge + Logout + Mobile Menu Toggle */}
             <div className="flex items-center gap-3 shrink-0">
               <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-bold text-slate-800 truncate max-w-[130px]">
+                <span className="text-xs font-bold text-slate-800 max-w-[200px] truncate" title={user.fullName}>
                   {user.fullName}
                 </span>
                 <span className="text-[10px] font-mono text-amber-700 font-bold uppercase tracking-wider">
@@ -440,7 +442,8 @@ export const Navbar: React.FC = () => {
               </div>
 
               <button
-                onClick={handleLogout}
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
                 title="Log out"
                 className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
               >
@@ -458,6 +461,48 @@ export const Navbar: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {/* Admin Logout Confirmation Modal */}
+          {showLogoutConfirm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Confirm Admin Logout</h3>
+                    <p className="text-xs text-slate-500">IGNITRON 2K26 Administrative Console</p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Are you sure you want to log out of the admin panel? Any unsaved live competition controls will require re-authentication.
+                </p>
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowLogoutConfirm(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setShowLogoutConfirm(false);
+                      await handleLogout();
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Confirm Log Out</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Mobile Admin Navigation Drawer */}
           {mobileMenuOpen && (

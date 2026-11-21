@@ -70,54 +70,54 @@ export const RulebookModal: React.FC<RulebookModalProps> = ({ isOpen, onClose })
           </div>
         </div>
 
-        {/* Modal Navigation Tabs */}
-        <div className="flex items-center gap-2 px-6 pt-3 pb-2 border-b border-emerald-950/80 bg-[#010c06] overflow-x-auto text-xs font-mono font-semibold shrink-0">
+        {/* Modal Navigation Tabs (Clean responsive grid, no horizontal cutoff) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 sm:px-6 pt-3 pb-3 border-b border-emerald-950/80 bg-[#010c06] text-xs font-mono font-semibold shrink-0">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'overview'
                 ? 'bg-emerald-500 text-slate-950 font-bold shadow-[0_0_15px_rgba(16,185,129,0.6)]'
                 : 'text-emerald-200/70 hover:text-emerald-300 hover:bg-emerald-950/50'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
-            <span>1. Overview & Eligibility</span>
+            <Users className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">1. Overview & Eligibility</span>
           </button>
 
           <button
             onClick={() => setActiveTab('format')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'format'
                 ? 'bg-emerald-500 text-slate-950 font-bold shadow-[0_0_15px_rgba(16,185,129,0.6)]'
                 : 'text-emerald-200/70 hover:text-emerald-300 hover:bg-emerald-950/50'
             }`}
           >
-            <Award className="w-3.5 h-3.5" />
-            <span>2. Format & Judging</span>
+            <Award className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">2. Format & Judging</span>
           </button>
 
           <button
             onClick={() => setActiveTab('venue')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'venue'
                 ? 'bg-emerald-500 text-slate-950 font-bold shadow-[0_0_15px_rgba(16,185,129,0.6)]'
                 : 'text-emerald-200/70 hover:text-emerald-300 hover:bg-emerald-950/50'
             }`}
           >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>3. Venue, Prizes & Contacts</span>
+            <MapPin className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">3. Venue, Prizes & Contacts</span>
           </button>
 
           <button
             onClick={() => setActiveTab('document')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'document'
                 ? 'bg-emerald-500 text-slate-950 font-bold shadow-[0_0_15px_rgba(16,185,129,0.6)]'
                 : 'text-emerald-200/70 hover:text-emerald-300 hover:bg-emerald-950/50'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>4. Complete Document</span>
+            <BookOpen className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">4. Complete Document</span>
           </button>
         </div>
 
