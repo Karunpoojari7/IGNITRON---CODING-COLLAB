@@ -334,7 +334,7 @@ export const Navbar: React.FC = () => {
               <img
                 src="/coding-collab-logo.png"
                 alt="Coding Collab"
-                className="h-7 w-auto object-contain bg-slate-900 px-1.5 py-0.5 rounded-md drop-shadow-sm group-hover:scale-105 transition-transform"
+                className="h-7 w-auto object-contain invert group-hover:scale-105 transition-transform"
               />
               <div className="flex flex-col leading-tight">
                 <div className="text-xs sm:text-sm font-extrabold tracking-tight text-emerald-950 flex items-center gap-1">
@@ -508,7 +508,7 @@ export const Navbar: React.FC = () => {
           <img
             src="/coding-collab-logo.png"
             alt="Coding Collab"
-            className="h-7 w-auto object-contain bg-slate-900 px-1.5 py-0.5 rounded-md drop-shadow-sm group-hover:scale-105 transition-transform"
+            className="h-7 w-auto object-contain invert group-hover:scale-105 transition-transform"
           />
           <div className="flex flex-col leading-tight">
             <div className="text-sm font-extrabold tracking-tight text-emerald-950 flex items-center gap-1.5">
