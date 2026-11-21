@@ -68,5 +68,5 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "const http = require('http'); const port = process.env.PORT || process.env.BACKEND_PORT || 4000; const req = http.get('http://localhost:' + port + '/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1));"
 
-# Launch NestJS production server
-CMD ["node", "apps/backend/dist/main.js"]
+# Launch NestJS production server with automatic migration deployment
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/backend/prisma/schema.prisma || true; node apps/backend/dist/main.js"]
