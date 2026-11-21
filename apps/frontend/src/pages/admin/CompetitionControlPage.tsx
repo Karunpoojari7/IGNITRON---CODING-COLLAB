@@ -717,6 +717,8 @@ export const CompetitionControlPage: React.FC = () => {
               className={`p-6 rounded-2xl border transition-all flex flex-col justify-between ${
                 compState?.status === 'ROUND_2_ACTIVE'
                   ? 'bg-white border-emerald-400 shadow-md ring-2 ring-emerald-500/10'
+                  : compState?.status === 'ROUND_1_EVALUATION'
+                  ? 'bg-gradient-to-b from-emerald-50/70 via-white to-white border-2 border-emerald-500 shadow-[0_0_35px_rgba(16,185,129,0.35)] ring-4 ring-emerald-400/20'
                   : 'bg-white border-slate-200/90 shadow-2xs'
               }`}
             >
@@ -731,6 +733,8 @@ export const CompetitionControlPage: React.FC = () => {
                         ? compState?.isPaused
                           ? 'bg-amber-100 text-amber-800 border border-amber-300'
                           : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : compState?.status === 'ROUND_1_EVALUATION'
+                        ? 'bg-emerald-500 text-slate-950 font-extrabold shadow-[0_0_12px_rgba(16,185,129,0.5)] animate-pulse'
                         : isR2Completed
                         ? 'bg-slate-100 text-slate-600 border border-slate-200'
                         : 'bg-slate-50 text-slate-400 border border-slate-200'
@@ -740,6 +744,8 @@ export const CompetitionControlPage: React.FC = () => {
                       ? compState?.isPaused
                         ? 'PAUSED'
                         : 'ACTIVE'
+                      : compState?.status === 'ROUND_1_EVALUATION'
+                      ? '✨ READY TO LAUNCH'
                       : isR2Completed
                       ? 'COMPLETED'
                       : 'NOT STARTED'}

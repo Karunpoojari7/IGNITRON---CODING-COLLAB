@@ -751,6 +751,31 @@ export class CompetitionService implements OnModuleInit {
                   },
                 });
               }
+
+              // Automatically qualify Round 1 teams for Round 2 so Round 2 immediately unlocks and glows
+              const r2 = await tx.competitionRound.findUnique({ where: { roundNumber: 2 } });
+              if (r2) {
+                for (const prog of eligibleR1) {
+                  await tx.teamRoundProgress.upsert({
+                    where: {
+                      teamId_roundId: {
+                        teamId: prog.teamId,
+                        roundId: r2.id,
+                      },
+                    },
+                    update: {
+                      eligibilityStatus: 'ELIGIBLE',
+                    },
+                    create: {
+                      teamId: prog.teamId,
+                      roundId: r2.id,
+                      eligibilityStatus: 'ELIGIBLE',
+                      participationStatus: 'NOT_STARTED',
+                      score: 0,
+                    },
+                  });
+                }
+              }
             } else if (currentRoundNumber === 2) {
               const eligibleR2 = await tx.teamRoundProgress.findMany({
                 where: { roundId: currentRound.id, eligibilityStatus: 'ELIGIBLE' },

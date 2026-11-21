@@ -29,6 +29,7 @@ import {
   LogOut,
   Info,
   User,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const McqArenaPage: React.FC = () => {
@@ -49,6 +50,7 @@ export const McqArenaPage: React.FC = () => {
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [submissionResult, setSubmissionResult] = useState<McqSubmissionResultDto | null>(null);
   const [reviewMode, setReviewMode] = useState<boolean>(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
 
   // Configured duration from server or default 30m
   const r1ConfiguredDuration =
@@ -478,7 +480,8 @@ export const McqArenaPage: React.FC = () => {
 
           {/* Logout Button */}
           <button
-            onClick={handleLogout}
+            type="button"
+            onClick={() => setShowLogoutConfirm(true)}
             title="Log out"
             className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 transition-colors cursor-pointer"
           >
@@ -928,6 +931,48 @@ export const McqArenaPage: React.FC = () => {
                   <Check className="w-3.5 h-3.5 text-black stroke-[3]" />
                 )}
                 <span>{submitting ? 'Submitting...' : 'Confirm Submission'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#02130a] rounded-2xl border border-emerald-500/40 shadow-[0_0_30px_rgba(0,0,0,0.8)] p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Confirm Sign Out</h3>
+                <p className="text-xs font-mono text-emerald-400">MCQ Arena Session</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-300 leading-relaxed font-sans">
+              Are you sure you want to sign out? Your saved answers remain securely stored on the server.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-emerald-950">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 rounded-xl text-xs font-mono font-semibold text-slate-300 hover:text-white hover:bg-emerald-950/50 border border-emerald-500/30 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowLogoutConfirm(false);
+                  await handleLogout();
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-mono font-bold text-white bg-rose-600 hover:bg-rose-500 transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Confirm Log Out</span>
               </button>
             </div>
           </div>
