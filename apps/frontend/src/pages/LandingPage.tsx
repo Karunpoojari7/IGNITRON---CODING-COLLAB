@@ -191,7 +191,7 @@ export const LandingPage: React.FC = () => {
           <div className="flex justify-center mb-6 sm:mb-8 animate-fade-in">
             <img
               src="/coding-collab-logo.png"
-              alt="IGNITRON 2K26 Coding Collab"
+              alt="IGNITRON 2K26 Coding Collab" loading="eager"
               className="w-64 sm:w-80 md:w-96 h-auto object-contain drop-shadow-[0_0_40px_rgba(16,185,129,0.55)] hover:scale-105 transition-transform duration-300"
             />
           </div>
