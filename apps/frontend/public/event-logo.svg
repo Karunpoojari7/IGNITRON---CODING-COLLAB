@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="emeraldGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="50%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+
+    <linearGradient id="goldGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+
+    <linearGradient id="cyberDark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0b1120" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <linearGradient id="shieldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#06b6d4" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Filter Glow -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="800" height="800" rx="60" fill="url(#cyberDark)" />
+  
+  <!-- Subtle Background Grid -->
+  <g opacity="0.08" stroke="#10b981" stroke-width="1">
+    <path d="M0 100 H800 M0 200 H800 M0 300 H800 M0 400 H800 M0 500 H800 M0 600 H800 M0 700 H800" />
+    <path d="M100 0 V800 M200 0 V800 M300 0 V800 M400 0 V800 M500 0 V800 M600 0 V800 M700 0 V800" />
+  </g>
+
+  <!-- Outer Cyber Hex Shield -->
+  <polygon points="400,60 700,190 700,560 400,740 100,560 100,190" 
+           fill="#070b14" 
+           stroke="url(#shieldStroke)" 
+           stroke-width="5" 
+           filter="url(#softGlow)" />
+
+  <polygon points="400,76 680,200 680,548 400,720 120,548 120,200" 
+           fill="none" 
+           stroke="#1e293b" 
+           stroke-width="2" />
+
+  <!-- Code Relay Collaboration Brackets (Left &lt; and Right &gt;) -->
+  <!-- Left Bracket &lt; -->
+  <path d="M220 280 L160 360 L220 440" 
+        fill="none" 
+        stroke="#10b981" 
+        stroke-width="14" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        filter="url(#glow)" />
+
+  <!-- Right Bracket &gt; -->
+  <path d="M580 280 L640 360 L580 440" 
+        fill="none" 
+        stroke="#06b6d4" 
+        stroke-width="14" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        filter="url(#glow)" />
+
+  <!-- Central Circuit Tree Motif (Ignitron Style) -->
+  <g transform="translate(400, 305)" filter="url(#softGlow)">
+    <!-- Center Trunk -->
+    <path d="M0 115 V50" stroke="url(#emeraldGlow)" stroke-width="10" stroke-linecap="round" />
+    <path d="M-18 130 L0 110 L18 130" stroke="url(#goldGlow)" stroke-width="6" fill="none" stroke-linecap="round" />
+    
+    <!-- Central Node Core -->
+    <circle cx="0" cy="45" r="14" fill="#10b981" filter="url(#glow)" />
+    <circle cx="0" cy="45" r="7" fill="#ffffff" />
+
+    <!-- Left Circuit Branches -->
+    <path d="M0 45 H-45 V10 H-80 V-40 H-50 V-90 H-15" fill="none" stroke="url(#emeraldGlow)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M-45 10 V-50 H-100 V-10 H-120" fill="none" stroke="url(#emeraldGlow)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M-50 -40 H-15 V-70" fill="none" stroke="url(#emeraldGlow)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M-80 -40 V-80 H-110" fill="none" stroke="url(#emeraldGlow)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+
+    <!-- Right Circuit Branches -->
+    <path d="M0 45 H45 V10 H80 V-40 H50 V-90 H15" fill="none" stroke="url(#emeraldGlow)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M45 10 V-50 H100 V-10 H120" fill="none" stroke="url(#emeraldGlow)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M50 -40 H15 V-70" fill="none" stroke="url(#emeraldGlow)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M80 -40 V-80 H110" fill="none" stroke="url(#emeraldGlow)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+
+    <!-- Circuit Terminal Dots -->
+    <circle cx="-15" cy="-90" r="6" fill="#f59e0b" filter="url(#softGlow)" />
+    <circle cx="15" cy="-90" r="6" fill="#f59e0b" filter="url(#softGlow)" />
+    <circle cx="-120" cy="-10" r="6" fill="#06b6d4" filter="url(#softGlow)" />
+    <circle cx="120" cy="-10" r="6" fill="#06b6d4" filter="url(#softGlow)" />
+    <circle cx="-110" cy="-80" r="6" fill="#10b981" filter="url(#softGlow)" />
+    <circle cx="110" cy="-80" r="6" fill="#10b981" filter="url(#softGlow)" />
+    <circle cx="-15" cy="-70" r="4.5" fill="#ffffff" />
+    <circle cx="15" cy="-70" r="4.5" fill="#ffffff" />
+  </g>
+
+  <!-- Dual Collaboration Nodes (Participant A + B Handshake) -->
+  <g transform="translate(400, 480)">
+    <rect x="-165" y="-20" width="330" height="40" rx="20" fill="#0f172a" stroke="#334155" stroke-width="2" />
+    <!-- Connector Pulse Line -->
+    <line x1="-105" y1="0" x2="105" y2="0" stroke="url(#emeraldGlow)" stroke-width="4" stroke-dasharray="6 6" />
+    
+    <!-- User A Node -->
+    <circle cx="-105" cy="0" r="14" fill="#10b981" filter="url(#softGlow)" />
+    <text x="-105" y="5" fill="#000000" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="900" text-anchor="middle">A</text>
+    
+    <!-- Terminal Lock Icon / Relay Core -->
+    <polygon points="0,-10 12,0 0,10 -12,0" fill="#f59e0b" filter="url(#glow)" />
+    
+    <!-- User B Node -->
+    <circle cx="105" cy="0" r="14" fill="#06b6d4" filter="url(#softGlow)" />
+    <text x="105" y="5" fill="#000000" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="900" text-anchor="middle">B</text>
+  </g>
+
+  <!-- Typography: GM UNIVERSITY -->
+  <text x="400" y="555" 
+        text-anchor="middle" 
+        fill="url(#goldGlow)" 
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" 
+        font-size="16" 
+        font-weight="800" 
+        letter-spacing="9" 
+        opacity="0.95">GM UNIVERSITY PRESENTS</text>
+
+  <!-- Typography: IGNITRON 2K26 -->
+  <text x="400" y="612" 
+        text-anchor="middle" 
+        fill="#ffffff" 
+        font-family="system-ui, -apple-system, 'Arial Black', sans-serif" 
+        font-size="52" 
+        font-weight="900" 
+        letter-spacing="4">IGNITRON <tspan fill="#10b981">2K26</tspan></text>
+
+  <!-- Subtitle Badge: CODING COLLAB -->
+  <g transform="translate(400, 656)">
+    <rect x="-160" y="-18" width="320" height="36" rx="18" fill="#10b981" opacity="0.15" />
+    <rect x="-160" y="-18" width="320" height="36" rx="18" fill="none" stroke="#10b981" stroke-width="1.8" />
+    <text x="0" y="6" 
+          text-anchor="middle" 
+          fill="#34d399" 
+          font-family="system-ui, -apple-system, sans-serif" 
+          font-size="16" 
+          font-weight="800" 
+          letter-spacing="6">CODING COLLAB</text>
+  </g>
+</svg>

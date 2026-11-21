@@ -168,6 +168,13 @@ export const TeamLoginPage: React.FC = () => {
 
       {/* Dark Emerald Glass Form Card */}
       <div className="relative z-10 w-full max-w-md bg-[#03180f]/94 backdrop-blur-xl border border-emerald-500/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.65),0_0_35px_rgba(16,185,129,0.12)] p-6 sm:p-8">
+        {/* Institutional & Event Branding Header */}
+        <div className="flex items-center justify-center gap-3 mb-5 pb-4 border-b border-emerald-900/60">
+          <img src="/gmu-logo.png" alt="GM University" className="h-7 w-auto object-contain" />
+          <div className="h-5 w-px bg-emerald-500/30" />
+          <img src="/coding-collab-logo.png" alt="Coding Collab" className="h-7 w-auto object-contain" />
+        </div>
+
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mb-3 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
             <Users className="w-6 h-6" />

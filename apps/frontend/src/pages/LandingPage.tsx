@@ -153,6 +153,15 @@ export const LandingPage: React.FC = () => {
           }}
         />
 
+        {/* Subtle Watermark: Official Coding Collab Emblem */}
+        <div className="absolute top-20 sm:top-28 left-1/2 -translate-x-1/2 w-[550px] sm:w-[750px] opacity-[0.045] pointer-events-none select-none flex items-center justify-center">
+          <img
+            src="/coding-collab-logo.png"
+            alt=""
+            className="w-full object-contain filter drop-shadow-[0_0_90px_rgba(16,185,129,0.3)]"
+          />
+        </div>
+
         {/* Deep Vignette Gradient */}
         <div className="absolute inset-0 bg-radial from-transparent via-[#010a05]/60 to-[#010804] pointer-events-none" />
       </div>
@@ -163,21 +172,39 @@ export const LandingPage: React.FC = () => {
         {/* SECTION 1: CENTERED HERO SECTION                                   */}
         {/* ================================================================= */}
         <section className="relative pt-4 sm:pt-8 pb-12 sm:pb-20 text-center max-w-5xl mx-auto px-4 sm:px-6">
-          {/* Top Status & Event Identity Badge: /// IGNITRON 2K26 /// */}
+          {/* Official Institution & Tournament Co-Branding Banner */}
+          <div className="flex items-center justify-center gap-3 sm:gap-6 mb-6">
+            <div className="flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-1.5 rounded-2xl bg-black/40 border border-amber-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+              <img src="/gmu-logo.png" alt="GM University" className="h-6 sm:h-8 w-auto object-contain" />
+              <div className="text-left hidden sm:block">
+                <div className="text-[10px] font-bold tracking-wider text-amber-300">GM UNIVERSITY</div>
+                <div className="text-[8px] font-mono text-slate-400">Davanagere, Karnataka</div>
+              </div>
+            </div>
+
+            <div className="h-6 w-px bg-emerald-500/20" />
+
+            <div className="flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-1.5 rounded-2xl bg-black/40 border border-emerald-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+              <img src="/ignitron-logo.jpg" alt="IGNITRON 2K26" className="h-6 sm:h-8 w-auto object-contain rounded" />
+              <div className="text-left hidden sm:block">
+                <div className="text-[10px] font-bold tracking-wider text-emerald-300">IGNITRON 2K26</div>
+                <div className="text-[8px] font-mono text-slate-400">National Tech Fest</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Prominent Official Coding Collab Emblem */}
+          <div className="flex justify-center mb-5 sm:mb-7 animate-fade-in">
+            <img
+              src="/coding-collab-logo.png"
+              alt="IGNITRON 2K26 Coding Collab"
+              className="w-56 sm:w-72 md:w-84 h-auto object-contain drop-shadow-[0_0_35px_rgba(16,185,129,0.5)] hover:scale-105 transition-transform duration-300"
+            />
+          </div>
+
+          {/* Top Status Badge */}
           <div className="flex flex-col items-center justify-center gap-3 mb-6 animate-fade-in">
             {getStatusBadge()}
-
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <span className="text-emerald-400 font-mono text-sm tracking-widest font-black select-none">
-                ///
-              </span>
-              <span className="px-4 py-1 rounded-full text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-emerald-300 bg-emerald-950/40 border border-emerald-400/60 shadow-[0_0_15px_rgba(16,185,129,0.35)] backdrop-blur-md">
-                IGNITRON 2K26
-              </span>
-              <span className="text-emerald-400 font-mono text-sm tracking-widest font-black select-none">
-                ///
-              </span>
-            </div>
           </div>
 
           {/* Dominant Hero Title: CODING COLLAB */}

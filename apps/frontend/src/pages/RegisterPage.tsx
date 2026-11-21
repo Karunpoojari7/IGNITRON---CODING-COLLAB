@@ -224,6 +224,15 @@ export const RegisterPage: React.FC = () => {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        {/* Institutional & Event Branding Header */}
+        <div className="flex items-center justify-center gap-3 sm:gap-6">
+          <img src="/gmu-logo.png" alt="GM University" className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.25)]" />
+          <div className="h-6 w-px bg-emerald-500/30" />
+          <img src="/coding-collab-logo.png" alt="Coding Collab" className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_0_12px_rgba(16,185,129,0.35)]" />
+          <div className="h-6 w-px bg-emerald-500/30" />
+          <img src="/ignitron-logo.jpg" alt="IGNITRON 2K26" className="h-7 sm:h-8 w-auto object-contain rounded drop-shadow-[0_0_10px_rgba(16,185,129,0.2)]" />
+        </div>
+
         {/* Page Header */}
         <div className="text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 mb-3 shadow-[0_0_15px_rgba(16,185,129,0.2)]">

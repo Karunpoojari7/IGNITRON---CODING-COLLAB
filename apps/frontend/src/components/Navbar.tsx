@@ -81,14 +81,22 @@ export const Navbar: React.FC = () => {
           <Link
             to="/"
             onClick={(e) => scrollToSection('top', e)}
-            className="flex items-center gap-2.5 group shrink-0"
+            className="flex items-center gap-2.5 sm:gap-3 group shrink-0"
           >
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-transform">
-              <span className="font-mono font-black text-xs text-emerald-400">&lt;/&gt;</span>
-            </div>
-            <div className="text-sm sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]">
-              <span>IGNITRON</span>
-              <span className="text-emerald-400">2K26</span>
+            <img
+              src="/gmu-logo.png"
+              alt="GM University"
+              className="h-8 sm:h-9 w-auto object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.35)] group-hover:scale-105 transition-transform"
+            />
+            <div className="h-6 w-px bg-emerald-500/30" />
+            <img
+              src="/coding-collab-logo.png"
+              alt="Coding Collab"
+              className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_0_12px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-transform"
+            />
+            <div className="hidden sm:flex flex-col leading-tight">
+              <span className="text-xs font-black tracking-wider text-white">IGNITRON <span className="text-emerald-400">2K26</span></span>
+              <span className="text-[9px] font-mono tracking-widest uppercase text-emerald-300/80 font-bold">CODING COLLAB</span>
             </div>
           </Link>
 
@@ -312,23 +320,29 @@ export const Navbar: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between gap-3">
             {/* Left: Brand + Admin Badge */}
-            <Link to="/admin/dashboard" className="flex items-center gap-2.5 shrink-0 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-600/20 group-hover:scale-105 transition-transform">
-                <Terminal className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <div className="text-sm sm:text-base font-extrabold tracking-tight text-emerald-950 flex items-center gap-1.5">
+            <Link to="/admin/dashboard" className="flex items-center gap-2.5 sm:gap-3 shrink-0 group">
+              <img
+                src="/gmu-logo.png"
+                alt="GM University"
+                className="h-8 w-auto object-contain drop-shadow-sm group-hover:scale-105 transition-transform"
+              />
+              <div className="h-6 w-px bg-slate-300" />
+              <img
+                src="/coding-collab-logo.png"
+                alt="Coding Collab"
+                className="h-7 w-auto object-contain bg-slate-900 px-1.5 py-0.5 rounded-md drop-shadow-sm group-hover:scale-105 transition-transform"
+              />
+              <div className="flex flex-col leading-tight">
+                <div className="text-xs sm:text-sm font-extrabold tracking-tight text-emerald-950 flex items-center gap-1">
                   <span>IGNITRON</span>
                   <span className="text-emerald-600">2K26</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-800 font-bold">
-                    CODING COLLAB
-                  </span>
                   <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
                     Admin
                   </span>
                 </div>
+                <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-800 font-bold">
+                  CODING COLLAB
+                </span>
               </div>
             </Link>
 
@@ -480,12 +494,20 @@ export const Navbar: React.FC = () => {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-600/20 group-hover:scale-105 transition-transform">
-            <Terminal className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-base font-extrabold tracking-tight text-emerald-950 flex items-center gap-1.5">
+        <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group">
+          <img
+            src="/gmu-logo.png"
+            alt="GM University"
+            className="h-8 w-auto object-contain drop-shadow-sm group-hover:scale-105 transition-transform"
+          />
+          <div className="h-6 w-px bg-slate-300" />
+          <img
+            src="/coding-collab-logo.png"
+            alt="Coding Collab"
+            className="h-7 w-auto object-contain bg-slate-900 px-1.5 py-0.5 rounded-md drop-shadow-sm group-hover:scale-105 transition-transform"
+          />
+          <div className="flex flex-col leading-tight">
+            <div className="text-sm font-extrabold tracking-tight text-emerald-950 flex items-center gap-1.5">
               <span>IGNITRON</span>
               <span className="text-emerald-600">2K26</span>
             </div>
