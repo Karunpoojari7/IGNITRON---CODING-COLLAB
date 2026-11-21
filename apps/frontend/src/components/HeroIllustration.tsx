@@ -3,7 +3,7 @@ import { Users, Trophy, Code2 } from 'lucide-react';
 
 export const HeroIllustration: React.FC = () => {
   return (
-    <div className="relative w-full max-w-2xl mx-auto mt-8 sm:mt-12 select-none pointer-events-auto">
+    <div className="relative w-full max-w-2xl mx-auto mt-4 sm:mt-6 select-none pointer-events-auto">
       {/* Outer ambient glow behind the entire illustration */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] sm:w-[600px] h-[260px] sm:h-[350px] opacity-60 blur-3xl pointer-events-none"

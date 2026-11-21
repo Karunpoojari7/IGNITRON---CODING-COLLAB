@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useCompetitionState } from '../hooks/useCompetition';
 import { GoldenSnowfall } from '../components/GoldenSnowfall';
 import { HeroIllustration } from '../components/HeroIllustration';
 import { RulebookModal } from '../components/RulebookModal';
@@ -12,7 +11,6 @@ import {
   Clock,
   Award,
   ArrowRight,
-  Radio,
   BookOpen,
   CheckCircle2,
   Code2,
@@ -30,7 +28,6 @@ import {
 
 export const LandingPage: React.FC = () => {
   const { user } = useAuth();
-  const { data: compState } = useCompetitionState();
   const location = useLocation();
 
   const [isRulebookOpen, setIsRulebookOpen] = useState(false);
@@ -61,63 +58,6 @@ export const LandingPage: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [location.hash]);
-
-  const getStatusBadge = () => {
-    if (!compState) {
-      return (
-        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/80 shadow-[0_0_20px_rgba(251,191,36,0.3)] backdrop-blur-md">
-          <Clock className="w-3.5 h-3.5 text-amber-400" />
-          <span>STANDBY — REGISTRATION ACTIVE</span>
-        </span>
-      );
-    }
-
-    const status = compState.status;
-
-    if (status.includes('ACTIVE')) {
-      return (
-        <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-emerald-400">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-          <span>LIVE: {compState.currentRoundName || status}</span>
-        </div>
-      );
-    }
-    if (status.includes('EVALUATION')) {
-      return (
-        <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-amber-300">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-          </span>
-          <Clock className="w-3.5 h-3.5 text-amber-400" />
-          <span>EVALUATION IN PROGRESS</span>
-        </div>
-      );
-    }
-    if (status === 'COMPLETED') {
-      return (
-        <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-sky-300">
-          <Award className="w-3.5 h-3.5 text-sky-400" />
-          <span>COMPETITION CONCLUDED</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-amber-300/90">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
-        </span>
-        <Clock className="w-3.5 h-3.5 text-amber-400" />
-        <span>STANDBY — REGISTRATION ACTIVE</span>
-      </div>
-    );
-  };
 
   return (
     <div
@@ -179,35 +119,35 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* Main Content Sections */}
-      <div className="relative z-20 space-y-20 sm:space-y-28 py-6 sm:py-10">
+      <div className="relative z-20 space-y-12 sm:space-y-16 py-4 sm:py-6">
         {/* ================================================================= */}
         {/* SECTION 1: CENTERED HERO SECTION                                   */}
         {/* ================================================================= */}
-        <section className="relative pt-4 sm:pt-8 pb-12 sm:pb-20 text-center max-w-5xl mx-auto px-4 sm:px-6">
-          {/* Institutional & Event Branding Row: GM University (Left) | Coding Collab (Center) | Ignitron 2K26 (Right) */}
-          <div className="flex items-center justify-center gap-4 sm:gap-8 md:gap-10 mb-8 sm:mb-10 animate-fade-in">
+        <section className="relative pt-2 sm:pt-4 pb-6 sm:pb-8 text-center max-w-4xl mx-auto px-4 sm:px-6">
+          {/* Institutional & Event Branding Crest Triad: GM University | Coding Collab | Ignitron 2K26 */}
+          <div className="inline-flex items-center justify-center gap-4 sm:gap-7 md:gap-9 mb-4 sm:mb-6 animate-fade-in mx-auto">
             <img
               src="/gmu-logo.png"
               alt="GM University"
-              className="h-12 sm:h-16 md:h-20 w-auto object-contain drop-shadow-[0_0_18px_rgba(245,158,11,0.45)] hover:scale-105 transition-transform duration-300 shrink-0"
+              className="h-12 sm:h-16 md:h-18 w-auto object-contain drop-shadow-[0_0_18px_rgba(245,158,11,0.45)] hover:scale-105 transition-transform duration-300 shrink-0"
             />
-            <div className="h-10 sm:h-16 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent shrink-0" />
+            <div className="h-10 sm:h-14 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent shrink-0" />
             <img
               src="/coding-collab-logo.png"
               alt="IGNITRON 2K26 Coding Collab"
               loading="eager"
-              className="w-48 sm:w-64 md:w-80 lg:w-96 h-auto object-contain drop-shadow-[0_0_40px_rgba(16,185,129,0.65)] hover:scale-105 transition-transform duration-300 shrink-0"
+              className="h-16 sm:h-22 md:h-26 w-auto object-contain drop-shadow-[0_0_35px_rgba(16,185,129,0.65)] hover:scale-105 transition-transform duration-300 shrink-0"
             />
-            <div className="h-10 sm:h-16 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent shrink-0" />
+            <div className="h-10 sm:h-14 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent shrink-0" />
             <img
               src="/ignitron-logo.png"
               alt="IGNITRON 2K26"
-              className="h-10 sm:h-14 md:h-18 w-auto object-contain drop-shadow-[0_0_18px_rgba(16,185,129,0.45)] hover:scale-105 transition-transform duration-300 shrink-0"
+              className="h-11 sm:h-14 md:h-16 w-auto object-contain drop-shadow-[0_0_18px_rgba(16,185,129,0.45)] hover:scale-105 transition-transform duration-300 shrink-0"
             />
           </div>
 
           {/* Dominant Hero Title: CODING COLLAB */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 drop-shadow-[0_0_35px_rgba(16,185,129,0.3)]">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 drop-shadow-[0_0_30px_rgba(16,185,129,0.3)] mt-1">
             <span>CODING</span>
             <span className="text-emerald-400 drop-shadow-[0_0_45px_rgba(52,211,153,0.95)]">
               COLLAB
@@ -215,12 +155,12 @@ export const LandingPage: React.FC = () => {
           </h1>
 
           {/* Subtitle: INTER-COLLEGIATE PROGRAMMING CHAMPIONSHIP */}
-          <div className="text-emerald-300/90 font-mono tracking-[0.2em] sm:tracking-[0.3em] text-xs sm:text-sm font-bold uppercase mt-3 sm:mt-4">
+          <div className="text-emerald-300/90 font-mono tracking-[0.22em] sm:tracking-[0.32em] text-xs sm:text-sm font-bold uppercase mt-2 mb-6">
             INTER-COLLEGIATE PROGRAMMING CHAMPIONSHIP
           </div>
 
           {/* Functional Centered CTA Buttons (Register, Enter Arena, Rules) */}
-          <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-2">
             {!user && (
               <Link
                 to="/register"
