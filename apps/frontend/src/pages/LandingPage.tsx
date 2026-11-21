@@ -206,11 +206,6 @@ export const LandingPage: React.FC = () => {
             />
           </div>
 
-          {/* Top Status Badge */}
-          <div className="flex flex-col items-center justify-center gap-3 mb-6 animate-fade-in">
-            {getStatusBadge()}
-          </div>
-
           {/* Dominant Hero Title: CODING COLLAB */}
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 drop-shadow-[0_0_35px_rgba(16,185,129,0.3)]">
             <span>CODING</span>
@@ -223,12 +218,6 @@ export const LandingPage: React.FC = () => {
           <div className="text-emerald-300/90 font-mono tracking-[0.2em] sm:tracking-[0.3em] text-xs sm:text-sm font-bold uppercase mt-3 sm:mt-4">
             INTER-COLLEGIATE PROGRAMMING CHAMPIONSHIP
           </div>
-
-          {/* Description */}
-          <p className="mt-6 text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
-            A collaborative coding tournament where two minds, one terminal, and three progressive
-            arenas put your problem-solving, logic, and teamwork to the ultimate test.
-          </p>
 
           {/* Functional Centered CTA Buttons (Register, Enter Arena, Rules) */}
           <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
