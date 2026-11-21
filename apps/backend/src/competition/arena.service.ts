@@ -226,6 +226,22 @@ export class ArenaService {
    * Returns timer, questions (without answers), and team's saved answers.
    */
   async getMcqArenaState(teamUser: AuthTeamUser): Promise<McqArenaStateDto> {
+    try {
+      return await this.getMcqArenaStateInternal(teamUser);
+    } catch (err: any) {
+      if (
+        err?.message?.includes('does not exist in the current database') ||
+        err?.message?.includes('Unknown column')
+      ) {
+        this.logger.warn('Schema mismatch in getMcqArenaState. Executing self-healing...');
+        await this.prisma.ensureSchemaCompatibility();
+        return await this.getMcqArenaStateInternal(teamUser);
+      }
+      throw err;
+    }
+  }
+
+  private async getMcqArenaStateInternal(teamUser: AuthTeamUser): Promise<McqArenaStateDto> {
     const { round, progress, state } = await this.assertRoundAccess(teamUser, 1, 'READ');
 
     // Fetch questions for Round 1

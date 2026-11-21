@@ -5,10 +5,19 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { PrismaService } from './database/prisma.service';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+
+  // Synchronously ensure database schema compatibility before listening for traffic
+  try {
+    const prisma = app.get(PrismaService);
+    await prisma.ensureSchemaCompatibility();
+  } catch (err: any) {
+    logger.warn(`Schema self-healing warning on bootstrap: ${err?.message || err}`);
+  }
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port') || 4000;

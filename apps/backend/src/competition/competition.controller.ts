@@ -39,6 +39,21 @@ export class CompetitionController {
   }
 
   /**
+   * Health & Schema Synchronization trigger
+   */
+  @Get('sync-schema')
+  async syncSchema() {
+    await this.competitionService.healSchema();
+    return { success: true, message: 'Database schema synchronized successfully.' };
+  }
+
+  @Post('sync-schema')
+  async syncSchemaPost() {
+    await this.competitionService.healSchema();
+    return { success: true, message: 'Database schema synchronized successfully.' };
+  }
+
+  /**
    * Administrator Competition Control Actions (Start, Pause, Resume, End, Complete, Reset)
    */
   @Post('control')
@@ -49,8 +64,20 @@ export class CompetitionController {
     @CurrentUser() user: AuthUser,
     @Body() dto: RoundControlDto,
   ) {
-    const result = await this.competitionService.executeRoundControl(dto, user.id);
-    return { success: true, ...result };
+    try {
+      const result = await this.competitionService.executeRoundControl(dto, user.id);
+      return { success: true, ...result };
+    } catch (err: any) {
+      if (
+        err?.message?.includes('does not exist in the current database') ||
+        err?.message?.includes('Unknown column')
+      ) {
+        await this.competitionService.healSchema();
+        const result = await this.competitionService.executeRoundControl(dto, user.id);
+        return { success: true, ...result };
+      }
+      throw err;
+    }
   }
 
   /**

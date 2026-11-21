@@ -230,10 +230,30 @@ export class CompetitionService implements OnModuleInit {
     }
   }
 
+  async healSchema(): Promise<void> {
+    await this.prisma.ensureSchemaCompatibility();
+  }
+
   /**
    * Executes atomic administrator round control actions
    */
   async executeRoundControl(dto: RoundControlDto, adminId: string) {
+    try {
+      return await this.executeRoundControlInternal(dto, adminId);
+    } catch (err: any) {
+      if (
+        err?.message?.includes('does not exist in the current database') ||
+        err?.message?.includes('Unknown column')
+      ) {
+        this.logger.warn('Schema mismatch detected in executeRoundControl. Executing self-healing...');
+        await this.prisma.ensureSchemaCompatibility();
+        return await this.executeRoundControlInternal(dto, adminId);
+      }
+      throw err;
+    }
+  }
+
+  private async executeRoundControlInternal(dto: RoundControlDto, adminId: string) {
     const state = await this.getOrCreateGlobalState();
     const now = new Date();
 

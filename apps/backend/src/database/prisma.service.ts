@@ -49,7 +49,7 @@ export class PrismaService
    * Ensures production databases (e.g. Render MySQL/TiDB Cloud) are fully compatible
    * even when CI/CD pre-deploy migration hooks are not run.
    */
-  private async ensureSchemaCompatibility(): Promise<void> {
+  public async ensureSchemaCompatibility(): Promise<void> {
     try {
       this.logger.log('Checking database schema compatibility...');
 
@@ -218,24 +218,20 @@ export class PrismaService
 
   private async ensureColumn(tableName: string, columnName: string, columnDef: string): Promise<void> {
     try {
-      const cols: any[] = await this.$queryRawUnsafe(
-        `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = LOWER(?) AND LOWER(COLUMN_NAME) = LOWER(?)`,
-        tableName,
-        columnName,
+      await this.$executeRawUnsafe(
+        `ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${columnDef}`,
       );
-      if (!cols || cols.length === 0) {
-        this.logger.log(`Applying missing column \`${tableName}.${columnName}\`...`);
-        await this.$executeRawUnsafe(
-          `ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${columnDef}`,
-        );
-        this.logger.log(`Successfully added column \`${tableName}.${columnName}\`.`);
-      }
+      this.logger.log(`Successfully added missing column \`${tableName}.${columnName}\`.`);
     } catch (err: any) {
       const msg = err?.message || String(err);
-      if (msg.includes('Duplicate column') || msg.includes('1060')) {
+      if (
+        msg.includes('Duplicate column') ||
+        msg.includes('1060') ||
+        msg.includes('already exists')
+      ) {
         return;
       }
-      this.logger.warn(`Could not add column \`${tableName}.${columnName}\`: ${msg}`);
+      this.logger.warn(`Notice for column \`${tableName}.${columnName}\`: ${msg}`);
     }
   }
 
