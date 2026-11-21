@@ -295,94 +295,94 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-3">
-            {/* Arena 01 Card */}
-            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-[#02130a]/85 backdrop-blur-md border border-emerald-500/30 hover:border-emerald-400/70 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.25)] transition-all flex flex-col justify-between group">
+            {/* Arena 01 Card — Light Gold Theme */}
+            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-gradient-to-b from-[#141005]/90 via-[#0a0a03]/90 to-[#02130a]/85 backdrop-blur-md border border-amber-500/40 hover:border-amber-400/80 shadow-xl hover:shadow-[0_0_30px_rgba(245,158,11,0.25)] transition-all flex flex-col justify-between group">
               <div className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
-                  <Layers className="w-5 h-5 text-emerald-400" />
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                  <Layers className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest block">
+                  <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest block">
                     ARENA 01
                   </span>
-                  <h3 className="text-xl font-bold text-white group-hover:text-emerald-300 transition-colors">
+                  <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition-colors">
                     MCQ Arena
                   </h3>
                 </div>
-                <p className="text-xs text-emerald-200/70 leading-relaxed min-h-[3rem]">
+                <p className="text-xs text-amber-100/70 leading-relaxed min-h-[3rem]">
                   Rapid-fire, algorithmic, data structure, and system fundamentals assessment.
                 </p>
 
                 <div className="flex items-center gap-3 pt-2 text-xs font-mono">
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300">
-                    <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-200">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
                     <span>30 Minutes</span>
                   </span>
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-amber-300 font-bold">
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-300 font-bold">
                     <Award className="w-3.5 h-3.5 text-amber-400" />
                     <span>30 Points</span>
                   </span>
                 </div>
               </div>
 
-              <div className="mt-6 pt-3 border-t border-emerald-950/80">
-                <span className="inline-block px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <div className="mt-6 pt-3 border-t border-amber-950/80">
+                <span className="inline-block px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-amber-500/15 text-amber-300 border border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.15)]">
                   Top 50% &rarr; Round 2
                 </span>
               </div>
             </div>
 
             {/* Connecting Chevron Arrow 1 */}
-            <div className="hidden lg:flex items-center justify-center text-emerald-400/80 px-1">
+            <div className="hidden lg:flex items-center justify-center text-amber-400/80 px-1">
               <ChevronsRight className="w-7 h-7 animate-pulse" />
             </div>
 
-            {/* Arena 02 Card */}
-            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-[#02130a]/85 backdrop-blur-md border border-emerald-500/30 hover:border-emerald-400/70 shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.25)] transition-all flex flex-col justify-between group">
+            {/* Arena 02 Card — Radiant Amber-Gold Theme */}
+            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-gradient-to-b from-[#181204]/90 via-[#0c0a03]/90 to-[#02130a]/85 backdrop-blur-md border border-amber-400/60 hover:border-amber-300 shadow-xl hover:shadow-[0_0_35px_rgba(245,158,11,0.3)] transition-all flex flex-col justify-between group">
               <div className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
-                  <Bug className="w-5 h-5 text-emerald-400" />
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/50 flex items-center justify-center text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+                  <Bug className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest block">
+                  <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest block">
                     ARENA 02
                   </span>
-                  <h3 className="text-xl font-bold text-white group-hover:text-emerald-300 transition-colors">
+                  <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition-colors">
                     Bug Hunt Arena
                   </h3>
                 </div>
-                <p className="text-xs text-emerald-200/70 leading-relaxed min-h-[3rem]">
+                <p className="text-xs text-amber-100/75 leading-relaxed min-h-[3rem]">
                   Identify, isolate, and repair critical logical flaws in complex codebases.
                 </p>
 
                 <div className="flex items-center gap-3 pt-2 text-xs font-mono">
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300">
-                    <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-200">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
                     <span>40 Minutes</span>
                   </span>
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-amber-300 font-bold">
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-300 font-bold">
                     <Award className="w-3.5 h-3.5 text-amber-400" />
                     <span>100 Points</span>
                   </span>
                 </div>
               </div>
 
-              <div className="mt-6 pt-3 border-t border-emerald-950/80">
-                <span className="inline-block px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <div className="mt-6 pt-3 border-t border-amber-950/80">
+                <span className="inline-block px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-amber-400/20 text-amber-300 border border-amber-400/50 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
                   Top 5–8 Teams &rarr; Round 3
                 </span>
               </div>
             </div>
 
             {/* Connecting Chevron Arrow 2 */}
-            <div className="hidden lg:flex items-center justify-center text-emerald-400/80 px-1">
+            <div className="hidden lg:flex items-center justify-center text-amber-400/90 px-1">
               <ChevronsRight className="w-7 h-7 animate-pulse" />
             </div>
 
-            {/* Arena 03 Card — GOLD HIGHLIGHT FOR THE FINALS */}
-            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-gradient-to-b from-[#1a1202]/90 via-[#0a0a03]/90 to-[#02130a]/90 backdrop-blur-md border-2 border-amber-400/70 hover:border-amber-300 shadow-[0_0_35px_rgba(251,191,36,0.25)] hover:shadow-[0_0_50px_rgba(251,191,36,0.4)] transition-all flex flex-col justify-between group">
+            {/* Arena 03 Card — Rich Crown Championship Gold */}
+            <div className="w-full lg:flex-1 p-6 sm:p-7 rounded-2xl bg-gradient-to-b from-[#241703]/95 via-[#120c02]/95 to-[#050401]/95 backdrop-blur-md border-2 border-amber-400 hover:border-amber-300 shadow-[0_0_40px_rgba(251,191,36,0.35)] hover:shadow-[0_0_60px_rgba(251,191,36,0.55)] transition-all flex flex-col justify-between group">
               <div className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.3)]">
+                <div className="w-10 h-10 rounded-xl bg-amber-400/20 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]">
                   <Crown className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
@@ -393,16 +393,16 @@ export const LandingPage: React.FC = () => {
                     Final Coding
                   </h3>
                 </div>
-                <p className="text-xs text-amber-100/75 leading-relaxed min-h-[3rem]">
+                <p className="text-xs text-amber-100/80 leading-relaxed min-h-[3rem]">
                   A high-complexity, real-world challenge that tests complete coding mastery.
                 </p>
 
                 <div className="flex items-center gap-3 pt-2 text-xs font-mono">
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-200">
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-400/40 text-amber-200">
                     <Clock className="w-3.5 h-3.5 text-amber-400" />
                     <span>60 Minutes</span>
                   </span>
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-300 font-bold">
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-400/40 text-amber-300 font-bold">
                     <Award className="w-3.5 h-3.5 text-amber-400" />
                     <span>100 Points</span>
                   </span>
@@ -410,9 +410,9 @@ export const LandingPage: React.FC = () => {
               </div>
 
               <div className="mt-6 pt-3 border-t border-amber-950/80">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-amber-400/20 text-amber-300 border border-amber-400/50 shadow-[0_0_10px_rgba(251,191,36,0.2)]">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase bg-amber-400/25 text-amber-300 border border-amber-400/70 shadow-[0_0_15px_rgba(251,191,36,0.35)]">
                   <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                  <span>IGNITRON Trophy</span>
+                  <span>IGNITRON Coding Collab Trophy</span>
                 </span>
               </div>
             </div>
