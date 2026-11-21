@@ -1003,15 +1003,15 @@ export class CompetitionService implements OnModuleInit {
               actorType: 'ADMIN',
               actorId: adminId,
               action: 'ROUND_3_STARTED',
-              description: `Admin started Round 3: Final Boss Coding (${eligibleR3Count} finalist teams)`,
+              description: `Admin started Round 3: Final Coding (${eligibleR3Count} finalist teams)`,
               metadata: { roundNumber: 3, qualifiedCount: eligibleR3Count },
             },
           });
 
           await tx.announcement.create({
             data: {
-              title: 'Round 3: Final Boss Coding Relay has Begun!',
-              message: `Round 3: Final Boss Coding Relay is officially live for ${eligibleR3Count} finalist teams! Conquer all 3 problem cases to claim tournament victory.`,
+              title: 'Round 3: Final Coding Relay has Begun!',
+              message: `Round 3: Final Coding Relay is officially live for ${eligibleR3Count} finalist teams! Conquer all 3 problem cases to claim tournament victory.`,
               priority: 'HIGH',
               isPublished: true,
               publishedAt: now,
@@ -1019,7 +1019,7 @@ export class CompetitionService implements OnModuleInit {
             },
           });
 
-          return { message: 'Round 3: Final Boss Coding successfully started' };
+          return { message: 'Round 3: Final Coding successfully started' };
         }
 
         case 'COMPLETE_COMPETITION': {
@@ -1184,7 +1184,7 @@ export class CompetitionService implements OnModuleInit {
                   { message: { contains: 'Official Winner Declared' } },
                   { message: { contains: 'All participating teams may now access the MCQ Arena' } },
                   { message: { contains: 'Enter your coding workspace to debug' } },
-                  { message: { contains: 'Final Boss Coding Relay is officially live' } },
+                  { message: { contains: 'Final Coding Relay is officially live' } },
                   { message: { contains: 'Submissions and workspace access for this round are now closed' } },
                 ],
               },
@@ -1624,7 +1624,7 @@ export class CompetitionService implements OnModuleInit {
       },
       {
         roundNumber: 3,
-        name: 'Round 3: Final Boss Coding',
+        name: 'Round 3: Final Coding',
         description: 'Solve hard algorithmic challenges in full IDE workspace.',
         durationMinutes: 60,
         maximumMarks: 100,
@@ -1725,12 +1725,12 @@ export class CompetitionService implements OnModuleInit {
           roundNumber: 2,
           roundName: 'Round 2: Bug Hunt Arena',
           targetRoundNumber: 3,
-          targetRoundName: 'Round 3: Final Boss Coding',
+          targetRoundName: 'Round 3: Final Coding',
           title: isQualified
             ? '🎉 Congratulations! You Qualified for Round 3!'
             : 'Round 2 Results: Not Shortlisted',
           message: isQualified
-            ? `Congratulations Team ${team.teamName}! Your performance in Round 2: Bug Hunt Arena has earned you a qualification ticket to Round 3: Final Boss Coding Relay. Get ready to build!`
+            ? `Congratulations Team ${team.teamName}! Your performance in Round 2: Bug Hunt Arena has earned you a qualification ticket to Round 3: Final Coding Relay. Get ready to build!`
             : `Thank you for competing in Round 2: Bug Hunt Arena. You were not shortlisted for the final round. You gave it your best. Come back stronger!`,
           announcedAt: r3ShortlistLog.createdAt.toISOString(),
         };

@@ -56,7 +56,7 @@ async function runM03Verification() {
       subPageContent.includes("id: 'all', label: 'All Rounds'") &&
       subPageContent.includes("id: '1', label: 'Round 1: MCQ Arena'") &&
       subPageContent.includes("id: '2', label: 'Round 2: Bug Hunt Arena'") &&
-      subPageContent.includes("id: '3', label: 'Round 3: Final Boss Coding'"),
+      subPageContent.includes("id: '3', label: 'Round 3: Final Coding'"),
       'SubmissionsPage contains prominent round navigation tabs for All, R1, R2, R3'
     );
 

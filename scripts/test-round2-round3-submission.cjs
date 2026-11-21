@@ -16,7 +16,7 @@
  *    - Server-authoritative score and status persistence in TeamRoundProgress.
  *    - Sanitization: Hidden test cases NEVER leak stdin, expectedOutput, or actualOutput to contestants.
  *    - Duplicate submission guard: re-submitting Round 2 strictly rejected with HTTP 400.
- * 6. Round 3 Final Boss live Judge0 multi-case evaluation:
+ * 6. Round 3 Final live Judge0 multi-case evaluation:
  *    - Case 1 (Java / Prefix Trie): executes against Judge0, ACCEPTED, 20 marks.
  *    - Case 1 re-submission guard: strictly rejected with HTTP 400.
  *    - Case 2 (Python / Task Scheduler): executes against Judge0, ACCEPTED, 25 marks.
@@ -705,9 +705,9 @@ async function runTests() {
     assert(getErrorMessage(duplicateRes.data).includes('already been submitted'), 'Rejection message cites already submitted');
 
     // -------------------------------------------------------------------------
-    // 5. Round 3 Final Boss Live Multi-Case Execution against Judge0
+    // 5. Round 3 Final Live Multi-Case Execution against Judge0
     // -------------------------------------------------------------------------
-    console.log('\n[7/8] Testing Round 3 (Final Boss) Multi-Case Live Submissions against Judge0...');
+    console.log('\n[7/8] Testing Round 3 (Final) Multi-Case Live Submissions against Judge0...');
 
     // Switch competition state to ROUND_3_ACTIVE
     await prisma.competitionState.update({

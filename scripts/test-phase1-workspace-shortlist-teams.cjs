@@ -116,11 +116,11 @@ async function runPhase1Verification() {
     // --------------------------------------------------------------------------
     console.log('\n[TEST 3] Competition Engine Shortlisting & Progression');
     const rounds = await prisma.competitionRound.findMany({ orderBy: { roundNumber: 'asc' } });
-    report('All 3 competition rounds exist (MCQ, Bug Hunt, Final Boss)', rounds.length === 3);
+    report('All 3 competition rounds exist (MCQ, Bug Hunt, Final)', rounds.length === 3);
 
     const round2 = rounds.find(r => r.roundNumber === 2);
     const round3 = rounds.find(r => r.roundNumber === 3);
-    report('Round 2 (Bug Hunt) and Round 3 (Final Boss) configured', Boolean(round2 && round3));
+    report('Round 2 (Bug Hunt) and Round 3 (Final) configured', Boolean(round2 && round3));
 
     // Ensure Code Hunters has Round 1 progress
     if (round1 && codeHunters) {
@@ -139,7 +139,7 @@ async function runPhase1Verification() {
     }
 
     // --------------------------------------------------------------------------
-    // Test 4: Round 3 Final Boss 3-Case Isolation
+    // Test 4: Round 3 Final 3-Case Isolation
     // --------------------------------------------------------------------------
     console.log('\n[TEST 4] Round 3 Three-Case Draft Isolation');
     if (round3 && codeHunters) {

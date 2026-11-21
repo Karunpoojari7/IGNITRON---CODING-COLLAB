@@ -107,7 +107,7 @@ async function runPhase33Verification() {
     assert(controlContent.includes('COMPETITION_STEPS'), 'CompetitionControlPage includes sequential state machine steps');
     assert(controlContent.includes('Round 1: MCQ Arena'), 'CompetitionControlPage includes Round 1 independent card');
     assert(controlContent.includes('Round 2: Bug Hunt Arena'), 'CompetitionControlPage includes Round 2 independent card');
-    assert(controlContent.includes('Round 3: Final Boss'), 'CompetitionControlPage includes Round 3 independent card');
+    assert(controlContent.includes('Round 3: Final'), 'CompetitionControlPage includes Round 3 independent card');
 
     // -------------------------------------------------------------------------
     // TEST GROUP 3: SERVER STATE & INDEPENDENT ROUND DATA

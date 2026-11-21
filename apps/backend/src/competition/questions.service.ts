@@ -277,7 +277,7 @@ if __name__ == '__main__':
     orderNumber: 3,
     caseNumber: 3,
     title: 'Case 3: Real-Time Concurrent Event Graph Cycle Detector & Flow Router (45 Marks)',
-    description: `### Case 3 Problem Statement — The Final Boss
+    description: `### Case 3 Problem Statement — The Final
 Implement a dynamic network flow optimizer for the IGNITRON 2K26 relay mesh. The system must maximize end-to-end data throughput while enforcing capacity and latency constraints.
 
 #### Requirements:
@@ -288,7 +288,7 @@ Implement a dynamic network flow optimizer for the IGNITRON 2K26 relay mesh. The
 #### Scoring:
 - Case 3 Core Algorithm: 45 Marks
 - General Code Quality across all 3 cases: 10 Marks`,
-    starterCode: `// Case 3: Final Boss Flow Router
+    starterCode: `// Case 3: Final Flow Router
 #include <iostream>
 #include <vector>
 #include <queue>

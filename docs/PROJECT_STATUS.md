@@ -118,6 +118,6 @@ To maintain complete transparency for the handover engineer:
 2. **Arena Implementations (Subsequent Phase 5 Tasks):**
    - Round 1 MCQ Arena (Rapid Fire questions)
    - Round 2 Bug Hunt Arena (debugging challenges)
-   - Round 3 Final Boss Coding (full algorithmic problem evaluation)
+   - Round 3 Final Coding (full algorithmic problem evaluation)
 3. **LAN Firewall:** When running on the Dell G15 over Wi-Fi/Ethernet, Windows Defender Firewall must have inbound allow rules configured for ports `5173` (Vite) and `4000` (NestJS).
 

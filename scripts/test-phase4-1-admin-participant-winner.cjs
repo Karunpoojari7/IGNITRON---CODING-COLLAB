@@ -197,7 +197,7 @@ async function runVerification() {
       'START_ROUND_2 automatically creates broadcast announcement',
     );
     assert(
-      competitionServiceFile.includes('Round 3: Final Boss Coding Relay has Begun!'),
+      competitionServiceFile.includes('Round 3: Final Coding Relay has Begun!'),
       'START_ROUND_3 automatically creates broadcast announcement',
     );
 

@@ -250,7 +250,7 @@ async function runTests() {
 
     assert(r1?.name?.includes('MCQ Arena'), 'Card 1 is MCQ Arena');
     assert(r2?.name?.includes('Bug Hunt Arena'), 'Card 2 is Bug Hunt Arena');
-    assert(r3?.name?.includes('Final Boss'), 'Card 3 is Final Boss Coding');
+    assert(r3?.name?.includes('Final'), 'Card 3 is Final Coding');
 
     // -------------------------------------------------------------------------
     // TEST 5: Leaderboard Publication Gate & Privacy

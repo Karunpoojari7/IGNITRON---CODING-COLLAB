@@ -389,7 +389,7 @@ async function runTests() {
       body: { action: 'END_ROUND' },
     });
 
-    // Shortlist Team 1 for Round 3 (Final Boss Coding)
+    // Shortlist Team 1 for Round 3 (Final Coding)
     await request('/competition/shortlisting', {
       method: 'POST',
       cookie: adminCookie,
@@ -406,7 +406,7 @@ async function runTests() {
       cookie: adminCookie,
       body: { action: 'START_ROUND_3' },
     });
-    recordCheck('Admin starts Round 3: Final Boss Coding (60 Minutes)', startR3.statusCode === 200);
+    recordCheck('Admin starts Round 3: Final Coding (60 Minutes)', startR3.statusCode === 200);
 
     // End Round 3 -> FINAL_EVALUATION
     await request('/competition/control', {

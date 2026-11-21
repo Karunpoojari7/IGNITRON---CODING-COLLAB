@@ -524,7 +524,7 @@ const Round3Workspace: React.FC = () => {
             <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>
               <strong>
-                {roundNumber === 2 ? 'ROUND 2: BUG HUNT ARENA' : 'ROUND 3: FINAL BOSS RELAY'}
+                {roundNumber === 2 ? 'ROUND 2: BUG HUNT ARENA' : 'ROUND 3: FINAL RELAY'}
               </strong>
               {' '}&bull; Collaborative CodeMirror 6 Active
             </span>

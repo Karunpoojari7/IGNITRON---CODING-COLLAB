@@ -107,7 +107,7 @@ export class EvaluationService {
           ? 'Bug Hunt: Distributed Token Bucket Rate Limiter'
           : s.question?.caseNumber
           ? `Event Analytics (Case ${s.question.caseNumber})`
-          : 'Final Boss Coding');
+          : 'Final Coding');
 
       return {
         id: s.id,
@@ -160,7 +160,7 @@ export class EvaluationService {
               ? 'MCQ Arena (15 Questions)'
               : roundNum === 2
               ? 'Bug Hunt: Distributed Token Bucket Rate Limiter'
-              : 'Final Boss Coding';
+              : 'Final Coding';
 
           items.push({
             id: `unsubmitted-${targetRound.id}-${prog.teamId}`,
@@ -276,7 +276,7 @@ export class EvaluationService {
         ? 'MCQ Arena (15 Questions)'
         : roundNum === 2
         ? 'Bug Hunt: Distributed Token Bucket Rate Limiter'
-        : 'Final Boss Coding');
+        : 'Final Coding');
 
     const questionDescription =
       s.question?.description ||

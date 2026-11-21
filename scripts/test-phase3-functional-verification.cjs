@@ -185,7 +185,7 @@ async function runPhase31Verification() {
     assert(editBug.statusCode === 200, 'Admin edits Bug Hunt question');
     await request('DELETE', `/competition/questions/${tempBugId}`, null, adminCookie);
 
-    // 4. Verify All Three Final Boss Cases (Case 1, 2, 3) Exist with Correct Marks
+    // 4. Verify All Three Final Cases (Case 1, 2, 3) Exist with Correct Marks
     const r3QuestionsRes = await request('GET', '/competition/questions?roundNumber=3', null, adminCookie);
     assert(r3QuestionsRes.statusCode === 200, 'Admin retrieves Round 3 questions');
     const r3Questions = r3QuestionsRes.data?.data || [];
@@ -197,7 +197,7 @@ async function runPhase31Verification() {
     assert(case1?.marks === 20, `Case 1 marks = 20 (found: ${case1?.marks})`);
     assert(Boolean(case2), 'Round 3 Case 2 exists (Relay Scheduler)');
     assert(case2?.marks === 25, `Case 2 marks = 25 (found: ${case2?.marks})`);
-    assert(Boolean(case3), 'Round 3 Case 3 exists (Final Boss Router)');
+    assert(Boolean(case3), 'Round 3 Case 3 exists (Final Router)');
     assert(case3?.marks === 45, `Case 3 marks = 45 (found: ${case3?.marks})`);
 
     // --------------------------------------------------------------------------

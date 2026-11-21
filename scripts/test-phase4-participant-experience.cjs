@@ -232,7 +232,7 @@ async function runPhase4Verification() {
       where: { round: { roundNumber: 3 } },
       orderBy: { caseNumber: 'asc' },
     });
-    assert(r3Questions.length === 3, `Round 3 Final Boss has 3 cases configured (${r3Questions.length} found)`);
+    assert(r3Questions.length === 3, `Round 3 Final has 3 cases configured (${r3Questions.length} found)`);
 
     const compState = await prisma.competitionState.findUnique({
       where: { id: 'global' },
