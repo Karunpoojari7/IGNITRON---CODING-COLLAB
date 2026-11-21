@@ -81,27 +81,23 @@ export const Navbar: React.FC = () => {
           <Link
             to="/"
             onClick={(e) => scrollToSection('top', e)}
-            className="flex items-center gap-2.5 sm:gap-3 group shrink-0"
+            className="flex items-center gap-2.5 sm:gap-3 group shrink-0 mr-2 sm:mr-4"
           >
             <img
               src="/gmu-logo.png"
               alt="GM University"
               className="h-8 sm:h-9 w-auto object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.35)] group-hover:scale-105 transition-transform"
             />
-            <div className="h-6 w-px bg-emerald-500/30" />
+            <div className="h-5 w-px bg-emerald-500/30" />
             <img
               src="/coding-collab-logo.png"
-              alt="Coding Collab"
+              alt="IGNITRON 2K26 Coding Collab"
               className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_0_12px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-transform"
             />
-            <div className="hidden sm:flex flex-col leading-tight">
-              <span className="text-xs font-black tracking-wider text-white">IGNITRON <span className="text-emerald-400">2K26</span></span>
-              <span className="text-[9px] font-mono tracking-widest uppercase text-emerald-300/80 font-bold">CODING COLLAB</span>
-            </div>
           </Link>
 
           {/* Center Navigation Links (Home, Format, Arenas, Rules, Specifications, Guide) */}
-          <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-xs font-semibold text-emerald-100/80 font-mono">
+          <nav className="hidden lg:flex items-center gap-3.5 xl:gap-6 text-xs font-semibold text-emerald-100/80 font-mono px-2">
             <button
               type="button"
               onClick={(e) => scrollToSection('top', e)}

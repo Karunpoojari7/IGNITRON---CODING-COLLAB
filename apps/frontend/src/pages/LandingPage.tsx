@@ -76,34 +76,46 @@ export const LandingPage: React.FC = () => {
 
     if (status.includes('ACTIVE')) {
       return (
-        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-emerald-300 bg-black/60 border border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.45)] backdrop-blur-md">
+        <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-emerald-400">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
           <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
           <span>LIVE: {compState.currentRoundName || status}</span>
-        </span>
+        </div>
       );
     }
     if (status.includes('EVALUATION')) {
       return (
-        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/90 shadow-[0_0_20px_rgba(251,191,36,0.4)] backdrop-blur-md">
+        <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-amber-300">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
           <Clock className="w-3.5 h-3.5 text-amber-400" />
           <span>EVALUATION IN PROGRESS</span>
-        </span>
+        </div>
       );
     }
     if (status === 'COMPLETED') {
       return (
-        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-sky-300 bg-black/60 border border-sky-400/90 shadow-[0_0_20px_rgba(56,189,248,0.4)] backdrop-blur-md">
+        <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-sky-300">
           <Award className="w-3.5 h-3.5 text-sky-400" />
           <span>COMPETITION CONCLUDED</span>
-        </span>
+        </div>
       );
     }
 
     return (
-      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-amber-300 bg-black/60 border border-amber-400/80 shadow-[0_0_20px_rgba(251,191,36,0.3)] backdrop-blur-md">
+      <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-amber-300/90">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+        </span>
         <Clock className="w-3.5 h-3.5 text-amber-400" />
         <span>STANDBY — REGISTRATION ACTIVE</span>
-      </span>
+      </div>
     );
   };
 
@@ -172,27 +184,25 @@ export const LandingPage: React.FC = () => {
         {/* SECTION 1: CENTERED HERO SECTION                                   */}
         {/* ================================================================= */}
         <section className="relative pt-4 sm:pt-8 pb-12 sm:pb-20 text-center max-w-5xl mx-auto px-4 sm:px-6">
-          {/* Institutional Co-Branding: GM University & Ignitron 2K26 (Pure Logos, No Cards) */}
-          <div className="flex items-center justify-center gap-6 sm:gap-10 mb-6 animate-fade-in">
+          {/* Institutional & Event Branding Row: GM University (Left) | Coding Collab (Center) | Ignitron 2K26 (Right) */}
+          <div className="flex items-center justify-center gap-4 sm:gap-8 md:gap-10 mb-8 sm:mb-10 animate-fade-in">
             <img
               src="/gmu-logo.png"
               alt="GM University"
-              className="h-12 sm:h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(245,158,11,0.45)] hover:scale-105 transition-transform"
+              className="h-12 sm:h-16 md:h-20 w-auto object-contain drop-shadow-[0_0_18px_rgba(245,158,11,0.45)] hover:scale-105 transition-transform duration-300 shrink-0"
             />
-            <div className="h-8 sm:h-12 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent" />
+            <div className="h-10 sm:h-16 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent shrink-0" />
+            <img
+              src="/coding-collab-logo.png"
+              alt="IGNITRON 2K26 Coding Collab"
+              loading="eager"
+              className="w-48 sm:w-64 md:w-80 lg:w-96 h-auto object-contain drop-shadow-[0_0_40px_rgba(16,185,129,0.65)] hover:scale-105 transition-transform duration-300 shrink-0"
+            />
+            <div className="h-10 sm:h-16 w-px bg-gradient-to-b from-transparent via-emerald-400/40 to-transparent shrink-0" />
             <img
               src="/ignitron-logo.png"
               alt="IGNITRON 2K26"
-              className="h-10 sm:h-14 w-auto object-contain drop-shadow-[0_0_15px_rgba(16,185,129,0.45)] hover:scale-105 transition-transform"
-            />
-          </div>
-
-          {/* Official Coding Collab Event Emblem (Pure Logo, No Card) */}
-          <div className="flex justify-center mb-6 sm:mb-8 animate-fade-in">
-            <img
-              src="/coding-collab-logo.png"
-              alt="IGNITRON 2K26 Coding Collab" loading="eager"
-              className="w-64 sm:w-80 md:w-96 h-auto object-contain drop-shadow-[0_0_40px_rgba(16,185,129,0.55)] hover:scale-105 transition-transform duration-300"
+              className="h-10 sm:h-14 md:h-18 w-auto object-contain drop-shadow-[0_0_18px_rgba(16,185,129,0.45)] hover:scale-105 transition-transform duration-300 shrink-0"
             />
           </div>
 
@@ -202,7 +212,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Dominant Hero Title: CODING COLLAB */}
-          <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-white flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-5 drop-shadow-[0_0_35px_rgba(16,185,129,0.3)]">
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 drop-shadow-[0_0_35px_rgba(16,185,129,0.3)]">
             <span>CODING</span>
             <span className="text-emerald-400 drop-shadow-[0_0_45px_rgba(52,211,153,0.95)]">
               COLLAB
@@ -210,7 +220,7 @@ export const LandingPage: React.FC = () => {
           </h1>
 
           {/* Subtitle: INTER-COLLEGIATE PROGRAMMING CHAMPIONSHIP */}
-          <div className="text-emerald-300/90 font-mono tracking-[0.25em] sm:tracking-[0.4em] text-xs sm:text-sm font-bold uppercase mt-3 sm:mt-4">
+          <div className="text-emerald-300/90 font-mono tracking-[0.2em] sm:tracking-[0.3em] text-xs sm:text-sm font-bold uppercase mt-3 sm:mt-4">
             INTER-COLLEGIATE PROGRAMMING CHAMPIONSHIP
           </div>
 
