@@ -65,15 +65,19 @@ export const Navbar: React.FC = () => {
         }
       }
     } else {
-      navigate(`/#${id}`);
+      if (id === 'top') {
+        navigate('/');
+      } else {
+        navigate(`/#${id}`);
+      }
     }
     setMobileMenuOpen(false);
   };
 
   // ---------------------------------------------------------------------------
-  // 1. Landing Page Navbar (Centered Reference Design with Full Access)
+  // 1. Landing & Public Auth Navbar (Floating Emerald Glass Design)
   // ---------------------------------------------------------------------------
-  if (isLanding) {
+  if (!user || isLanding) {
     return (
       <header className="sticky top-0 z-50 pt-3 sm:pt-4 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pointer-events-auto">
         <div className="w-full bg-[#02130a]/85 backdrop-blur-xl border border-emerald-500/30 rounded-2xl px-4 sm:px-6 h-16 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.65)]">
@@ -101,7 +105,11 @@ export const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={(e) => scrollToSection('top', e)}
-              className="hover:text-emerald-300 transition-colors cursor-pointer py-1 border-b-2 border-emerald-400 text-emerald-400 font-bold"
+              className={`hover:text-emerald-300 transition-colors cursor-pointer py-1 border-b-2 ${
+                isLanding
+                  ? 'border-emerald-400 text-emerald-400 font-bold'
+                  : 'border-transparent text-emerald-100/80 hover:border-emerald-500/50'
+              }`}
             >
               Home
             </button>

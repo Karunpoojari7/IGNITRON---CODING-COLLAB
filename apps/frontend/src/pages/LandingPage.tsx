@@ -51,9 +51,11 @@ export const LandingPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (location.hash === '#rules' || window.location.hash === '#rules') {
+    const rawHash = location.hash || window.location.hash;
+    if (rawHash) {
+      const targetId = rawHash.replace('#', '');
       const timer = setTimeout(() => {
-        scrollToSection('rules');
+        scrollToSection(targetId);
       }, 150);
       return () => clearTimeout(timer);
     }
