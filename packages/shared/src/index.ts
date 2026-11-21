@@ -1341,3 +1341,30 @@ export interface CodeQualityRubricDto {
 
 
 
+
+// ------------------------------------------------------------------------------
+// TELEMETRY & EXTENDED COMPETITION CONTRACTS
+// ------------------------------------------------------------------------------
+
+export interface TelemetryEvent {
+  id: string;
+  teamId: string;
+  eventType: 'ROUND_ENTER' | 'CODE_RUN' | 'CODE_SUBMIT' | 'CODE_PASTE' | 'WINDOW_BLUR' | 'TAB_SWITCH';
+  payload: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface ArenaStateSync {
+  currentRound: 1 | 2 | 3;
+  status: 'STANDBY' | 'ROUND_1' | 'ROUND_2' | 'ROUND_3' | 'COMPLETED';
+  remainingSeconds: number;
+  serverTime: string;
+}
+
+export interface CollabParticipant {
+  memberIndex: 1 | 2;
+  studentName: string;
+  usn: string;
+  email: string;
+  collegeName: string;
+}
