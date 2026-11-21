@@ -132,7 +132,7 @@ export const RulebookModal: React.FC<RulebookModalProps> = ({ isOpen, onClose })
                   Event Description
                 </span>
                 <p className="text-sm text-emerald-100 font-medium">
-                  Code Relay is a team coding competition where two minds build one solution. Teams solve MCQs, debug faulty code in a mission-style challenge and build one program in the Final Boss round.
+                  Code Relay is a team coding competition where two minds build one solution. Teams solve MCQs, debug faulty code in a mission-style challenge and build one program in the Final round.
                 </p>
                 <div className="pt-2 text-xs font-mono text-emerald-400 font-bold">
                   Tagline: "Two Minds, One Code, One Victory"
@@ -262,7 +262,7 @@ export const RulebookModal: React.FC<RulebookModalProps> = ({ isOpen, onClose })
 
                 <div className="p-4 rounded-2xl bg-amber-950/20 border border-amber-400/40 space-y-2">
                   <div className="text-xs font-mono font-bold text-amber-400">ROUND 3 (FINALS)</div>
-                  <h4 className="font-bold text-white text-sm">Final Boss (100 Marks)</h4>
+                  <h4 className="font-bold text-white text-sm">Final (100 Marks)</h4>
                   <p className="text-xs text-emerald-200/70">
                     Build one program: the IGNITRON Event Analytics Engine.
                   </p>
@@ -302,7 +302,7 @@ export const RulebookModal: React.FC<RulebookModalProps> = ({ isOpen, onClose })
 
                   {/* Round 3 Rubric Table */}
                   <div className="p-4 rounded-xl bg-black/40 border border-amber-500/30 space-y-2 text-xs">
-                    <span className="font-bold text-amber-300 block">Round 3: Final Boss Challenge (100 Marks)</span>
+                    <span className="font-bold text-amber-300 block">Round 3: Final Challenge (100 Marks)</span>
                     <div className="space-y-1 font-mono">
                       <div className="flex justify-between py-1 border-b border-emerald-950/70">
                         <span>• Case 1 (Basic score calc & ranking):</span>
@@ -453,7 +453,7 @@ export const RulebookModal: React.FC<RulebookModalProps> = ({ isOpen, onClose })
                 <div>
                   <h4 className="font-bold text-sm text-slate-950 uppercase mb-1">1. Event Description & Objectives</h4>
                   <p>
-                    Code Relay is a team coding competition where two minds build one solution. Teams solve MCQs, debug faulty code in a mission-style challenge and build one program in the Final Boss round. Objectives: Promote logical thinking, strengthen programming/algorithmic skills, error handling, communication, and adaptability.
+                    Code Relay is a team coding competition where two minds build one solution. Teams solve MCQs, debug faulty code in a mission-style challenge and build one program in the Final round. Objectives: Promote logical thinking, strengthen programming/algorithmic skills, error handling, communication, and adaptability.
                   </p>
                 </div>
 
@@ -469,7 +469,7 @@ export const RulebookModal: React.FC<RulebookModalProps> = ({ isOpen, onClose })
                   <ul className="list-disc pl-5 space-y-1">
                     <li><strong>Round 1 — MCQ Arena:</strong> 15 MCQs × 2 marks = 30 marks (no negative marking). Top 50% advance to Round 2.</li>
                     <li><strong>Round 2 — Bug Hunt Arena (100 marks):</strong> Bug identification (20), Test correctness (50), Edge cases (20), Code quality (10). Top 5–8 teams advance.</li>
-                    <li><strong>Round 3 — Final Boss Coding (100 marks):</strong> Case 1 Basic score calc (20), Case 2 Invalid records & duplicates (25), Case 3 Advanced ranking & Top K (45), Code quality (10).</li>
+                    <li><strong>Round 3 — Final Coding (100 marks):</strong> Case 1 Basic score calc (20), Case 2 Invalid records & duplicates (25), Case 3 Advanced ranking & Top K (45), Code quality (10).</li>
                     <li><strong>Disqualification:</strong> Cheating, plagiarism, unauthorized internet, phones, or AI assistance leads to immediate disqualification.</li>
                   </ul>
                 </div>
