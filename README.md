@@ -1,3 +1,15 @@
+
+## Institutional Sponsorship & Branding
+
+IGNITRON 2K26 Coding Collab is proudly hosted by **GM University, Davanagere** as part of the flagship **IGNITRON 2K26 National Tech Fest**.
+- **Institution:** GM University, Davanagere, Karnataka
+- **Event:** IGNITRON 2K26 — National Technical Fest
+- **Competition:** Coding Collab (Two Minds • One Code • One Victory)
+- **Tournament Progression:**
+  1. **Round 1 (MCQ & Logic Arena):** Algorithmic and logic screening
+  2. **Round 2 (Bug Hunt & Code Relay Arena):** Live debugging and code relay handoff
+  3. **Round 3 (Final):** High-stakes algorithmic programming and system design
+
 # IGNITRON 2K26 — CODE RELAY
 
 > Production-grade competitive programming tournament platform engineered for offline university team code relay competitions.
