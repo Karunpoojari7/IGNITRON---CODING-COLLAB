@@ -129,12 +129,16 @@ export class PrismaService
       await this.ensureColumn('team_bug_reports', 'created_at', 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)');
 
       // 4. Ensure columns exist on announcements
+      await this.ensureColumn('announcements', 'message', 'TEXT NULL');
       await this.ensureColumn('announcements', 'priority', 'VARCHAR(191) NOT NULL DEFAULT \'NORMAL\'');
       await this.ensureColumn('announcements', 'is_published', 'BOOLEAN NOT NULL DEFAULT false');
       await this.ensureColumn('announcements', 'published_at', 'DATETIME(3) NULL');
       await this.ensureColumn('announcements', 'author_id', 'VARCHAR(191) NULL');
       await this.ensureColumn('announcements', 'created_at', 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)');
       await this.ensureColumn('announcements', 'updated_at', 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)');
+      // If legacy announcements table has a NOT NULL `content` column, make it nullable so it never rejects inserts
+      await this.$executeRawUnsafe(`ALTER TABLE \`announcements\` MODIFY COLUMN \`content\` TEXT NULL DEFAULT NULL;`).catch(() => {});
+      await this.$executeRawUnsafe(`ALTER TABLE \`announcements\` ALTER COLUMN \`content\` SET DEFAULT NULL;`).catch(() => {});
 
       // 5. Ensure columns exist on submissions
       await this.ensureColumn('submissions', 'stdin', 'TEXT NULL');

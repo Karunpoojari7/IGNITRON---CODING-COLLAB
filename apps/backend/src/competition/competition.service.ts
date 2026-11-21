@@ -290,16 +290,20 @@ export class CompetitionService implements OnModuleInit {
             },
           });
 
-          await tx.announcement.create({
-            data: {
-              title: `GET READY! Round ${targetRoundNumber}: ${round.name}`,
-              message: `GET READY!\nRound ${targetRoundNumber}: ${round.name} is about to begin.\nPlease prepare your team.`,
-              priority: 'URGENT',
-              isPublished: true,
-              publishedAt: now,
-              authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
-            },
-          });
+          try {
+            await tx.announcement.create({
+              data: {
+                title: `GET READY! Round ${targetRoundNumber}: ${round.name}`,
+                message: `GET READY!\nRound ${targetRoundNumber}: ${round.name} is about to begin.\nPlease prepare your team.`,
+                priority: 'URGENT',
+                isPublished: true,
+                publishedAt: now,
+                authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
+              },
+            });
+          } catch (annErr: any) {
+            this.logger.warn(`Announcement warning on ANNOUNCE_ROUND: ${annErr?.message || annErr}`);
+          }
 
           await tx.activityLog.create({
             data: {
@@ -474,16 +478,20 @@ export class CompetitionService implements OnModuleInit {
           });
 
           const author = await tx.adminAccount.findUnique({ where: { id: adminId } });
-          await tx.announcement.create({
-            data: {
-              title: 'Round 1: MCQ Arena has Begun!',
-              message: 'Round 1 has officially started. All participating teams may now access the MCQ Arena to answer 15 competition questions.',
-              priority: 'HIGH',
-              isPublished: true,
-              publishedAt: now,
-              authorId: author ? adminId : null,
-            },
-          });
+          try {
+            await tx.announcement.create({
+              data: {
+                title: 'Round 1: MCQ Arena has Begun!',
+                message: 'Round 1 has officially started. All participating teams may now access the MCQ Arena to answer 15 competition questions.',
+                priority: 'HIGH',
+                isPublished: true,
+                publishedAt: now,
+                authorId: author ? adminId : null,
+              },
+            });
+          } catch (annErr: any) {
+            this.logger.warn(`Announcement warning on START_ROUND_1: ${annErr?.message || annErr}`);
+          }
 
           return { message: 'Round 1 successfully started' };
         }
@@ -538,16 +546,20 @@ export class CompetitionService implements OnModuleInit {
             },
           });
 
-          await tx.announcement.create({
-            data: {
-              title: `Tournament Paused: Round ${currentState.currentRoundNumber || ''}`,
-              message: `Competition Round ${currentState.currentRoundNumber || ''} has been temporarily paused by the administrators. Timers and active arena workspaces are held.`,
-              priority: 'URGENT',
-              isPublished: true,
-              publishedAt: now,
-              authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
-            },
-          });
+          try {
+            await tx.announcement.create({
+              data: {
+                title: `Tournament Paused: Round ${currentState.currentRoundNumber || ''}`,
+                message: `Competition Round ${currentState.currentRoundNumber || ''} has been temporarily paused by the administrators. Timers and active arena workspaces are held.`,
+                priority: 'URGENT',
+                isPublished: true,
+                publishedAt: now,
+                authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
+              },
+            });
+          } catch (annErr: any) {
+            this.logger.warn(`Announcement warning on PAUSE_ROUND: ${annErr?.message || annErr}`);
+          }
 
           return { message: 'Round paused successfully' };
         }
@@ -596,16 +608,20 @@ export class CompetitionService implements OnModuleInit {
             },
           });
 
-          await tx.announcement.create({
-            data: {
-              title: `Tournament Resumed: Round ${currentState.currentRoundNumber || ''}`,
-              message: `Competition Round ${currentState.currentRoundNumber || ''} has resumed. Teams may continue working in their respective arenas.`,
-              priority: 'HIGH',
-              isPublished: true,
-              publishedAt: now,
-              authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
-            },
-          });
+          try {
+            await tx.announcement.create({
+              data: {
+                title: `Tournament Resumed: Round ${currentState.currentRoundNumber || ''}`,
+                message: `Competition Round ${currentState.currentRoundNumber || ''} has resumed. Teams may continue working in their respective arenas.`,
+                priority: 'HIGH',
+                isPublished: true,
+                publishedAt: now,
+                authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
+              },
+            });
+          } catch (annErr: any) {
+            this.logger.warn(`Announcement warning on RESUME_ROUND: ${annErr?.message || annErr}`);
+          }
 
           return { message: 'Round resumed successfully' };
         }
@@ -878,16 +894,20 @@ export class CompetitionService implements OnModuleInit {
             },
           });
 
-          await tx.announcement.create({
-            data: {
-              title: `ROUND CONCLUDED`,
-              message: `ROUND CONCLUDED\n\nYour latest work has been safely recorded. All arena inputs are locked and evaluation is now in progress.\nYour submission will now be evaluated.\nPlease return to your dashboard and wait for the results.`,
-              priority: 'URGENT',
-              isPublished: true,
-              publishedAt: now,
-              authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
-            },
-          });
+          try {
+            await tx.announcement.create({
+              data: {
+                title: `ROUND CONCLUDED`,
+                message: `ROUND CONCLUDED\n\nYour latest work has been safely recorded. All arena inputs are locked and evaluation is now in progress.\nYour submission will now be evaluated.\nPlease return to your dashboard and wait for the results.`,
+                priority: 'URGENT',
+                isPublished: true,
+                publishedAt: now,
+                authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
+              },
+            });
+          } catch (annErr: any) {
+            this.logger.warn(`Announcement warning on END_ROUND: ${annErr?.message || annErr}`);
+          }
 
           return {
             message: `Round ${currentRoundNumber} concluded. Entered ${nextStatus}.`,
@@ -1028,16 +1048,20 @@ export class CompetitionService implements OnModuleInit {
             },
           });
 
-          await tx.announcement.create({
-            data: {
-              title: 'Round 3: Final Coding Relay has Begun!',
-              message: `Round 3: Final Coding Relay is officially live for ${eligibleR3Count} finalist teams! Conquer all 3 problem cases to claim tournament victory.`,
-              priority: 'HIGH',
-              isPublished: true,
-              publishedAt: now,
-              authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
-            },
-          });
+          try {
+            await tx.announcement.create({
+              data: {
+                title: 'Round 3: Final Coding Relay has Begun!',
+                message: `Round 3: Final Coding Relay is officially live for ${eligibleR3Count} finalist teams! Conquer all 3 problem cases to claim tournament victory.`,
+                priority: 'HIGH',
+                isPublished: true,
+                publishedAt: now,
+                authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
+              },
+            });
+          } catch (annErr: any) {
+            this.logger.warn(`Announcement warning on START_ROUND_3: ${annErr?.message || annErr}`);
+          }
 
           return { message: 'Round 3: Final Coding successfully started' };
         }
