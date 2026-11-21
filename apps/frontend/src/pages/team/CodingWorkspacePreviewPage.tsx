@@ -599,13 +599,13 @@ const Round3Workspace: React.FC = () => {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
         {/* Left Column: Problem Statement (5 columns, independent scroll) */}
         <div className="lg:col-span-5 border-r border-slate-800 flex flex-col h-full bg-slate-950 overflow-y-auto p-5 sm:p-6 space-y-6">
-          {/* Case Switcher for Round 3 Final Boss Coding */}
+          {/* Case Switcher for Round 3 Final Coding */}
           {roundNumber === 3 && (
             <div className="space-y-2 pb-4 border-b border-slate-800/80">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-mono uppercase text-slate-300 font-bold flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Final Boss Relay Cases:</span>
+                  <span>Final Relay Cases:</span>
                 </span>
                 <span className="text-[11px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50">
                   {submittedCases.length} of 3 Cases Submitted

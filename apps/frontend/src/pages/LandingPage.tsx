@@ -430,7 +430,7 @@ export const LandingPage: React.FC = () => {
                     ARENA 03
                   </span>
                   <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition-colors">
-                    Final Boss Coding
+                    Final Coding
                   </h3>
                 </div>
                 <p className="text-xs text-amber-100/75 leading-relaxed min-h-[3rem]">
