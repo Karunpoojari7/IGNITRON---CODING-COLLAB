@@ -7,6 +7,7 @@ import {
 } from '../../hooks/useCompetition';
 import { competitionService } from '../../services/competition.service';
 import { ShortlistingTeamItem, CompetitionStatus } from '@ignitron/shared';
+import { GoogleCelebrationModal } from '../../components/competition/GoogleCelebrationModal';
 import {
   Play,
   Pause,
@@ -95,6 +96,23 @@ export const CompetitionControlPage: React.FC = () => {
     confirmLabel: string;
     variant: 'danger' | 'warning' | 'primary';
     action: () => Promise<void> | void;
+  } | null>(null);
+
+  // Google-style celebration modal for shortlisting and tournament victory
+  const [celebrationModal, setCelebrationModal] = useState<{
+    isOpen: boolean;
+    mode: 'STANDARD' | 'ROUND_QUALIFIED' | 'WINNER' | 'RUNNER_UP' | 'SHORTLIST';
+    title: string;
+    subtext: string;
+    teamName?: string;
+    roundName?: string;
+    nextRoundName?: string;
+    winnerTeamName?: string | null;
+    winnerScore?: number;
+    winnerInstitution?: string | null;
+    runnerUpTeamName?: string | null;
+    runnerUpScore?: number;
+    runnerUpInstitution?: string | null;
   } | null>(null);
 
   const handleOpenDurationModal = (roundNum: number) => {
@@ -193,6 +211,33 @@ export const CompetitionControlPage: React.FC = () => {
       await refetchState();
       await refetchLogs();
       setSuccessMsg(res?.message || 'Control action executed successfully.');
+
+      if (action === 'COMPLETE_COMPETITION') {
+        try {
+          const lb = await competitionService.getLeaderboard();
+          const w = lb?.entries?.find((e) => e.rank === 1);
+          const r = lb?.entries?.find((e) => e.rank === 2);
+          setCelebrationModal({
+            isOpen: true,
+            mode: 'WINNER',
+            title: 'Tournament Champions Crowned!',
+            subtext: "IGNITRON 2K26 Coding Collab Championship successfully completed!",
+            winnerTeamName: w?.teamName || 'Champion Team',
+            winnerScore: w ? Number(w.score) : undefined,
+            winnerInstitution: w?.institution,
+            runnerUpTeamName: r?.teamName,
+            runnerUpScore: r ? Number(r.score) : undefined,
+            runnerUpInstitution: r?.institution,
+          });
+        } catch {
+          setCelebrationModal({
+            isOpen: true,
+            mode: 'WINNER',
+            title: 'Tournament Champions Crowned!',
+            subtext: "IGNITRON 2K26 Coding Collab Championship successfully completed!",
+          });
+        }
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to execute control action');
     } finally {
@@ -266,6 +311,15 @@ export const CompetitionControlPage: React.FC = () => {
       await refetchState();
       await refetchLogs();
       setSuccessMsg(`Successfully finalized shortlist for Round ${targetRound}: ${res.qualifiedCount} teams qualified!`);
+
+      setCelebrationModal({
+        isOpen: true,
+        mode: 'SHORTLIST',
+        title: `Round ${targetRound} Shortlist Finalized!`,
+        subtext: `You nailed it! Successfully shortlisted and qualified ${res.qualifiedCount} teams for Round ${targetRound}.`,
+        roundName: `Round ${targetRound - 1}`,
+        nextRoundName: `Round ${targetRound}`,
+      });
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to commit shortlisting decisions');
     } finally {
@@ -1890,6 +1944,27 @@ export const CompetitionControlPage: React.FC = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Google-Style Tournament Celebration Modal */}
+      {celebrationModal?.isOpen && (
+        <GoogleCelebrationModal
+          isOpen={celebrationModal.isOpen}
+          onClose={() => setCelebrationModal(null)}
+          mode={celebrationModal.mode}
+          title={celebrationModal.title}
+          subtext={celebrationModal.subtext}
+          teamName={celebrationModal.teamName}
+          roundName={celebrationModal.roundName}
+          nextRoundName={celebrationModal.nextRoundName}
+          winnerTeamName={celebrationModal.winnerTeamName}
+          winnerScore={celebrationModal.winnerScore}
+          winnerInstitution={celebrationModal.winnerInstitution}
+          runnerUpTeamName={celebrationModal.runnerUpTeamName}
+          runnerUpScore={celebrationModal.runnerUpScore}
+          runnerUpInstitution={celebrationModal.runnerUpInstitution}
+          buttonLabel="Awesome"
+        />
       )}
     </div>
   );

@@ -1060,8 +1060,30 @@ export const TeamDashboardPage: React.FC = () => {
           teamName={activeCelebration.teamName}
           roundName={activeCelebration.roundName}
           nextRoundName={activeCelebration.nextRoundName}
-          winnerTeamName={activeCelebration.winnerTeamName}
-          winnerScore={activeCelebration.winnerScore}
+          winnerTeamName={
+            activeCelebration.winnerTeamName ||
+            leaderboard?.entries?.find((e) => e.rank === 1)?.teamName
+          }
+          winnerScore={
+            activeCelebration.winnerScore ??
+            (leaderboard?.entries?.find((e) => e.rank === 1)
+              ? Number(leaderboard.entries.find((e) => e.rank === 1)?.score)
+              : undefined)
+          }
+          winnerInstitution={
+            leaderboard?.entries?.find((e) => e.rank === 1)?.institution
+          }
+          runnerUpTeamName={
+            leaderboard?.entries?.find((e) => e.rank === 2)?.teamName
+          }
+          runnerUpScore={
+            leaderboard?.entries?.find((e) => e.rank === 2)
+              ? Number(leaderboard.entries.find((e) => e.rank === 2)?.score)
+              : undefined
+          }
+          runnerUpInstitution={
+            leaderboard?.entries?.find((e) => e.rank === 2)?.institution
+          }
         />
       )}
     </div>

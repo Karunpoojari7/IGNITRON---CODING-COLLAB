@@ -172,10 +172,10 @@ export class Judge0ClientService {
         };
       }
 
-      // If Judge0 is not running locally in development mode, provide simulated isolate execution
-      if (process.env.NODE_ENV !== 'production') {
+      // If Judge0 is not running locally in development mode or as a resilient fallback, provide simulated isolate execution
+      if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SIMULATED_FALLBACK !== 'false') {
         this.logger.warn(
-          `Judge0 container unreachable at ${this.judge0Url}: ${err.message}. Executing via development sandbox simulator.`,
+          `Judge0 container unreachable at ${this.judge0Url}: ${err.message}. Executing via resilient sandbox simulator fallback.`,
         );
         return this.simulateExecution(sourceCode, languageId, stdin, cpuTimeLimit, memoryLimitKb);
       }

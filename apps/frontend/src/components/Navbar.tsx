@@ -485,8 +485,8 @@ export const Navbar: React.FC = () => {
             </nav>
 
             {/* Right: Admin User + Role Badge + Logout + Mobile Menu Toggle */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="hidden sm:flex flex-col text-right">
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+              <div className="hidden sm:flex flex-col text-right leading-tight">
                 <span className="text-xs font-bold text-slate-900 whitespace-nowrap" title={user.fullName}>
                   {user.fullName}
                 </span>
@@ -495,13 +495,15 @@ export const Navbar: React.FC = () => {
                 </span>
               </div>
 
+              {/* Prominent, unmistakably visible Logout button */}
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}
-                title="Log out"
-                className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                title="Log out of Admin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/90 shadow-2xs transition-all cursor-pointer shrink-0"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                <span className="hidden sm:inline">Logout</span>
               </button>
 
               {/* Mobile Menu Button for Admin */}
