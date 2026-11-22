@@ -484,26 +484,16 @@ export const Navbar: React.FC = () => {
               </div>
             </nav>
 
-            {/* Right: Admin User + Role Badge + Logout + Mobile Menu Toggle */}
-            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-              <div className="hidden sm:flex flex-col text-right leading-tight">
-                <span className="text-xs font-bold text-slate-900 whitespace-nowrap" title={user.fullName}>
-                  {user.fullName}
-                </span>
-                <span className="text-[10px] font-mono text-amber-700 font-bold uppercase tracking-wider">
-                  [{user.role}]
-                </span>
-              </div>
-
-              {/* Prominent, unmistakably visible Logout button */}
+            {/* Right: Logout Button (words removed as requested) + Mobile Menu Toggle */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}
-                title="Log out of Admin"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/90 shadow-2xs transition-all cursor-pointer shrink-0"
+                title="Log out"
+                className="p-2 sm:p-2.5 rounded-xl text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 shadow-2xs transition-all cursor-pointer flex items-center justify-center group"
+                aria-label="Log out"
               >
-                <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                <span className="hidden sm:inline">Logout</span>
+                <LogOut className="w-5 h-5 text-slate-600 group-hover:text-rose-600 transition-colors" />
               </button>
 
               {/* Mobile Menu Button for Admin */}

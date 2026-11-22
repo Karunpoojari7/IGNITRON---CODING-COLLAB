@@ -54,113 +54,108 @@ export const GoogleCelebrationModal: React.FC<GoogleCelebrationModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[950] flex items-center justify-center p-4 bg-[rgba(32,33,36,0.4)] backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-[950] flex items-center justify-center p-4 sm:p-6 bg-[rgba(32,33,36,0.5)] backdrop-blur-sm animate-in fade-in duration-200"
     >
       {/* Background click to dismiss */}
       <div className="absolute inset-0" onClick={onClose} />
 
-      {/* Google Material Congratulations Card */}
-      <div className="relative z-[960] w-full max-w-[360px] sm:max-w-[400px] bg-white rounded-[16px] shadow-2xl border border-slate-100 p-6 sm:p-7 text-center font-sans animate-in zoom-in-95 duration-200 overflow-hidden">
-        {/* Subtle Google Top Color Strip */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 flex">
+      {/* Large, Beautiful Celebration Card (Expanded Dimensions) */}
+      <div className="relative z-[960] w-full max-w-[520px] sm:max-w-[580px] bg-white rounded-[24px] shadow-2xl border border-slate-100 p-8 sm:p-10 text-center font-sans animate-in zoom-in-95 duration-200 overflow-hidden">
+        {/* Four-Color Festive Accent Header Line */}
+        <div className="absolute top-0 left-0 right-0 h-2 flex">
           <div className="w-1/4 bg-[#4285F4]" />
           <div className="w-1/4 bg-[#EA4335]" />
           <div className="w-1/4 bg-[#FBBC05]" />
           <div className="w-1/4 bg-[#34A853]" />
         </div>
 
-        {/* Close Icon (Top Right) */}
+        {/* Close Button (Top Right) */}
         <button
           onClick={onClose}
           type="button"
-          className="absolute top-3 right-3 p-1.5 rounded-full text-[#5f6368] hover:text-[#202124] hover:bg-slate-100 transition-colors cursor-pointer"
+          className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="Close celebration"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
 
-        {/* 1. Icon Section */}
-        <div className="pt-2 pb-1 flex flex-col items-center justify-center">
+        {/* 1. Icon Section with Vibrant Aura & Larger Scale */}
+        <div className="pt-2 pb-2 flex flex-col items-center justify-center">
           {mode === 'WINNER' ? (
-            /* Grand Champion Winner (Extra Unique Trophy Showcase) */
-            <div className="relative flex items-center justify-center my-1">
-              <div className="absolute -inset-3 bg-amber-400/20 rounded-full blur-xl animate-pulse" />
-              <div className="relative flex items-center gap-1.5">
-                <span className="text-3xl select-none animate-pulse">✨</span>
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-400 via-yellow-400 to-amber-500 flex items-center justify-center shadow-lg shadow-amber-400/30 text-white animate-bounce">
-                  <Trophy className="w-9 h-9 drop-shadow-md text-amber-950" />
+            /* Grand Champion Winner (Extra Grand Trophy Showcase) */
+            <div className="relative flex items-center justify-center my-3">
+              <div className="absolute -inset-6 bg-amber-400/25 rounded-full blur-2xl animate-pulse" />
+              <div className="relative flex items-center gap-3">
+                <span className="text-4xl sm:text-5xl select-none animate-pulse">✨</span>
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-amber-400 via-yellow-400 to-amber-500 flex items-center justify-center shadow-xl shadow-amber-400/40 text-amber-950 animate-bounce">
+                  <Trophy className="w-14 h-14 sm:w-16 sm:h-16 drop-shadow-md text-amber-950" />
                 </div>
-                <span className="text-3xl select-none animate-pulse">👑</span>
+                <span className="text-4xl sm:text-5xl select-none animate-pulse">👑</span>
               </div>
             </div>
           ) : mode === 'RUNNER_UP' ? (
             /* Runner-Up (2nd Place Silver Showcase) */
-            <div className="relative flex items-center justify-center my-1">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-200 via-slate-100 to-blue-100 flex items-center justify-center shadow-md border border-slate-300 text-slate-700 animate-bounce">
-                <Trophy className="w-8 h-8 text-slate-600" />
-              </div>
-            </div>
-          ) : mode === 'ROUND_QUALIFIED' || mode === 'SHORTLIST' ? (
-            /* Round Progression (Bouncing Trophy Emoji + Badge) */
-            <div className="relative flex items-center justify-center my-1">
-              <div className="text-5xl select-none animate-bounce" role="img" aria-label="Trophy">
-                🏆
+            <div className="relative flex items-center justify-center my-3">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-slate-200 via-slate-100 to-blue-100 flex items-center justify-center shadow-lg border border-slate-300 text-slate-700 animate-bounce">
+                <Trophy className="w-12 h-12 text-slate-600" />
               </div>
             </div>
           ) : (
-            /* Standard Google-Style Trophy */
-            <div className="text-5xl select-none animate-bounce my-1" role="img" aria-label="Trophy">
-              🏆
+            /* Standard Large Bouncing Trophy Emoji */
+            <div className="relative flex items-center justify-center my-2">
+              <div className="text-7xl sm:text-8xl select-none animate-bounce" role="img" aria-label="Trophy">
+                🏆
+              </div>
             </div>
           )}
 
-          {/* Round / Championship Sub-badge */}
+          {/* Badge Sub-pill */}
           {mode === 'WINNER' && (
-            <span className="mt-2 inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
-              <Sparkles className="w-3 h-3 text-amber-600" />
+            <span className="mt-2.5 inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
+              <Sparkles className="w-4 h-4 text-amber-600" />
               <span>Official 1st Place Champion</span>
             </span>
           )}
           {mode === 'RUNNER_UP' && (
-            <span className="mt-2 inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs">
-              <Award className="w-3 h-3 text-slate-600" />
+            <span className="mt-2.5 inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase bg-slate-100 text-slate-800 border border-slate-300 shadow-xs">
+              <Award className="w-4 h-4 text-slate-600" />
               <span>Official Runner-Up Finalist</span>
             </span>
           )}
           {mode === 'ROUND_QUALIFIED' && (
-            <span className="mt-2 inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+            <span className="mt-2.5 inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>Stage Qualified</span>
             </span>
           )}
         </div>
 
-        {/* 2. Heading */}
-        <h2 className="text-2xl font-medium text-[#202124] tracking-tight mt-2 font-['Roboto',sans-serif]">
+        {/* 2. Heading (Significantly Larger) */}
+        <h2 className="text-3xl sm:text-4xl font-extrabold text-[#202124] tracking-tight mt-3 font-['Roboto',sans-serif]">
           {title}
         </h2>
 
-        {/* 3. Subtext */}
-        <p className="text-xs sm:text-sm text-[#5f6368] leading-relaxed mt-1.5 font-['Roboto',sans-serif]">
+        {/* 3. Subtext (Readable & Clear) */}
+        <p className="text-sm sm:text-base text-[#5f6368] leading-relaxed mt-2.5 max-w-md mx-auto font-['Roboto',sans-serif]">
           {subtext}
         </p>
 
         {/* 4. Round 3 Final Winner & Runner-Up Grand Showcase */}
         {mode === 'WINNER' && (winnerTeamName || runnerUpTeamName) && (
-          <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-left space-y-2.5 font-sans">
+          <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-slate-50/90 border border-slate-200 text-left space-y-3 font-sans">
             {winnerTeamName && (
-              <div className="p-2.5 rounded-lg bg-amber-50/80 border border-amber-200/90 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl select-none">🥇</span>
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200/90 flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl select-none">🥇</span>
                   <div>
-                    <div className="text-xs font-bold text-amber-950">{winnerTeamName}</div>
-                    <div className="text-[10px] text-amber-800/80 font-mono">
+                    <div className="text-sm sm:text-base font-bold text-amber-950">{winnerTeamName}</div>
+                    <div className="text-xs text-amber-800/80 font-mono">
                       {winnerInstitution || '1st Place Champion'}
                     </div>
                   </div>
                 </div>
                 {winnerScore !== undefined && (
-                  <div className="text-xs font-mono font-black text-amber-900 bg-amber-100 px-2 py-0.5 rounded">
+                  <div className="text-sm font-mono font-black text-amber-900 bg-amber-100/90 px-3 py-1 rounded-lg border border-amber-200">
                     {winnerScore} pts
                   </div>
                 )}
@@ -168,18 +163,18 @@ export const GoogleCelebrationModal: React.FC<GoogleCelebrationModalProps> = ({
             )}
 
             {runnerUpTeamName && (
-              <div className="p-2.5 rounded-lg bg-slate-100/80 border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl select-none">🥈</span>
+              <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl select-none">🥈</span>
                   <div>
-                    <div className="text-xs font-bold text-slate-800">{runnerUpTeamName}</div>
-                    <div className="text-[10px] text-slate-500 font-mono">
+                    <div className="text-sm sm:text-base font-bold text-slate-800">{runnerUpTeamName}</div>
+                    <div className="text-xs text-slate-500 font-mono">
                       {runnerUpInstitution || '2nd Place Runner-Up'}
                     </div>
                   </div>
                 </div>
                 {runnerUpScore !== undefined && (
-                  <div className="text-xs font-mono font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded">
+                  <div className="text-sm font-mono font-black text-slate-700 bg-slate-200 px-3 py-1 rounded-lg border border-slate-300">
                     {runnerUpScore} pts
                   </div>
                 )}
@@ -190,41 +185,41 @@ export const GoogleCelebrationModal: React.FC<GoogleCelebrationModalProps> = ({
 
         {/* Round Progression Details Box */}
         {(mode === 'ROUND_QUALIFIED' || mode === 'SHORTLIST') && (teamName || nextRoundName) && (
-          <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-left text-xs space-y-1.5 font-sans">
+          <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-slate-50/90 border border-slate-200 text-left text-xs sm:text-sm space-y-2 font-sans">
             {teamName && (
-              <div className="flex justify-between items-center text-[11px] py-0.5 border-b border-slate-200/60 font-mono">
-                <span className="text-slate-500">Team</span>
-                <span className="font-bold text-slate-900">{teamName}</span>
+              <div className="flex justify-between items-center py-1 border-b border-slate-200 font-mono">
+                <span className="text-slate-500 font-medium">Qualified Team</span>
+                <span className="font-bold text-slate-900 text-sm">{teamName}</span>
               </div>
             )}
             {roundName && (
-              <div className="flex justify-between items-center text-[11px] py-0.5 border-b border-slate-200/60 font-mono">
-                <span className="text-slate-500">Cleared Arena</span>
+              <div className="flex justify-between items-center py-1 border-b border-slate-200 font-mono">
+                <span className="text-slate-500 font-medium">Completed Arena</span>
                 <span className="font-semibold text-slate-800">{roundName}</span>
               </div>
             )}
             {nextRoundName && (
-              <div className="flex justify-between items-center text-[11px] py-0.5 border-b border-slate-200/60 font-mono">
-                <span className="text-slate-500">Next Arena</span>
+              <div className="flex justify-between items-center py-1 border-b border-slate-200 font-mono">
+                <span className="text-slate-500 font-medium">Target Arena</span>
                 <span className="font-bold text-emerald-700">{nextRoundName}</span>
               </div>
             )}
-            <div className="flex justify-between items-center text-[11px] py-0.5 font-mono">
-              <span className="text-slate-500">Status</span>
-              <span className="font-bold text-emerald-700 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
+            <div className="flex justify-between items-center py-1 font-mono">
+              <span className="text-slate-500 font-medium">Progression Status</span>
+              <span className="font-bold text-emerald-700 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 <span>Eligible to Compete</span>
               </span>
             </div>
           </div>
         )}
 
-        {/* 5. Google Blue Pill Button */}
-        <div className="mt-6 flex justify-center">
+        {/* 5. Google Blue Pill Button (Larger & More Prominent) */}
+        <div className="mt-8 flex justify-center">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto min-w-[130px] px-8 py-2.5 rounded-[24px] bg-[#1a73e8] hover:bg-[#1557b0] active:scale-95 text-white font-medium text-sm transition-all shadow-sm hover:shadow-md cursor-pointer select-none font-['Roboto',sans-serif]"
+            className="w-full sm:w-auto min-w-[170px] px-10 py-3.5 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] active:scale-95 text-white font-bold text-base sm:text-lg transition-all shadow-md hover:shadow-xl hover:scale-105 cursor-pointer select-none font-['Roboto',sans-serif]"
           >
             {buttonLabel}
           </button>
