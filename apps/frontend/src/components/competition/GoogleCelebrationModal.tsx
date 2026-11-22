@@ -61,13 +61,8 @@ export const GoogleCelebrationModal: React.FC<GoogleCelebrationModalProps> = ({
 
       {/* Large, Beautiful Celebration Card (Expanded Dimensions) */}
       <div className="relative z-[960] w-full max-w-[520px] sm:max-w-[580px] bg-white rounded-[24px] shadow-2xl border border-slate-100 p-8 sm:p-10 text-center font-sans animate-in zoom-in-95 duration-200 overflow-hidden">
-        {/* Four-Color Festive Accent Header Line */}
-        <div className="absolute top-0 left-0 right-0 h-2 flex">
-          <div className="w-1/4 bg-[#4285F4]" />
-          <div className="w-1/4 bg-[#EA4335]" />
-          <div className="w-1/4 bg-[#FBBC05]" />
-          <div className="w-1/4 bg-[#34A853]" />
-        </div>
+        {/* Signature Emerald Green Accent Header Line */}
+        <div className="absolute top-0 left-0 right-0 h-2 bg-emerald-500" />
 
         {/* Close Button (Top Right) */}
         <button
