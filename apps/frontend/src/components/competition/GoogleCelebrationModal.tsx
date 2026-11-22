@@ -209,15 +209,14 @@ export const GoogleCelebrationModal: React.FC<GoogleCelebrationModalProps> = ({
           </div>
         )}
 
-        {/* 5. Google Blue Pill Button (Larger & More Prominent) */}
+        {/* 5. Plain text "Awesome" – not a button, just styled text */}
         <div className="mt-8 flex justify-center">
-          <button
-            type="button"
+          <span
             onClick={onClose}
-            className="w-full sm:w-auto min-w-[170px] px-10 py-3.5 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] active:scale-95 text-white font-bold text-base sm:text-lg transition-all shadow-md hover:shadow-xl hover:scale-105 cursor-pointer select-none font-['Roboto',sans-serif]"
+            className="text-[#1a73e8] font-bold text-lg cursor-pointer hover:underline select-none font-['Roboto',sans-serif]"
           >
             {buttonLabel}
-          </button>
+          </span>
         </div>
       </div>
     </div>,
