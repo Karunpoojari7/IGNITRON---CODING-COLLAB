@@ -288,7 +288,7 @@ export const TeamDashboardPage: React.FC = () => {
     },
     {
       roundNumber: 3,
-      name: 'Round 3: IGNITRON Event Analytics Engine',
+      name: 'Round 3: Final Coding',
       description: 'Solve real-world data discovery, statistical anomaly detection, and ranking challenges in Python.',
       durationMinutes: 60,
       maximumMarks: 100,
@@ -366,20 +366,7 @@ export const TeamDashboardPage: React.FC = () => {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Institutional & Event Branding Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <img src="/gmu-logo.png" alt="GM University" className="h-8 w-auto object-contain" />
-            <div className="h-6 w-px bg-slate-200" />
-            <img src="/ignitron-logo.png" alt="IGNITRON 2K26" className="h-7 w-auto object-contain" />
-            <div className="h-6 w-px bg-slate-200" />
-            <img src="/coding-collab-logo.png" alt="Coding Collab" className="h-7 w-auto object-contain bg-slate-900 px-1.5 py-0.5 rounded shadow-xs" />
-          </div>
-          <div className="text-left sm:text-right">
-            <div className="text-xs font-black tracking-wider text-slate-800">GM UNIVERSITY &bull; IGNITRON 2K26</div>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 font-bold">Two Minds &bull; One Code &bull; One Victory</div>
-          </div>
-        </div>
+
         {/* Pre-Round Preparation Alert Banner */}
         {announcedRoundNum && isTeamEligibleForAnnounced && !isCountdownActive && (
           <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-emerald-900/60 to-teal-950/80 border-2 border-emerald-500/60 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
