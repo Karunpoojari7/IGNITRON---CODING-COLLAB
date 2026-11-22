@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   useCompetitionState,
   useServerTimer,
@@ -85,6 +86,16 @@ export const CompetitionControlPage: React.FC = () => {
   const [countdownTargetRound, setCountdownTargetRound] = useState<number>(1);
   const [countdownDurationSecs, setCountdownDurationSecs] = useState<number>(5);
   const [countdownLaunching, setCountdownLaunching] = useState(false);
+
+  // Dedicated modal for high-impact confirmation actions (e.g., End Round 1/2/3, Conclude Tournament)
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmLabel: string;
+    variant: 'danger' | 'warning' | 'primary';
+    action: () => Promise<void> | void;
+  } | null>(null);
 
   const handleOpenDurationModal = (roundNum: number) => {
     const roundSummary = compState?.rounds?.find((r) => r.roundNumber === roundNum);
@@ -687,12 +698,18 @@ export const CompetitionControlPage: React.FC = () => {
 
                     <button
                       onClick={() => {
-                        if (window.confirm('Conclude Round 1 now? All unsent participant answers will be automatically captured and submitted.')) {
-                          executeControl('END_ROUND');
-                        }
+                        setConfirmModal({
+                          isOpen: true,
+                          title: 'Conclude Round 1: MCQ Arena',
+                          description:
+                            'Conclude Round 1 now? All participant answers will be automatically captured and submitted. Round 2 (Bug Hunt Arena) will be unlocked and ready to launch.',
+                          confirmLabel: 'Confirm End Round 1',
+                          variant: 'danger',
+                          action: () => executeControl('END_ROUND'),
+                        });
                       }}
                       disabled={!!loadingAction}
-                      className="w-full py-2 px-3 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                      className="w-full py-2 px-3 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Square className="w-3.5 h-3.5 fill-current" />
                       <span>End Round 1</span>
@@ -782,15 +799,10 @@ export const CompetitionControlPage: React.FC = () => {
                     <Lock className="w-4 h-4 text-slate-400 shrink-0" />
                     <span>Locked — Complete Round 1 first.</span>
                   </div>
-                ) : !isR2ShortlistFinalized ? (
-                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Action Required — Finalize Round 1 shortlist to unlock.</span>
-                  </div>
                 ) : (
                   <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
                     <span className="font-medium">Qualified Teams:</span>
-                    <span className="font-mono font-bold text-emerald-800">{r2ShortlistCount} Teams</span>
+                    <span className="font-mono font-bold text-emerald-800">{r2ShortlistCount > 0 ? `${r2ShortlistCount} Teams` : 'All Active Teams'}</span>
                   </div>
                 )}
 
@@ -840,8 +852,8 @@ export const CompetitionControlPage: React.FC = () => {
 
                     <button
                       onClick={() => handleOpenCountdownModal(2)}
-                      disabled={!isR2ShortlistFinalized || !!loadingAction || compState?.countdown?.active}
-                      className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                      disabled={!!loadingAction || compState?.countdown?.active}
+                      className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
                       <span>Start Round 2: Bug Hunt</span>
@@ -873,12 +885,18 @@ export const CompetitionControlPage: React.FC = () => {
 
                     <button
                       onClick={() => {
-                        if (window.confirm('Conclude Round 2 now? All unsent participant code drafts will be automatically captured and submitted.')) {
-                          executeControl('END_ROUND');
-                        }
+                        setConfirmModal({
+                          isOpen: true,
+                          title: 'Conclude Round 2: Bug Hunt Arena',
+                          description:
+                            'Conclude Round 2 now? All participant code drafts will be automatically captured and submitted. Round 3 (Code Relay Arena) will be unlocked.',
+                          confirmLabel: 'Confirm End Round 2',
+                          variant: 'danger',
+                          action: () => executeControl('END_ROUND'),
+                        });
                       }}
                       disabled={!!loadingAction}
-                      className="w-full py-2 px-3 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                      className="w-full py-2 px-3 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Square className="w-3.5 h-3.5 fill-current" />
                       <span>End Round 2</span>
@@ -1044,12 +1062,18 @@ export const CompetitionControlPage: React.FC = () => {
 
                     <button
                       onClick={() => {
-                        if (window.confirm('Conclude Round 3 now? All unsent participant code drafts will be automatically captured and submitted.')) {
-                          executeControl('END_ROUND');
-                        }
+                        setConfirmModal({
+                          isOpen: true,
+                          title: 'Conclude Round 3: Code Relay Arena',
+                          description:
+                            'Conclude Round 3 now? All team submissions will be finalized and captured for final evaluation.',
+                          confirmLabel: 'Confirm End Round 3',
+                          variant: 'danger',
+                          action: () => executeControl('END_ROUND'),
+                        });
                       }}
                       disabled={!!loadingAction}
-                      className="w-full py-2 px-3 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                      className="w-full py-2 px-3 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Square className="w-3.5 h-3.5 fill-current" />
                       <span>End Round 3</span>
@@ -1060,9 +1084,15 @@ export const CompetitionControlPage: React.FC = () => {
                 {compState?.status === 'FINAL_EVALUATION' && (
                   <button
                     onClick={() => {
-                      if (window.confirm('Officially conclude the competition and publish winner placements?')) {
-                        executeControl('COMPLETE_COMPETITION');
-                      }
+                      setConfirmModal({
+                        isOpen: true,
+                        title: 'Conclude Tournament & Publish Placements',
+                        description:
+                          'Officially conclude the competition and publish winner placements to all participants and public leaderboards?',
+                        confirmLabel: 'Publish Placements & Complete',
+                        variant: 'primary',
+                        action: () => executeControl('COMPLETE_COMPETITION'),
+                      });
                     }}
                     disabled={!!loadingAction}
                     className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
@@ -1791,6 +1821,75 @@ export const CompetitionControlPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* High-Impact Action Confirmation Modal */}
+      {confirmModal?.isOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  confirmModal.variant === 'danger'
+                    ? 'bg-rose-100 border border-rose-300 text-rose-700'
+                    : confirmModal.variant === 'warning'
+                    ? 'bg-amber-100 border border-amber-300 text-amber-700'
+                    : 'bg-emerald-100 border border-emerald-300 text-emerald-700'
+                }`}
+              >
+                {confirmModal.variant === 'danger' ? (
+                  <AlertTriangle className="w-5 h-5" />
+                ) : confirmModal.variant === 'warning' ? (
+                  <AlertCircle className="w-5 h-5" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">{confirmModal.title}</h3>
+                <p className="text-xs text-slate-500 font-mono">Tournament Command Action</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed font-sans">
+              {confirmModal.description}
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                disabled={!!loadingAction}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const act = confirmModal.action;
+                  setConfirmModal(null);
+                  await act();
+                }}
+                disabled={!!loadingAction}
+                className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-sm flex items-center gap-1.5 cursor-pointer ${
+                  confirmModal.variant === 'danger'
+                    ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-500/20'
+                    : confirmModal.variant === 'warning'
+                    ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/20'
+                    : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
+                }`}
+              >
+                {loadingAction ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <span>{confirmModal.confirmLabel}</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

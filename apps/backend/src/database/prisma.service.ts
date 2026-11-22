@@ -138,7 +138,9 @@ export class PrismaService
       await this.ensureColumn('announcements', 'updated_at', 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)');
       // If legacy announcements table has a NOT NULL `content` column, make it nullable so it never rejects inserts
       await this.$executeRawUnsafe(`ALTER TABLE \`announcements\` MODIFY COLUMN \`content\` TEXT NULL DEFAULT NULL;`).catch(() => {});
+      await this.$executeRawUnsafe(`ALTER TABLE \`announcements\` MODIFY COLUMN \`content\` VARCHAR(1000) NULL DEFAULT NULL;`).catch(() => {});
       await this.$executeRawUnsafe(`ALTER TABLE \`announcements\` ALTER COLUMN \`content\` SET DEFAULT NULL;`).catch(() => {});
+      await this.$executeRawUnsafe(`ALTER TABLE \`announcements\` DROP COLUMN \`content\`;`).catch(() => {});
 
       // 5. Ensure columns exist on submissions
       await this.ensureColumn('submissions', 'stdin', 'TEXT NULL');

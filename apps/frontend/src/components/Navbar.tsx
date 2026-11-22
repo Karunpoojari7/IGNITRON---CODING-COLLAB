@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ADMIN_NAV_ITEMS } from './AdminNav';
@@ -76,52 +77,56 @@ export const Navbar: React.FC = () => {
     setMobileMenuOpen(false);
   };
 
-  const logoutModal = showLogoutConfirm && (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              {user?.type === 'ADMIN' ? 'Confirm Admin Logout' : 'Confirm Sign Out'}
-            </h3>
-            <p className="text-xs text-slate-500">
-              IGNITRON 2K26 Competition Platform
-            </p>
-          </div>
-        </div>
+  const logoutModal =
+    showLogoutConfirm && typeof document !== 'undefined'
+      ? createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {user?.type === 'ADMIN' ? 'Confirm Admin Logout' : 'Confirm Sign Out'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    IGNITRON 2K26 Competition Platform
+                  </p>
+                </div>
+              </div>
 
-        <p className="text-sm text-slate-600 leading-relaxed">
-          {user?.type === 'ADMIN'
-            ? 'Are you sure you want to log out of the admin panel? Any unsaved live competition controls will require re-authentication.'
-            : 'Are you sure you want to sign out of your team session? You will need to log back in to access the competition arena.'}
-        </p>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {user?.type === 'ADMIN'
+                  ? 'Are you sure you want to log out of the admin panel? Any unsaved live competition controls will require re-authentication.'
+                  : 'Are you sure you want to sign out of your team session? You will need to log back in to access the competition arena.'}
+              </p>
 
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={() => setShowLogoutConfirm(false)}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              setShowLogoutConfirm(false);
-              await handleLogout();
-            }}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Confirm Log Out</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowLogoutConfirm(false);
+                    await handleLogout();
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Confirm Log Out</span>
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
 
   // ---------------------------------------------------------------------------
   // 1. Landing & Public Auth Navbar (Floating Emerald Glass Design)

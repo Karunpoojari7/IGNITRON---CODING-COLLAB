@@ -670,14 +670,21 @@ export class CompetitionService implements OnModuleInit {
                 // Check if a submission already exists for this team and round
                 const existingSub = await tx.submission.findFirst({
                   where: { teamId: prog.teamId, roundId: currentRound.id, isTestRun: false },
+                  select: { id: true },
                 });
                 if (existingSub) {
                   continue;
                 }
 
-                const savedAnswers = await tx.teamMcqAnswer.findMany({
-                  where: { teamId: prog.teamId },
-                });
+                let savedAnswers: Array<{ questionId: string; selectedOption: number | null }> = [];
+                try {
+                  savedAnswers = await tx.teamMcqAnswer.findMany({
+                    where: { teamId: prog.teamId },
+                    select: { questionId: true, selectedOption: true },
+                  });
+                } catch {
+                  savedAnswers = [];
+                }
 
                 // Only consider answers that were actually selected by the team
                 const validAnswers = savedAnswers.filter(
@@ -792,6 +799,7 @@ export class CompetitionService implements OnModuleInit {
                 // Prevent duplicate submission on repeated END_ROUND
                 const existingSub = await tx.submission.findFirst({
                   where: { teamId: prog.teamId, roundId: currentRound.id, isTestRun: false },
+                  select: { id: true },
                 });
 
                 if (!existingSub) {
@@ -853,6 +861,7 @@ export class CompetitionService implements OnModuleInit {
                       questionId: q.id,
                       isTestRun: false,
                     },
+                    select: { id: true },
                   });
 
                   if (!existingSub) {

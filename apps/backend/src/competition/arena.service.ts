@@ -266,10 +266,20 @@ export class ArenaService {
       rubric: (q.rubric as any) || null,
     }));
 
-    // Fetch team's saved answers
-    const savedAnswers = await this.prisma.teamMcqAnswer.findMany({
-      where: { teamId: teamUser.id },
-    });
+    // Fetch team's saved answers (use explicit field selection to remain resilient if schema is migrating)
+    let savedAnswers: Array<{ questionId: string; selectedOption: number | null; isFlagged: boolean }> = [];
+    try {
+      savedAnswers = await this.prisma.teamMcqAnswer.findMany({
+        where: { teamId: teamUser.id },
+        select: {
+          questionId: true,
+          selectedOption: true,
+          isFlagged: true,
+        },
+      });
+    } catch {
+      savedAnswers = [];
+    }
 
     const answersMap: Record<string, { selectedOption: number | null; isFlagged: boolean }> = {};
     for (const ans of savedAnswers) {
@@ -388,10 +398,19 @@ export class ArenaService {
       orderBy: { orderNumber: 'asc' },
     });
 
-    // Fetch team's saved answers
-    const answers = await this.prisma.teamMcqAnswer.findMany({
-      where: { teamId: teamUser.id },
-    });
+    // Fetch team's saved answers (use explicit field selection)
+    let answers: Array<{ questionId: string; selectedOption: number | null }> = [];
+    try {
+      answers = await this.prisma.teamMcqAnswer.findMany({
+        where: { teamId: teamUser.id },
+        select: {
+          questionId: true,
+          selectedOption: true,
+        },
+      });
+    } catch {
+      answers = [];
+    }
 
     const answersMap = new Map<string, number | null>();
     for (const a of answers) {
