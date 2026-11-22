@@ -383,18 +383,18 @@ export const QuestionManagementPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 flex-nowrap">
             <button
               onClick={handleSeedQuestions}
               disabled={actionLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition shadow-xs disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition shadow-xs disabled:opacity-50 whitespace-nowrap"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span>Seed Official Bank</span>
             </button>
             <button
               onClick={handleOpenCreate}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-xs whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
               <span>{activeRound === 2 ? 'Add Mission' : 'Add Question'}</span>
