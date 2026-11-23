@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IGNITRON Coding Collab - 60s Demo Video</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .cursor-pointer-sim {
+      transition: all 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+      pointer-events: none;
+      z-index: 9999;
+    }
+    .click-ripple {
+      animation: ripple 0.5s ease-out forwards;
+    }
+    @keyframes ripple {
+      0% { transform: scale(0.3); opacity: 1; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans p-4 antialiased flex flex-col items-center justify-center min-h-screen">
+
+  <!-- Main Video Container (16:9 Aspect Ratio) -->
+  <div class="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    
+    <!-- Video Header Bar -->
+    <div class="px-5 py-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+        <span class="font-bold text-sm tracking-wide text-white">IGNITRON 2K26 &bull; Interactive Website Demo</span>
+        <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">1080p 60FPS</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="voiceToggle" onclick="toggleVoice()" class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+          <span id="voiceIcon">🔊</span> <span id="voiceText">Voice: ON</span>
+        </button>
+        <span id="timecode" class="text-xs font-mono font-bold text-emerald-400">00:00 / 01:00</span>
+      </div>
+    </div>
+
+    <!-- Video Stage Screen (16:9 Display Area) -->
+    <div id="videoScreen" class="relative w-full aspect-video bg-[#0a0f0d] overflow-hidden select-none border-b border-slate-800">
+      
+      <!-- Virtual Animated Mouse Cursor -->
+      <div id="virtualCursor" class="cursor-pointer-sim absolute top-10 left-10 flex flex-col items-start drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+        <svg class="w-6 h-6 text-white drop-shadow-md fill-slate-900 stroke-white stroke-2" viewBox="0 0 24 24">
+          <path d="M4.5 3.5l14 7-6.5 2-2 6.5-5.5-15.5z"/>
+        </svg>
+        <span id="cursorLabel" class="text-[10px] font-mono bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded shadow mt-1 ml-4 opacity-0 transition-opacity duration-300"></span>
+        <div id="clickRipple" class="absolute -top-2 -left-2 w-8 h-8 rounded-full border-2 border-emerald-400 bg-emerald-400/30 opacity-0 pointer-events-none"></div>
+      </div>
+
+      <!-- Live Voice Subtitles Banner -->
+      <div id="subtitleBox" class="absolute bottom-4 left-6 right-6 px-4 py-2.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-700/60 shadow-lg text-center z-50 transition-all duration-300">
+        <p id="subtitleText" class="text-xs sm:text-sm font-medium text-emerald-300 tracking-wide">
+          Welcome to IGNITRON Coding Collab — The Real-Time Elimination & Relay Coding Platform.
+        </p>
+      </div>
+
+      <!-- Current Scene Stage Tag -->
+      <div class="absolute top-4 left-4 z-40 flex items-center gap-2">
+        <span id="sceneBadge" class="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold uppercase tracking-wider bg-slate-900/90 text-white border border-slate-700 shadow">
+          Scene 1: Platform Overview
+        </span>
+      </div>
+
+      <!-- SCENE 1: LANDING PAGE -->
+      <div id="scene1" class="absolute inset-0 p-8 flex flex-col justify-between transition-opacity duration-700 opacity-100 bg-gradient-to-b from-[#061811] via-[#092218] to-[#04100b]">
+        <div class="flex justify-between items-center border-b border-emerald-500/20 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center font-black text-slate-950 text-sm">IG</div>
+            <div>
+              <div class="font-black text-sm text-white tracking-wider">IGNITRON 2K26</div>
+              <div class="text-[9px] font-mono text-emerald-400 uppercase">GM University Official Arena</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400">Rules</span>
+            <span class="text-slate-400">Leaderboard</span>
+            <span id="landingLoginBtn" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold transition shadow-md">
+              Participant Login &rarr;
+            </span>
+          </div>
+        </div>
+        <div class="max-w-xl space-y-3 my-auto">
+          <div class="inline-block px-2.5 py-1 rounded-full text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+            Official Tournament Engine
+          </div>
+          <h1 class="text-3xl font-extrabold text-white leading-tight">
+            Two Minds. One Code. <span class="text-emerald-400">One Victory.</span>
+          </h1>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            A high-stakes algorithmic relay competition featuring rapid-fire MCQs, multi-language bug hunting, and intense synchronized collaborative coding.
+          </p>
+        </div>
+        <div class="grid grid-cols-3 gap-3 text-[11px] border-t border-emerald-500/20 pt-4">
+          <div class="p-2.5 rounded-lg bg-white/5 border border-white/10">Stage 1: MCQ Arena (30m)</div>
+          <div class="p-2.5 rounded-lg bg-white/5 border border-white/10">Stage 2: Bug Hunt (40m)</div>
+          <div class="p-2.5 rounded-lg bg-white/5 border border-white/10">Stage 3: Final Coding (60m)</div>
+        </div>
+      </div>
+
+      <!-- SCENE 2: PARTICIPANT LOGIN & TEAM DASHBOARD -->
+      <div id="scene2" class="absolute inset-0 p-6 flex flex-col transition-opacity duration-700 opacity-0 bg-[#091510]">
+        <!-- Dashboard Topbar -->
+        <div class="flex justify-between items-center border-b border-emerald-900/60 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-xs text-white">IGNITRON 2K26 CODING COLLAB</span>
+          </div>
+          <div class="flex items-center gap-3 text-[11px]">
+            <span class="px-2 py-0.5 rounded bg-emerald-900/80 text-emerald-300 font-mono font-bold">IGN-4DD6 (Code Hunters)</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">Dashboard</span>
+          </div>
+        </div>
+        <!-- Relay Team Roster -->
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <div class="p-3 rounded-xl bg-white/5 border border-emerald-500/30 flex justify-between items-center">
+            <div>
+              <span class="text-[9px] uppercase font-mono text-emerald-400 font-bold">Participant A</span>
+              <div class="font-bold text-xs text-white">Praveen (Lead Dev)</div>
+            </div>
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">ACTIVE RELAY</span>
+          </div>
+          <div class="p-3 rounded-xl bg-white/5 border border-slate-700 flex justify-between items-center">
+            <div>
+              <span class="text-[9px] uppercase font-mono text-slate-400 font-bold">Participant B</span>
+              <div class="font-bold text-xs text-white">Preetam (Relay Partner)</div>
+            </div>
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">STANDBY</span>
+          </div>
+        </div>
+        <!-- 3 Stages Grid -->
+        <div class="mt-4 flex-1 grid grid-cols-3 gap-3">
+          <!-- Stage 1 Card -->
+          <div id="cardStage1" class="p-3 rounded-xl bg-slate-900 border border-emerald-500/40 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-mono text-emerald-400 font-bold">STAGE 01</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">ENTER</span>
+              </div>
+              <div class="font-extrabold text-sm text-white mt-1">MCQ Arena</div>
+              <p class="text-[10px] text-slate-400 mt-1">Rapid-fire CS & DSA screening.</p>
+            </div>
+            <button class="w-full py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition">Enter Arena</button>
+          </div>
+          <!-- Stage 2 Card -->
+          <div id="cardStage2" class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-mono text-slate-400 font-bold">STAGE 02</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-bold">NEXT</span>
+              </div>
+              <div class="font-extrabold text-sm text-white mt-1">Bug Hunt Arena</div>
+              <p class="text-[10px] text-slate-400 mt-1">Pinpoint & fix runtime bugs.</p>
+            </div>
+            <button class="w-full py-1.5 rounded-lg bg-slate-800 text-slate-400 font-bold text-xs">Stage 2</button>
+          </div>
+          <!-- Stage 3 Card -->
+          <div id="cardStage3" class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-mono text-slate-400 font-bold">STAGE 03</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-bold">LOCKED</span>
+              </div>
+              <div class="font-extrabold text-sm text-white mt-1">Final Coding</div>
+              <p class="text-[10px] text-slate-400 mt-1">Algorithmic Relay challenge.</p>
+            </div>
+            <button class="w-full py-1.5 rounded-lg bg-slate-800 text-slate-400 font-bold text-xs">Stage 3</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 3: ROUND 1 MCQ ARENA -->
+      <div id="scene3" class="absolute inset-0 p-6 flex flex-col transition-opacity duration-700 opacity-0 bg-[#07130e]">
+        <div class="flex justify-between items-center border-b border-emerald-900/60 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-mono font-bold text-emerald-400">ROUND 1: MCQ ARENA</span>
+            <span class="text-[10px] text-slate-400">&bull; Question 4 of 15</span>
+          </div>
+          <div class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-xs font-bold">⏱ 26:14 Left</div>
+        </div>
+        <div class="mt-3 flex-1 grid grid-cols-3 gap-4">
+          <!-- Question Area -->
+          <div class="col-span-2 space-y-3">
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700">
+              <span class="text-[10px] font-mono text-emerald-400 font-bold">ALGORITHMS & DSA</span>
+              <p class="text-xs text-white font-medium mt-1">What is the average time complexity of searching in a Balanced Binary Search Tree (AVL / Red-Black Tree)?</p>
+            </div>
+            <div class="space-y-1.5 text-xs">
+              <div id="mcqOptA" class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-700 hover:border-emerald-500 text-slate-300 cursor-pointer flex items-center justify-between">
+                <span>A) O(1) Constant Time</span>
+              </div>
+              <div id="mcqOptB" class="p-2.5 rounded-lg bg-emerald-950/80 border border-emerald-500 text-white font-bold cursor-pointer flex items-center justify-between">
+                <span>B) O(log N) Logarithmic Time</span>
+                <span class="text-emerald-400 text-xs">✓ Selected</span>
+              </div>
+              <div id="mcqOptC" class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300 flex items-center justify-between">
+                <span>C) O(N) Linear Time</span>
+              </div>
+            </div>
+            <div class="flex justify-between pt-1">
+              <button class="px-3 py-1.5 rounded bg-slate-800 text-slate-400 text-xs font-medium">Previous</button>
+              <button id="mcqSaveBtn" class="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow">Save & Next &rarr;</button>
+            </div>
+          </div>
+          <!-- Question Palette -->
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between">
+            <div>
+              <span class="text-[10px] font-mono uppercase text-slate-400 font-bold block pb-2 border-b border-slate-800">Question Palette</span>
+              <div class="grid grid-cols-5 gap-1.5 mt-2.5">
+                <span class="w-6 h-6 rounded bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">1</span>
+                <span class="w-6 h-6 rounded bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                <span class="w-6 h-6 rounded bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">3</span>
+                <span class="w-6 h-6 rounded bg-emerald-400 text-slate-950 font-bold text-[10px] flex items-center justify-center ring-2 ring-emerald-300">4</span>
+                <span class="w-6 h-6 rounded bg-slate-800 text-slate-400 text-[10px] flex items-center justify-center">5</span>
+              </div>
+            </div>
+            <button class="w-full py-1.5 rounded bg-emerald-700 text-white text-xs font-bold">Submit Stage 1</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 4: ROUND 2 BUG HUNT ARENA (DETAILED WALKTHROUGH) -->
+      <div id="scene4" class="absolute inset-0 p-5 flex flex-col transition-opacity duration-700 opacity-0 bg-[#08120d]">
+        <div class="flex justify-between items-center border-b border-emerald-900/60 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono font-bold text-emerald-400">ROUND 2: BUG HUNT ARENA</span>
+            <span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] font-mono">1 CRITICAL BUG DETECTED</span>
+          </div>
+          <div class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold">100 Marks</div>
+        </div>
+        <div class="mt-2.5 flex-1 grid grid-cols-12 gap-3">
+          <!-- Code Editor Panel -->
+          <div class="col-span-8 bg-slate-950 rounded-xl border border-slate-800 p-3 font-mono text-[11px] leading-relaxed flex flex-col justify-between">
+            <div class="space-y-1">
+              <div class="text-slate-500 text-[9px]">// File: transaction_processor.py</div>
+              <div class="text-slate-400">1&nbsp; def calculate_balance(transactions, fee_rate):</div>
+              <div class="text-slate-400">2&nbsp; &nbsp; &nbsp; total = 0</div>
+              <div id="buggyLine" class="p-1 rounded bg-red-950/70 border border-red-500/80 text-red-300 font-bold flex items-center justify-between">
+                <span>3&nbsp; &nbsp; &nbsp; for i in range(len(transactions) + 1): # BUG: IndexError</span>
+                <span class="text-[9px] px-1 py-0.2 rounded bg-red-500 text-white font-mono">SELECTED LINE</span>
+              </div>
+              <div class="text-slate-400">4&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; total += transactions[i] * (1 - fee_rate)</div>
+              <div class="text-slate-400">5&nbsp; &nbsp; &nbsp; return round(total, 2)</div>
+            </div>
+            <!-- Test Runner Output -->
+            <div class="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-[10px] text-emerald-300 font-mono flex items-center justify-between">
+              <span>Test Suite: 5/5 PASSED (Execution: 0.042s)</span>
+              <span class="text-emerald-400 font-bold">100% READY</span>
+            </div>
+          </div>
+          <!-- Bug Classifier & Actions Panel -->
+          <div class="col-span-4 bg-slate-900 rounded-xl border border-slate-800 p-3 flex flex-col justify-between text-xs">
+            <div class="space-y-2">
+              <span class="text-[10px] font-mono uppercase text-emerald-400 font-bold block">Bug Report Panel</span>
+              <div class="text-[11px] text-slate-300">Classify Identified Bug:</div>
+              <div class="p-2 rounded bg-slate-950 border border-emerald-500 text-emerald-300 font-bold text-[11px]">
+                &bull; Off-by-one / Out of Bounds
+              </div>
+              <div class="text-[10px] text-slate-400 leading-tight">
+                Change <code class="text-amber-400">len(transactions) + 1</code> to <code class="text-emerald-400">len(transactions)</code> to resolve runtime boundary exception.
+              </div>
+            </div>
+            <div class="space-y-2 pt-2">
+              <button id="bugRunBtn" class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow">Run Test Cases</button>
+              <button id="bugSubmitBtn" class="w-full py-1.5 rounded-lg bg-emerald-700 text-white font-bold text-xs">Submit Bug Fix</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 5: ROUND 3 FINAL CODING & RELAY -->
+      <div id="scene5" class="absolute inset-0 p-5 flex flex-col transition-opacity duration-700 opacity-0 bg-[#06110c]">
+        <div class="flex justify-between items-center border-b border-emerald-900/60 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono font-bold text-emerald-400">STAGE 03: FINAL CODING</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-mono">SYNCHRONIZED TERMINAL ACTIVE</span>
+          </div>
+          <div class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-xs font-bold">⏱ 45:00</div>
+        </div>
+        <div class="mt-2.5 flex-1 grid grid-cols-2 gap-3">
+          <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[10px] space-y-1">
+            <div class="text-slate-500">// Relay Workspace: Case 3 Flow Router</div>
+            <div class="text-emerald-400">class RelayFlowRouter:</div>
+            <div class="text-slate-300">&nbsp; def optimize_path(self, nodes, edges):</div>
+            <div class="text-slate-400">&nbsp; &nbsp; &nbsp; # Live collaborative IDE buffer</div>
+            <div class="text-slate-300">&nbsp; &nbsp; &nbsp; return min_cost_flow(nodes, edges)</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+            <div class="space-y-2">
+              <span class="text-[10px] font-mono uppercase text-emerald-400 font-bold block">Relay Test Suite</span>
+              <div class="space-y-1 text-[10px] font-mono">
+                <div class="text-emerald-400">✓ Case 1: Trie Autocomplete (20/20)</div>
+                <div class="text-emerald-400">✓ Case 2: Relay Scheduler (25/25)</div>
+                <div class="text-emerald-400">✓ Case 3: Final Flow Router (45/45)</div>
+              </div>
+            </div>
+            <button id="finalSubmitBtn" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-lg">Submit Final Code</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 6: GOOGLE CELEBRATION MODAL & CONFETTI -->
+      <div id="scene6" class="absolute inset-0 flex items-center justify-center transition-opacity duration-700 opacity-0 bg-slate-950/80 backdrop-blur-sm z-50">
+        <!-- Confetti Particles Canvas -->
+        <canvas id="confettiCanvas" class="absolute inset-0 pointer-events-none w-full h-full"></canvas>
+        <!-- Modal Card -->
+        <div class="relative bg-white text-slate-900 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border-t-4 border-emerald-500 scale-95 transition-transform duration-500">
+          <div class="text-4xl mb-2 animate-bounce">🏆</div>
+          <h2 class="text-xl font-extrabold text-slate-900">Congratulations!</h2>
+          <p class="text-xs text-slate-600 mt-1">You nailed it! Code Hunters successfully conquered all 3 stages of IGNITRON 2K26.</p>
+          <div class="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono space-y-1">
+            <div class="flex justify-between"><span>Final Score:</span><span class="font-bold text-emerald-700">194 / 200 pts</span></div>
+            <div class="flex justify-between"><span>Tournament Rank:</span><span class="font-bold text-emerald-700">Rank #1 (Champion)</span></div>
+          </div>
+          <div class="mt-5">
+            <span class="text-[#1a73e8] font-bold text-base cursor-pointer hover:underline select-none">
+              Awesome
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Playback Controls Bar -->
+    <div class="p-4 bg-slate-950 flex flex-col gap-3">
+      <!-- Progress Bar -->
+      <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden cursor-pointer" onclick="seek(event)">
+        <div id="progressBar" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+      </div>
+      <!-- Buttons -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <button id="playBtn" onclick="togglePlay()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow">
+            <span id="playIcon">▶</span> <span id="playText">Play Demo (60s)</span>
+          </button>
+          <button onclick="restartDemo()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer border border-slate-700">
+            ↺ Restart
+          </button>
+          <span id="stepIndicator" class="text-xs font-mono text-slate-400">Step 1 of 6: Landing Page</span>
+        </div>
+        <div class="text-right">
+          <div class="text-[11px] font-mono text-slate-500">Record with: <span class="text-emerald-400 font-bold">Win + Alt + R</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let isPlaying = false;
+    let voiceEnabled = true;
+    let currentTime = 0;
+    const totalDuration = 60;
+    let intervalId = null;
+
+    const timeline = [
+      {
+        start: 0,
+        end: 9,
+        sceneId: 'scene1',
+        badge: 'Scene 1: Platform Overview',
+        text: 'Welcome to IGNITRON 2K26 Coding Collab. A fast-paced, real-time elimination platform built for GM University with 3 competitive stages.',
+        cursor: { x: '88%', y: '12%', label: 'Click Participant Login' },
+        action: () => triggerRipple('88%', '12%')
+      },
+      {
+        start: 10,
+        end: 19,
+        sceneId: 'scene2',
+        badge: 'Scene 2: Team Roster & Dashboard',
+        text: 'Participants log in with their assigned team credentials. The dashboard displays the verified team roster, relay concurrency, and the 3 arenas.',
+        cursor: { x: '22%', y: '68%', label: 'Enter Round 1' },
+        action: () => triggerRipple('22%', '68%')
+      },
+      {
+        start: 20,
+        end: 32,
+        sceneId: 'scene3',
+        badge: 'Scene 3: Round 1 MCQ Arena',
+        text: 'Round 1 is the rapid-fire MCQ Arena. Participants review questions, select answers, track progress via the question palette, and submit.',
+        cursor: { x: '55%', y: '78%', label: 'Save & Next' },
+        action: () => triggerRipple('55%', '78%')
+      },
+      {
+        start: 33,
+        end: 46,
+        sceneId: 'scene4',
+        badge: 'Scene 4: Round 2 Bug Hunt Arena',
+        text: 'Round 2 is Bug Hunt. Contestants inspect live codebases, pinpoint runtime flaws, classify the bug type, and run comprehensive test suites to pass.',
+        cursor: { x: '88%', y: '74%', label: 'Run Test Cases' },
+        action: () => triggerRipple('88%', '74%')
+      },
+      {
+        start: 47,
+        end: 54,
+        sceneId: 'scene5',
+        badge: 'Scene 5: Stage 03 Final Coding',
+        text: 'Stage 03 is the Final Coding Relay. Teams collaborate in synchronized workspaces solving complex algorithmic cases under strict test constraints.',
+        cursor: { x: '75%', y: '82%', label: 'Submit Final Code' },
+        action: () => triggerRipple('75%', '82%')
+      },
+      {
+        start: 55,
+        end: 60,
+        sceneId: 'scene6',
+        badge: 'Scene 6: Grand Celebration',
+        text: 'Upon qualification, the official Google celebration card and full-screen confetti effect trigger, marking tournament victory.',
+        cursor: { x: '50%', y: '68%', label: 'Awesome' },
+        action: () => {
+          triggerRipple('50%', '68%');
+          launchConfetti();
+        }
+      }
+    ];
+
+    function speakText(text) {
+      if (!voiceEnabled || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function toggleVoice() {
+      voiceEnabled = !voiceEnabled;
+      document.getElementById('voiceText').innerText = voiceEnabled ? 'Voice: ON' : 'Voice: OFF';
+      document.getElementById('voiceIcon').innerText = voiceEnabled ? '🔊' : '🔇';
+      if (!voiceEnabled && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    function togglePlay() {
+      if (isPlaying) {
+        pauseDemo();
+      } else {
+        playDemo();
+      }
+    }
+
+    function playDemo() {
+      isPlaying = true;
+      document.getElementById('playText').innerText = 'Pause Demo';
+      document.getElementById('playIcon').innerText = '⏸';
+      
+      intervalId = setInterval(() => {
+        currentTime++;
+        if (currentTime > totalDuration) {
+          restartDemo();
+          return;
+        }
+        updateFrame();
+      }, 1000);
+      updateFrame();
+    }
+
+    function pauseDemo() {
+      isPlaying = false;
+      document.getElementById('playText').innerText = 'Play Demo (60s)';
+      document.getElementById('playIcon').innerText = '▶';
+      clearInterval(intervalId);
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    }
+
+    function restartDemo() {
+      pauseDemo();
+      currentTime = 0;
+      updateFrame();
+      playDemo();
+    }
+
+    function triggerRipple(x, y) {
+      const ripple = document.getElementById('clickRipple');
+      ripple.classList.remove('click-ripple');
+      void ripple.offsetWidth;
+      ripple.classList.add('click-ripple');
+    }
+
+    let lastSceneId = null;
+
+    function updateFrame() {
+      // Update Timecode & Progress Bar
+      const mins = String(Math.floor(currentTime / 60)).padStart(2, '0');
+      const secs = String(currentTime % 60).padStart(2, '0');
+      document.getElementById('timecode').innerText = `${mins}:${secs} / 01:00`;
+      document.getElementById('progressBar').style.width = `${(currentTime / totalDuration) * 100}%`;
+
+      // Find Current Scene
+      const scene = timeline.find(s => currentTime >= s.start && currentTime <= s.end) || timeline[0];
+
+      // Update Subtitles & Badge
+      document.getElementById('subtitleText').innerText = scene.text;
+      document.getElementById('sceneBadge').innerText = scene.badge;
+
+      // Update Cursor Position
+      const cursor = document.getElementById('virtualCursor');
+      cursor.style.left = scene.cursor.x;
+      cursor.style.top = scene.cursor.y;
+      const label = document.getElementById('cursorLabel');
+      label.innerText = scene.cursor.label;
+      label.style.opacity = '1';
+
+      // Switch Visible Scene
+      if (scene.sceneId !== lastSceneId) {
+        ['scene1', 'scene2', 'scene3', 'scene4', 'scene5', 'scene6'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.opacity = (id === scene.sceneId) ? '1' : '0';
+        });
+        speakText(scene.text);
+        if (scene.action) scene.action();
+        lastSceneId = scene.sceneId;
+      }
+    }
+
+    // Confetti Canvas Animation
+    function launchConfetti() {
+      const canvas = document.getElementById('confettiCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      const pieces = [];
+      const colors = ['#10B981', '#34D399', '#3B82F6', '#EF4444', '#F59E0B', '#8B5CF6'];
+
+      for (let i = 0; i < 70; i++) {
+        pieces.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          velY: Math.random() * 3 + 2,
+          velX: (Math.random() - 0.5) * 2,
+          rot: Math.random() * 360
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pieces.forEach(p => {
+          ctx.save();
+          ctx.fillStyle = p.color;
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rot * Math.PI) / 180);
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size / 2);
+          ctx.restore();
+          p.y += p.velY;
+          p.x += p.velX;
+          p.rot += 3;
+          if (p.y > canvas.height) p.y = -10;
+        });
+        if (currentTime >= 55) requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // Initialize first frame
+    updateFrame();
+  </script>
+</body>
+</html>
