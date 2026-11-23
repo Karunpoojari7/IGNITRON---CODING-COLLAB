@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { GoldenSnowfall } from '../components/GoldenSnowfall';
-import { Shield, Lock, Mail, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Shield, Lock, Mail, AlertCircle, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+
 
 export const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -111,13 +113,26 @@ export const AdminLoginPage: React.FC = () => {
                 <Lock className="w-4 h-4" />
               </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full pl-9 pr-3 py-2.5 bg-[#011108]/90 border border-emerald-500/30 rounded-xl text-sm text-slate-100 placeholder-emerald-200/40 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/25 transition-colors shadow-inner"
+                className="w-full pl-9 pr-10 py-2.5 bg-[#011108]/90 border border-emerald-500/30 rounded-xl text-sm text-slate-100 placeholder-emerald-200/40 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/25 transition-colors shadow-inner"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-emerald-400/60 hover:text-emerald-300 focus:outline-none focus:text-emerald-300 transition-colors cursor-pointer"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
 
