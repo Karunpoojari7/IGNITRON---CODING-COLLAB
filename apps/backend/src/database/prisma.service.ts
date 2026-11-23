@@ -211,7 +211,7 @@ export class PrismaService
       await this.ensureColumn('competition_rounds', 'is_leaderboard_published', 'BOOLEAN NOT NULL DEFAULT false');
       await this.ensureColumn('competition_rounds', 'leaderboard_published_at', 'DATETIME(3) NULL');
       // 11a. Normalize stale Round 3 name in DB (rename "Final Boss Coding" → "Final Coding")
-      await this.$executeRawUnsafe(`UPDATE \`competition_rounds\` SET \`name\` = 'Round 3: Final Coding' WHERE \`name\` LIKE '%Final Boss%';`).catch(() => {});
+      await this.$executeRawUnsafe(`UPDATE \`competition_rounds\` SET \`name\` = 'Round 3: Final Coding' WHERE \`name\` LIKE '%Final Boss%' OR \`name\` LIKE '%Boss%';`).catch(() => {});
 
       // 12. Ensure columns exist on teams
       await this.ensureColumn('teams', 'must_change_password', 'BOOLEAN NOT NULL DEFAULT true');
