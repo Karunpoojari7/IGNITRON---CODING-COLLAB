@@ -379,7 +379,7 @@ export const QuestionManagementPage: React.FC = () => {
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Curate and configure problem statements, multiple-choice options, faulty codebases, and multi-case boss challenges.
+              Curate and configure problem statements, multiple-choice options, faulty codebases, and multi-case final coding challenges.
             </p>
           </div>
 
@@ -504,7 +504,7 @@ export const QuestionManagementPage: React.FC = () => {
             <div className="max-w-sm mx-auto">
               <h3 className="text-sm font-bold text-slate-800">No questions found for Round {activeRound}</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Click &quot;Seed Official Bank&quot; above to populate the official 15 MCQs, bug hunt codebase, and boss challenges automatically.
+                Click &quot;Seed Official Bank&quot; above to populate the official 15 MCQs, bug hunt codebase, and final coding challenges automatically.
               </p>
             </div>
             <button
@@ -801,7 +801,7 @@ export const QuestionManagementPage: React.FC = () => {
                     >
                       <option value={1}>Case 1 (Trie Autocomplete - 20)</option>
                       <option value={2}>Case 2 (Relay Scheduler - 25)</option>
-                      <option value={3}>Case 3 (Boss Flow Router - 45)</option>
+                      <option value={3}>Case 3 (Final Flow Router - 45)</option>
                     </select>
                   </div>
                 ) : (
