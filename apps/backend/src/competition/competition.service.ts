@@ -1755,8 +1755,8 @@ export class CompetitionService implements OnModuleInit {
 
       return {
         roundNumber: def.roundNumber,
-        name: dbRound?.name || def.name,
-        description: dbRound?.description || def.description,
+        name: (dbRound?.name || def.name).replace(/\bBoss\b/gi, '').replace(/\s+/g, ' ').trim(),
+        description: (dbRound?.description || def.description).replace(/\bBoss\b/gi, '').replace(/\s+/g, ' ').trim(),
         durationMinutes: dbRound?.durationMinutes || def.durationMinutes,
         maximumMarks: dbRound ? Number(dbRound.maximumMarks) : def.maximumMarks,
         status: cardStatus,
