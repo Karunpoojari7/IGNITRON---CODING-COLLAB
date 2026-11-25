@@ -12,7 +12,6 @@ import {
   ChevronRight,
   Download,
   Search,
-  Lock,
   Flame,
   Trophy,
   BarChart2,
@@ -67,28 +66,157 @@ const customDarkTheme = EditorView.theme({
   },
 });
 
-// Default Mock/Telemetry dataset matching reference screenshot
-const LEADERBOARD_ROWS = [
-  { teamId: 'T101', teamName: 'Orion', r1: 28, r2: 86, r3: 91, penalty: 120 },
-  { teamId: 'T102', teamName: 'ByteForge', r1: 29, r2: 82, r3: 91, penalty: 90 },
-  { teamId: 'T103', teamName: 'NullNinjas', r1: 27, r2: 90, r3: 88, penalty: 60 },
-  { teamId: 'T104', teamName: 'LogicLoop', r1: 25, r2: 86, r3: 94, penalty: 180 },
-  { teamId: 'T105', teamName: 'StackSquad', r1: 29, r2: 82, r3: 88, penalty: 90 },
-  { teamId: 'T106', teamName: 'CodeCrafters', r1: 26, r2: 85, r3: 88, penalty: 75 },
-  { teamId: 'T107', teamName: 'BitBlazers', r1: 24, r2: 80, r3: 84, penalty: 30 },
-  { teamId: 'T108', teamName: 'AlgoAces', r1: 26, r2: 85, r3: 88, penalty: 75 },
-];
+// Master Datasets definitions & fallback preview records
+export interface DatasetDef {
+  fileName: string;
+  dfName: string;
+  title: string;
+  description: string;
+  columns: string[];
+  previewRows: Record<string, any>[];
+  fieldInfo: { field: string; type: string; desc: string }[];
+}
 
-const LEADERBOARD_FIELD_INFO = [
-  { field: 'Team ID', type: 'string', desc: 'Unique team registration identifier (e.g. T101)' },
-  { field: 'Team Name', type: 'string', desc: 'Registered collegiate team display name' },
-  { field: 'R1', type: 'integer (0-30)', desc: 'Points awarded in Round 1: MCQ Arena' },
-  { field: 'R2', type: 'integer (0-100)', desc: 'Points awarded in Round 2: Bug Hunt Arena' },
-  { field: 'R3', type: 'integer (0-100)', desc: 'Points awarded in Round 3: Event Analytics Engine' },
-  { field: 'Penalty (s)', type: 'integer (seconds)', desc: 'Cumulative execution time & penalty used for Case 3 tie-breaking' },
-];
+export const DATASET_REGISTRY: Record<string, DatasetDef> = {
+  'round_performance.csv': {
+    fileName: 'round_performance.csv',
+    dfName: 'performance',
+    title: 'Multi-Round Performance Telemetry',
+    description: '300 granular records tracking participant scores, accuracy, speed, and completion times across all 3 rounds.',
+    columns: ['participant_id', 'round_number', 'raw_score', 'maximum_score', 'accuracy_score', 'speed_score', 'completion_score', 'completion_time_seconds', 'penalty_seconds'],
+    previewRows: [
+      { participant_id: 'P101', round_number: 1, raw_score: 25.4, maximum_score: 30, accuracy_score: 87.0, speed_score: 93.0, completion_score: 94.0, completion_time_seconds: 1554, penalty_seconds: 180 },
+      { participant_id: 'P101', round_number: 2, raw_score: 87.4, maximum_score: 100, accuracy_score: 84.0, speed_score: 80.8, completion_score: 88.5, completion_time_seconds: 1778, penalty_seconds: 0 },
+      { participant_id: 'P101', round_number: 3, raw_score: 94.6, maximum_score: 100, accuracy_score: 87.0, speed_score: 88.4, completion_score: 91.5, completion_time_seconds: 3221, penalty_seconds: 180 },
+      { participant_id: 'P102', round_number: 1, raw_score: 22.7, maximum_score: 30, accuracy_score: 76.2, speed_score: 78.4, completion_score: 70.7, completion_time_seconds: 1233, penalty_seconds: 180 },
+      { participant_id: 'P102', round_number: 2, raw_score: 78.5, maximum_score: 100, accuracy_score: 68.8, speed_score: 80.1, completion_score: 76.5, completion_time_seconds: 1933, penalty_seconds: 120 },
+      { participant_id: 'P102', round_number: 3, raw_score: 67.7, maximum_score: 100, accuracy_score: 66.1, speed_score: 62.9, completion_score: 75.8, completion_time_seconds: 3336, penalty_seconds: 60 },
+      { participant_id: 'P103', round_number: 1, raw_score: 14.1, maximum_score: 30, accuracy_score: 50.3, speed_score: 50.0, completion_score: 43.2, completion_time_seconds: 1408, penalty_seconds: 0 },
+      { participant_id: 'P103', round_number: 2, raw_score: 47.0, maximum_score: 100, accuracy_score: 43.9, speed_score: 52.1, completion_score: 44.5, completion_time_seconds: 1833, penalty_seconds: 0 },
+    ],
+    fieldInfo: [
+      { field: 'participant_id', type: 'string (PK)', desc: 'Unique contestant identification code (e.g. P101)' },
+      { field: 'round_number', type: 'integer (1, 2, 3)', desc: 'Tournament competition round index' },
+      { field: 'raw_score', type: 'float', desc: 'Actual points earned by the participant in this round' },
+      { field: 'maximum_score', type: 'integer', desc: 'Maximum available score for the round (R1: 30, R2: 100, R3: 100)' },
+      { field: 'accuracy_score', type: 'float (0-100)', desc: 'Algorithmic accuracy percentage' },
+      { field: 'speed_score', type: 'float (0-100)', desc: 'Execution and completion speed rating' },
+      { field: 'completion_score', type: 'float (0-100)', desc: 'Aggregate problem completion benchmark' },
+      { field: 'completion_time_seconds', type: 'integer', desc: 'Total wall-clock duration in seconds' },
+      { field: 'penalty_seconds', type: 'integer', desc: 'Incurred penalty seconds for failed test runs' },
+    ],
+  },
+  'participants.csv': {
+    fileName: 'participants.csv',
+    dfName: 'participants',
+    title: 'Tournament Participants Roster',
+    description: 'Demographic and academic profiles for 100 tournament contestants across 50 collegiate teams.',
+    columns: ['participant_id', 'team_id', 'participant_name', 'department', 'year', 'college'],
+    previewRows: [
+      { participant_id: 'P101', team_id: 'T101', participant_name: 'Akash Patel', department: 'Artificial Intelligence & Data Science', year: 4, college: 'Institute of Technology & Science' },
+      { participant_id: 'P102', team_id: 'T101', participant_name: 'Vikram Chauhan', department: 'Artificial Intelligence & Data Science', year: 3, college: 'University College of Engineering' },
+      { participant_id: 'P103', team_id: 'T102', participant_name: 'Chetan Kapoor', department: 'Information Technology', year: 4, college: 'Academy of Computer Studies' },
+      { participant_id: 'P104', team_id: 'T102', participant_name: 'Rohit Patel', department: 'Information Technology', year: 2, college: 'Institute of Technology & Science' },
+      { participant_id: 'P105', team_id: 'T103', participant_name: 'Kiran Nair', department: 'Information Technology', year: 3, college: 'University College of Engineering' },
+      { participant_id: 'P106', team_id: 'T103', participant_name: 'Advait Gupta', department: 'Information Technology', year: 2, college: 'Metropolitan Technical Institute' },
+      { participant_id: 'P107', team_id: 'T104', participant_name: 'Kiran Chauhan', department: 'Artificial Intelligence & Data Science', year: 3, college: 'Metropolitan Technical Institute' },
+      { participant_id: 'P108', team_id: 'T104', participant_name: 'Sahil Rao', department: 'Artificial Intelligence & Data Science', year: 2, college: 'Academy of Computer Studies' },
+    ],
+    fieldInfo: [
+      { field: 'participant_id', type: 'string (PK)', desc: 'Primary key identifying each individual participant' },
+      { field: 'team_id', type: 'string (FK)', desc: 'Foreign key referencing collegiate team assignment (e.g. T101)' },
+      { field: 'participant_name', type: 'string', desc: 'Full registered contestant name' },
+      { field: 'department', type: 'string', desc: 'Academic engineering discipline' },
+      { field: 'year', type: 'integer (1-4)', desc: 'Current academic collegiate study year' },
+      { field: 'college', type: 'string', desc: 'Affiliated university or engineering institute' },
+    ],
+  },
+  'submission_logs.csv': {
+    fileName: 'submission_logs.csv',
+    dfName: 'submissions',
+    title: 'Code Execution Submission Logs',
+    description: '1,000 real-time telemetry records tracking language runtimes, memory, execution times, and verdicts.',
+    columns: ['submission_id', 'participant_id', 'language', 'execution_status', 'execution_time', 'memory_used', 'submitted_at'],
+    previewRows: [
+      { submission_id: 'SUB_10001', participant_id: 'P186', language: 'cpp', execution_status: 'TIME_LIMIT_EXCEEDED', execution_time: 1.097, memory_used: 56150, submitted_at: '2026-11-19T14:55:13.000Z' },
+      { submission_id: 'SUB_10002', participant_id: 'P169', language: 'python', execution_status: 'ACCEPTED', execution_time: 0.953, memory_used: 77247, submitted_at: '2026-11-19T11:24:32.000Z' },
+      { submission_id: 'SUB_10003', participant_id: 'P153', language: 'python', execution_status: 'WRONG_ANSWER', execution_time: 1.716, memory_used: 62220, submitted_at: '2026-11-19T10:07:47.000Z' },
+      { submission_id: 'SUB_10004', participant_id: 'P200', language: 'python', execution_status: 'ACCEPTED', execution_time: 0.955, memory_used: 30831, submitted_at: '2026-11-19T14:08:09.000Z' },
+      { submission_id: 'SUB_10005', participant_id: 'P130', language: 'python', execution_status: 'COMPILATION_ERROR', execution_time: 0.593, memory_used: 24062, submitted_at: '2026-11-19T14:05:13.000Z' },
+      { submission_id: 'SUB_10006', participant_id: 'P132', language: 'cpp', execution_status: 'WRONG_ANSWER', execution_time: 0.243, memory_used: 78217, submitted_at: '2026-11-19T10:00:30.000Z' },
+      { submission_id: 'SUB_10007', participant_id: 'P129', language: 'python', execution_status: 'ACCEPTED', execution_time: 1.581, memory_used: 36708, submitted_at: '2026-11-19T11:15:51.000Z' },
+      { submission_id: 'SUB_10008', participant_id: 'P194', language: 'java', execution_status: 'COMPILATION_ERROR', execution_time: 0.823, memory_used: 69094, submitted_at: '2026-11-19T14:05:25.000Z' },
+    ],
+    fieldInfo: [
+      { field: 'submission_id', type: 'string (PK)', desc: 'Unique compilation run identifier (e.g. SUB_10001)' },
+      { field: 'participant_id', type: 'string (FK)', desc: 'Submitting contestant identifier' },
+      { field: 'language', type: 'string', desc: 'Compiler runtime environment (python, javascript, java, cpp)' },
+      { field: 'execution_status', type: 'string', desc: 'Verdict: ACCEPTED, WRONG_ANSWER, TIME_LIMIT_EXCEEDED, COMPILATION_ERROR' },
+      { field: 'execution_time', type: 'float (seconds)', desc: 'Runtime execution latency in test sandbox' },
+      { field: 'memory_used', type: 'integer (KB)', desc: 'Peak memory consumption during test suite evaluation' },
+    ],
+  },
+  'event_activity.csv': {
+    fileName: 'event_activity.csv',
+    dfName: 'activity',
+    title: 'Event Activity & Security Audit',
+    description: '500 audit logs detailing participant interactions: LOGIN, TEST_RUN, DOC_READ, SUBMIT, DRAFT_SAVE, VIEW_LEADERBOARD.',
+    columns: ['activity_id', 'participant_id', 'activity_type', 'duration_minutes', 'engagement_score', 'activity_timestamp'],
+    previewRows: [
+      { activity_id: 'ACT_1001', participant_id: 'P131', activity_type: 'LOGIN', duration_minutes: 29, engagement_score: 58, activity_timestamp: '2026-11-19T13:43:39.000Z' },
+      { activity_id: 'ACT_1002', participant_id: 'P167', activity_type: 'TEST_RUN', duration_minutes: 15, engagement_score: 89, activity_timestamp: '2026-11-19T12:35:54.000Z' },
+      { activity_id: 'ACT_1003', participant_id: 'P120', activity_type: 'DRAFT_SAVE', duration_minutes: 11, engagement_score: 83, activity_timestamp: '2026-11-19T12:42:05.000Z' },
+      { activity_id: 'ACT_1004', participant_id: 'P127', activity_type: 'LOGIN', duration_minutes: 19, engagement_score: 86, activity_timestamp: '2026-11-19T11:57:00.000Z' },
+      { activity_id: 'ACT_1005', participant_id: 'P151', activity_type: 'DOC_READ', duration_minutes: 37, engagement_score: 94, activity_timestamp: '2026-11-19T11:01:18.000Z' },
+      { activity_id: 'ACT_1006', participant_id: 'P179', activity_type: 'TEST_RUN', duration_minutes: 38, engagement_score: 89, activity_timestamp: '2026-11-19T13:43:36.000Z' },
+      { activity_id: 'ACT_1007', participant_id: 'P176', activity_type: 'DRAFT_SAVE', duration_minutes: 10, engagement_score: 74, activity_timestamp: '2026-11-19T11:06:43.000Z' },
+      { activity_id: 'ACT_1008', participant_id: 'P128', activity_type: 'VIEW_LEADERBOARD', duration_minutes: 32, engagement_score: 43, activity_timestamp: '2026-11-19T14:35:51.000Z' },
+    ],
+    fieldInfo: [
+      { field: 'activity_id', type: 'string (PK)', desc: 'Audit log identifier' },
+      { field: 'participant_id', type: 'string (FK)', desc: 'Participant who triggered the event' },
+      { field: 'activity_type', type: 'string', desc: 'Action: LOGIN, TEST_RUN, DOC_READ, SUBMIT, DRAFT_SAVE, VIEW_LEADERBOARD' },
+      { field: 'duration_minutes', type: 'integer', desc: 'Duration spent engaged in activity' },
+      { field: 'engagement_score', type: 'integer (0-100)', desc: 'System engagement intensity metric' },
+      { field: 'activity_timestamp', type: 'timestamp', desc: 'ISO 8601 audit timestamp' },
+    ],
+  },
+  'teams.csv': {
+    fileName: 'teams.csv',
+    dfName: 'teams',
+    title: 'Collegiate Teams Master Directory',
+    description: '50 competing collegiate teams with institutional affiliations, slots, and registration timestamps.',
+    columns: ['team_id', 'team_name', 'department', 'team_size'],
+    previewRows: [
+      { team_id: 'T101', team_name: 'Tensor Titans', department: 'Artificial Intelligence & Data Science', team_size: 2 },
+      { team_id: 'T102', team_name: 'Nexus Hunters', department: 'Information Technology', team_size: 2 },
+      { team_id: 'T103', team_name: 'Omega Sentinels', department: 'Information Technology', team_size: 2 },
+      { team_id: 'T104', team_name: 'Matrix Pioneers', department: 'Artificial Intelligence & Data Science', team_size: 2 },
+      { team_id: 'T105', team_name: 'Terminal Ninjas', department: 'Computer Science & Engineering', team_size: 2 },
+      { team_id: 'T106', team_name: 'Recursion Masters', department: 'Artificial Intelligence & Data Science', team_size: 2 },
+      { team_id: 'T107', team_name: 'Nexus Warriors', department: 'Computer Science & Engineering', team_size: 2 },
+      { team_id: 'T108', team_name: 'Vector Gladiators', department: 'Information Technology', team_size: 2 },
+    ],
+    fieldInfo: [
+      { field: 'team_id', type: 'string (PK)', desc: 'Collegiate team identifier (e.g. T101)' },
+      { field: 'team_name', type: 'string', desc: 'Official registered team name' },
+      { field: 'department', type: 'string', desc: 'Academic engineering department' },
+      { field: 'team_size', type: 'integer', desc: 'Number of relay participants (standard: 2)' },
+    ],
+  },
+};
 
-// Visual metadata per question matching reference design
+// Automatic Question to Target Dataset Mapping
+export const QUESTION_DATASET_MAP: Record<number, string> = {
+  1: 'round_performance.csv',
+  2: 'round_performance.csv',
+  3: 'participants.csv',
+  4: 'submission_logs.csv',
+  5: 'event_activity.csv',
+  6: 'round_performance.csv',
+};
+
+// Visual metadata per question
 interface DisplayMeta {
   shortTitle: string;
   caseBadge: string;
@@ -100,81 +228,111 @@ interface DisplayMeta {
 
 const QUESTION_DISPLAY_META: Record<number, DisplayMeta> = {
   1: {
-    shortTitle: 'Total Score Calculation',
-    caseBadge: 'Case 1 – Basic Analytics',
-    caseGroupTitle: 'Case 1: Basic Analytics',
-    promptText: 'Which implementation is correct?',
+    shortTitle: 'Calculate Average Round Scores',
+    caseBadge: 'Case 1 – Performance Analysis',
+    caseGroupTitle: 'Case 1: Participant Performance Analysis',
+    promptText: 'Find the average raw score obtained by participants in each round:',
     optionsFallback: [
-      { key: 'A', label: 'Option A', code: 'total = r1 + r2 + r3' },
-      { key: 'B', label: 'Option B', code: 'total = r1 + r2' },
-      { key: 'C', label: 'Option C', code: 'total = r1 + r2 + r3 - penaltySeconds' },
-      { key: 'D', label: 'Option D', subtext: 'None of these are correct? Write the correct implementation in the editor below.' },
+      { key: 'A', label: 'Option A', code: 'performance.groupby("round_number")["raw_score"].mean()' },
+      { key: 'B', label: 'Option B', code: 'performance.groupby("participant_id")["raw_score"].mean()' },
+      { key: 'C', label: 'Option C', code: 'performance.groupby("round_number")["maximum_score"].sum()' },
+      { key: 'D', label: 'Option D', subtext: 'Write your own Python code below if none of the above are valid.' },
     ],
     rules: [
-      'Total score = R1 + R2 + R3.',
-      'Penalty seconds are not part of the score (used for tie-breaking in Case 3).',
-      'All scores are integers (R1 ≤ 30, R2 ≤ 100, R3 ≤ 100).',
-      'Use the given dataset for the questions in this round.',
+      'Target DataFrame: performance (round_performance.csv).',
+      'Group records by round_number (Rounds 1, 2, 3).',
+      'Calculate the arithmetic mean of raw_score.',
+      'Expected Output: Round 1: 19.96, Round 2: 66.12, Round 3: 67.11.',
     ],
   },
   2: {
-    shortTitle: 'Leaderboard Ranking',
-    caseBadge: 'Case 1 – Basic Analytics',
-    caseGroupTitle: 'Case 1: Basic Analytics',
-    promptText: 'Implement normalized multi-round leaderboard ranking in Python:',
+    shortTitle: 'Find the Top 5 Performers',
+    caseBadge: 'Case 1 – Performance Analysis',
+    caseGroupTitle: 'Case 1: Participant Performance Analysis',
+    promptText: 'Identify the five participants who obtained the highest raw scores in Round 3:',
+    optionsFallback: [
+      { key: 'A', label: 'Option A', code: 'performance[performance["round_number"] == 3].nlargest(5, "completion_time_seconds")' },
+      { key: 'B', label: 'Option B', code: 'performance[performance["round_number"] == 3].nlargest(5, "raw_score")' },
+      { key: 'C', label: 'Option C', code: 'performance.nlargest(5, "raw_score")' },
+      { key: 'D', label: 'Option D', subtext: 'Write your own Python code below if none of the above are valid.' },
+    ],
     rules: [
-      'Rank teams by total weighted performance in descending order.',
-      'Normalize Round 1 out of 30, Round 2 out of 100, Round 3 out of 100.',
-      'Weighted formula = (r1_pct * 0.30) + (r2_pct * 0.30) + (r3_pct * 0.40).',
-      'Sort teams descending by average_weighted_score. If tied, sort by team_id ascending.',
+      'Target DataFrame: performance (round_performance.csv).',
+      'Filter records where round_number == 3.',
+      'Extract the 5 highest participants sorted by raw_score descending.',
+      'Expected Top 5: P136 (100.0), P170 (100.0), P134 (97.2), P101 (94.6), P189 (92.1).',
     ],
   },
   3: {
-    shortTitle: 'Record Validation',
-    caseBadge: 'Case 2 – Data Integrity',
-    caseGroupTitle: 'Case 2: Data Integrity',
-    promptText: 'Select the optimal deduplication method for tournament telemetry:',
+    shortTitle: 'Identify Duplicate Participant IDs',
+    caseBadge: 'Case 2 – Data Cleaning & Integrity',
+    caseGroupTitle: 'Case 2: Data Cleaning and Submission Analysis',
+    promptText: 'Find all duplicate participant IDs in the participants dataset:',
+    optionsFallback: [
+      { key: 'A', label: 'Option A', code: 'participants[participants.duplicated("participant_id")]' },
+      { key: 'B', label: 'Option B', code: 'participants.drop_duplicates("participant_id")' },
+      { key: 'C', label: 'Option C', code: 'participants[participants["participant_id"].isna()]' },
+      { key: 'D', label: 'Option D', subtext: 'Write your own Python code below if none of the above are valid.' },
+    ],
     rules: [
-      'Detect and isolate duplicated submission records by participant and timestamp.',
-      'Keep the earliest submission timestamp when duplicates exist.',
-      'Validate that all round scores adhere to standard numerical ranges.',
-      'Return clean Pandas DataFrame without row fragmentation.',
+      'Target DataFrame: participants (participants.csv).',
+      'Detect duplicate records based on primary key participant_id.',
+      'Note: In the official master dataset, no duplicate IDs exist (returns an empty DataFrame).',
+      'This validates data-cleaning integrity and unique constraint preservation.',
     ],
   },
   4: {
-    shortTitle: 'Duplicate Handling',
-    caseBadge: 'Case 2 – Data Integrity',
-    caseGroupTitle: 'Case 2: Data Integrity',
-    promptText: 'Implement IQR statistical anomaly filter for submission latencies:',
+    shortTitle: 'Count Accepted Submissions',
+    caseBadge: 'Case 2 – Data Cleaning & Integrity',
+    caseGroupTitle: 'Case 2: Data Cleaning and Submission Analysis',
+    promptText: 'Find the number of accepted programming submissions for each programming language:',
+    optionsFallback: [
+      { key: 'A', label: 'Option A', code: 'submissions.groupby("language")["submission_id"].count()' },
+      { key: 'B', label: 'Option B', code: 'submissions.groupby("execution_status")["language"].count()' },
+      { key: 'C', label: 'Option C', code: 'submissions[submissions["execution_status"] == "ACCEPTED"].groupby("language")["submission_id"].count()' },
+      { key: 'D', label: 'Option D', subtext: 'Write your own Python code below if none of the above are valid.' },
+    ],
     rules: [
-      'Compute Interquartile Range (IQR = Q3 - Q1) for runtime anomalies.',
-      'Outlier boundaries: Lower = Q1 - 1.5 * IQR, Upper = Q3 + 1.5 * IQR.',
-      'Filter out submission anomalies outside valid operational thresholds.',
-      'Flag suspicious records with anomaly score for tournament review.',
+      'Target DataFrame: submissions (submission_logs.csv).',
+      'Filter records where execution_status == "ACCEPTED".',
+      'Group by language and count total accepted submissions.',
+      'Expected Counts: Python: 92, JavaScript: 80, Java: 75, C++: 55.',
     ],
   },
   5: {
-    shortTitle: 'Tie-Breaking Logic',
-    caseBadge: 'Case 3 – Advanced Analytics',
-    caseGroupTitle: 'Case 3: Advanced Analytics',
-    promptText: 'Select the multi-column tie-breaker expression adhering to tournament rules:',
+    shortTitle: 'Analyse Participant Engagement',
+    caseBadge: 'Case 3 – Event Intelligence & Ranking',
+    caseGroupTitle: 'Case 3: Event Intelligence and Team Ranking',
+    promptText: 'Calculate the average engagement score for each activity type (LOGIN, TEST_RUN, DOC_READ, SUBMIT):',
+    optionsFallback: [
+      { key: 'A', label: 'Option A', code: 'activity.groupby("activity_type")["duration_minutes"].mean()' },
+      { key: 'B', label: 'Option B', code: 'activity.groupby("activity_type")["engagement_score"].mean()' },
+      { key: 'C', label: 'Option C', code: 'activity.groupby("participant_id")["engagement_score"].sum()' },
+      { key: 'D', label: 'Option D', subtext: 'Write your own Python code below if none of the above are valid.' },
+    ],
     rules: [
-      'Primary sort: Total Weighted Score descending.',
-      'First tie-breaker: Round 3 score descending.',
-      'Second tie-breaker: Cumulative penalty seconds ascending.',
-      'Final tie-breaker: Team ID ascending.',
+      'Target DataFrame: activity (event_activity.csv).',
+      'Group records by activity_type.',
+      'Compute the mean of engagement_score across all participant audit events.',
+      'Expected Averages: TEST_RUN: 75.06, LOGIN: 73.16, DRAFT_SAVE: 72.03, VIEW_LEADERBOARD: 70.84, DOC_READ: 69.61, SUBMIT: 65.89.',
     ],
   },
   6: {
-    shortTitle: 'Top K Leaderboard',
-    caseBadge: 'Case 3 – Advanced Analytics',
-    caseGroupTitle: 'Case 3: Advanced Analytics',
-    promptText: 'Construct the Master Top-K tournament decision engine:',
+    shortTitle: 'Find Top 5 Teams in Round 3',
+    caseBadge: 'Case 3 – Event Intelligence & Ranking',
+    caseGroupTitle: 'Case 3: Event Intelligence and Team Ranking',
+    promptText: 'Find the five teams with the highest average Round 3 raw score:',
+    optionsFallback: [
+      { key: 'A', label: 'Option A', code: 'performance[performance["round_number"] == 3].groupby("participant_id")["raw_score"].mean().nlargest(5)' },
+      { key: 'B', label: 'Option B', code: 'performance[performance["round_number"] == 3].merge(participants[["participant_id","team_id"]], on="participant_id").groupby("team_id")["raw_score"].sum().nlargest(5)' },
+      { key: 'C', label: 'Option C', code: 'performance[performance["round_number"] == 3].merge(participants[["participant_id","team_id"]], on="participant_id").groupby("team_id")["raw_score"].mean().nlargest(5)' },
+      { key: 'D', label: 'Option D', subtext: 'Write your own Python code below if none of the above are valid.' },
+    ],
     rules: [
-      'Aggregate all multi-table relational datasets across all 50 collegiate teams.',
-      'Filter top K qualifying teams for finals advancement.',
-      'Produce JSON ranking payload strictly adhering to official tournament specification.',
-      'Edge cases: Handle empty groups and identical scores gracefully.',
+      'Target DataFrames: performance, participants, teams.',
+      'Filter Round 3 performances and merge on participant_id with participants.',
+      'Group by team_id and calculate the mean raw_score.',
+      'Expected Top 5: Code Architects (90.30), Syntax Ninjas (88.35), Recursion Crusaders (86.00), Algorithm Warriors (85.30), Matrix Sentinels (84.90).',
     ],
   },
 };
@@ -208,7 +366,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
 
   // Right Panel State: Dataset Explorer Tab ('DATASET' | 'FIELD_INFO')
   const [activeRightTab, setActiveRightTab] = useState<'DATASET' | 'FIELD_INFO'>('DATASET');
-  const [selectedDatasetFile, setSelectedDatasetFile] = useState<string>('IGNITRON_LEADERBOARD');
+  const [selectedDatasetFile, setSelectedDatasetFile] = useState<string>('round_performance.csv');
 
   // Full Dataset Modal State
   const [showFullDatasetModal, setShowFullDatasetModal] = useState(false);
@@ -288,12 +446,9 @@ export const EventAnalyticsArenaPage: React.FC = () => {
   useEffect(() => {
     if (!activeQuestion) return;
 
-    // For Q1, if no option is selected yet, default to Option D to display write your own editor as in reference
-    if (activeQuestion.orderNumber === 1 && !activeQuestion.selectedOption) {
-      setSelectedOption('D');
-    } else {
-      setSelectedOption(activeQuestion.selectedOption || null);
-    }
+    setSelectedOption(activeQuestion.selectedOption || null);
+    const targetFile = QUESTION_DATASET_MAP[activeOrderNumber] || 'round_performance.csv';
+    setSelectedDatasetFile(targetFile);
 
     const initialCode =
       activeQuestion.savedCode && activeQuestion.savedCode.trim() !== ''
@@ -302,7 +457,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
     setEditorCode(initialCode);
     setTestRunOutput(null);
     setSubmissionResult(null);
-  }, [activeQuestion?.id]);
+  }, [activeQuestion?.id, activeOrderNumber]);
 
   // --------------------------------------------------------------------------
   // 3. FETCH DATASET PREVIEW FOR MODAL
@@ -671,8 +826,8 @@ export const EventAnalyticsArenaPage: React.FC = () => {
           {/* Case 1: Basic Analytics */}
           <div className="rounded-2xl border border-[#0D4030] bg-[#031712]/90 p-2.5 backdrop-blur-sm flex flex-col gap-1.5 shadow-sm shrink-0">
             <div className="flex items-center justify-between text-xs font-mono px-1 pb-1 border-b border-[#0D4030]/50">
-              <span className="font-bold text-slate-200">Case 1: Basic Analytics</span>
-              <span className="text-slate-400 text-[11px]">(20 Marks)</span>
+              <span className="font-bold text-slate-200">Case 1: Performance Analysis</span>
+              <span className="text-[#00F5A0] text-[11px] font-bold">(20 Marks)</span>
             </div>
 
             {/* Q1 */}
@@ -692,7 +847,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                     <span className="w-5 h-5 rounded-full bg-[#00F5A0] text-black font-black text-[10px] flex items-center justify-center shrink-0">
                       Q1
                     </span>
-                    <span className="truncate font-medium text-[11px]">Total Score Calculation</span>
+                    <span className="truncate font-medium text-[11px]">Average Round Scores</span>
                   </div>
                   <span className="text-slate-400 text-[11px] font-bold ml-2">10</span>
                 </button>
@@ -709,13 +864,14 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                   className={`w-full p-2 rounded-xl text-left font-mono text-xs transition-all flex items-center justify-between border ${
                     isSelected
                       ? 'bg-[#04281E] border-[#00F5A0] text-white shadow-[0_0_10px_rgba(0,245,160,0.25)]'
-                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-400'
+                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="text-[11px] font-bold text-slate-400">Q2</span>
-                    <span className="truncate text-[11px]">Leaderboard Ranking</span>
+                    <span className="w-5 h-5 rounded-full bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                      Q2
+                    </span>
+                    <span className="truncate text-[11px]">Top 5 Performers</span>
                   </div>
                   <span className="text-slate-400 text-[11px] font-bold ml-2">10</span>
                 </button>
@@ -723,11 +879,11 @@ export const EventAnalyticsArenaPage: React.FC = () => {
             })()}
           </div>
 
-          {/* Case 2: Data Integrity */}
+          {/* Case 2: Data Cleaning & Submission Analysis */}
           <div className="rounded-2xl border border-[#0D4030] bg-[#031712]/90 p-2.5 backdrop-blur-sm flex flex-col gap-1.5 shadow-sm shrink-0">
             <div className="flex items-center justify-between text-xs font-mono px-1 pb-1 border-b border-[#0D4030]/50">
-              <span className="font-bold text-slate-200">Case 2: Data Integrity</span>
-              <span className="text-slate-400 text-[11px]">(25 Marks)</span>
+              <span className="font-bold text-slate-200">Case 2: Data Cleaning</span>
+              <span className="text-[#00F5A0] text-[11px] font-bold">(25 Marks)</span>
             </div>
 
             {/* Q3 */}
@@ -740,13 +896,14 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                   className={`w-full p-2 rounded-xl text-left font-mono text-xs transition-all flex items-center justify-between border ${
                     isSelected
                       ? 'bg-[#04281E] border-[#00F5A0] text-white shadow-[0_0_10px_rgba(0,245,160,0.25)]'
-                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-400'
+                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="text-[11px] font-bold text-slate-400">Q3</span>
-                    <span className="truncate text-[11px]">Record Validation</span>
+                    <span className="w-5 h-5 rounded-full bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                      Q3
+                    </span>
+                    <span className="truncate text-[11px]">Duplicate Participant IDs</span>
                   </div>
                   <span className="text-slate-400 text-[11px] font-bold ml-2">12</span>
                 </button>
@@ -763,13 +920,14 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                   className={`w-full p-2 rounded-xl text-left font-mono text-xs transition-all flex items-center justify-between border ${
                     isSelected
                       ? 'bg-[#04281E] border-[#00F5A0] text-white shadow-[0_0_10px_rgba(0,245,160,0.25)]'
-                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-400'
+                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="text-[11px] font-bold text-slate-400">Q4</span>
-                    <span className="truncate text-[11px]">Duplicate Handling</span>
+                    <span className="w-5 h-5 rounded-full bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                      Q4
+                    </span>
+                    <span className="truncate text-[11px]">Accepted Submissions</span>
                   </div>
                   <span className="text-slate-400 text-[11px] font-bold ml-2">13</span>
                 </button>
@@ -777,11 +935,11 @@ export const EventAnalyticsArenaPage: React.FC = () => {
             })()}
           </div>
 
-          {/* Case 3: Advanced Analytics */}
+          {/* Case 3: Event Intelligence and Team Ranking */}
           <div className="rounded-2xl border border-[#0D4030] bg-[#031712]/90 p-2.5 backdrop-blur-sm flex flex-col gap-1.5 shadow-sm shrink-0">
             <div className="flex items-center justify-between text-xs font-mono px-1 pb-1 border-b border-[#0D4030]/50">
-              <span className="font-bold text-slate-200">Case 3: Advanced Analytics</span>
-              <span className="text-slate-400 text-[11px]">(45 Marks)</span>
+              <span className="font-bold text-slate-200">Case 3: Event Intelligence</span>
+              <span className="text-[#00F5A0] text-[11px] font-bold">(55 Marks)</span>
             </div>
 
             {/* Q5 */}
@@ -794,15 +952,16 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                   className={`w-full p-2 rounded-xl text-left font-mono text-xs transition-all flex items-center justify-between border ${
                     isSelected
                       ? 'bg-[#04281E] border-[#00F5A0] text-white shadow-[0_0_10px_rgba(0,245,160,0.25)]'
-                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-400'
+                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="text-[11px] font-bold text-slate-400">Q5</span>
-                    <span className="truncate text-[11px]">Tie-Breaking Logic</span>
+                    <span className="w-5 h-5 rounded-full bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                      Q5
+                    </span>
+                    <span className="truncate text-[11px]">Participant Engagement</span>
                   </div>
-                  <span className="text-slate-400 text-[11px] font-bold ml-2">22</span>
+                  <span className="text-slate-400 text-[11px] font-bold ml-2">25</span>
                 </button>
               );
             })()}
@@ -817,29 +976,30 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                   className={`w-full p-2 rounded-xl text-left font-mono text-xs transition-all flex items-center justify-between border ${
                     isSelected
                       ? 'bg-[#04281E] border-[#00F5A0] text-white shadow-[0_0_10px_rgba(0,245,160,0.25)]'
-                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-400'
+                      : 'bg-black/30 border-transparent hover:bg-[#042017] text-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="text-[11px] font-bold text-slate-400">Q6</span>
-                    <span className="truncate text-[11px]">Top K Leaderboard</span>
+                    <span className="w-5 h-5 rounded-full bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                      Q6
+                    </span>
+                    <span className="truncate text-[11px]">Top 5 Teams in Round 3</span>
                   </div>
-                  <span className="text-slate-400 text-[11px] font-bold ml-2">23</span>
+                  <span className="text-slate-400 text-[11px] font-bold ml-2">30</span>
                 </button>
               );
             })()}
           </div>
 
-          {/* Bottom Rubric: Code Quality Card */}
+          {/* Bottom Rubric: Total Tournament Marks Card */}
           <div className="rounded-xl border border-[#0D4030] bg-[#031712]/90 p-2.5 flex items-center justify-between font-mono text-xs shadow-sm mt-auto shrink-0">
             <div className="flex items-center gap-1.5 text-[#00F5A0]">
               <Code2 className="w-3.5 h-3.5" />
               <span className="text-[10px] text-slate-300 font-semibold">
-                Code Quality (Across Q2, Q4, Q6)
+                Round 3 Total: 6 Questions (20 + 25 + 55)
               </span>
             </div>
-            <span className="text-amber-400 font-black text-xs">10</span>
+            <span className="text-[#00F5A0] font-black text-xs">100 Marks</span>
           </div>
         </aside>
 
@@ -869,10 +1029,8 @@ export const EventAnalyticsArenaPage: React.FC = () => {
 
             {/* Problem Description */}
             <p className="text-xs text-slate-300 font-sans leading-relaxed">
-              {activeOrderNumber === 1
-                ? 'The Event Analytics Engine must calculate the total score of every team using the three competition rounds (Round 1, Round 2 and Round 3).'
-                : activeQuestion?.description?.replace(/### Operational Briefing/, '')?.trim() ||
-                  activeQuestion?.description}
+              {activeQuestion?.description?.replace(/### Operational Briefing/, '')?.trim() ||
+                `Perform real data analysis and query operations using pandas on the ${selectedDatasetFile} dataset.`}
             </p>
 
             {/* Prompt Callout */}
@@ -1126,102 +1284,130 @@ export const EventAnalyticsArenaPage: React.FC = () => {
         {/* ==================================================================== */}
         <aside className="w-[26%] min-w-[310px] max-w-[380px] flex flex-col gap-2 overflow-y-auto pl-0.5 scrollbar-none">
           {/* Upper Card: Dataset Explorer */}
-          <div className="rounded-2xl border border-[#0D4030] bg-[#031712]/90 p-3.5 backdrop-blur-sm flex flex-col gap-2.5 shadow-lg shrink-0">
-            {/* Header */}
-            <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-[#00F5A0]" />
-              <span className="text-xs font-mono font-bold text-slate-200">
-                Dataset: IGNITRON Leaderboard
-              </span>
-            </div>
-
-            {/* Tab Navigation: [ Dataset ] | [ Field Info ] */}
-            <div className="flex items-center border-b border-[#0D4030]/60 pb-1 font-mono text-xs">
-              <button
-                onClick={() => setActiveRightTab('DATASET')}
-                className={`px-3 py-1 font-bold transition-colors ${
-                  activeRightTab === 'DATASET'
-                    ? 'text-[#00F5A0] border-b-2 border-[#00F5A0]'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Dataset
-              </button>
-              <button
-                onClick={() => setActiveRightTab('FIELD_INFO')}
-                className={`px-3 py-1 font-bold transition-colors ${
-                  activeRightTab === 'FIELD_INFO'
-                    ? 'text-[#00F5A0] border-b-2 border-[#00F5A0]'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Field Info
-              </button>
-            </div>
-
-            {/* Content: Dataset Table Preview */}
-            {activeRightTab === 'DATASET' ? (
-              <div className="overflow-x-auto border border-[#0A261C] rounded-lg bg-[#010907] max-h-52 overflow-y-auto">
-                <table className="w-full text-left font-mono text-[10px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-[#0D4030] bg-[#02130F] text-slate-300">
-                      <th className="p-1.5 font-bold">Team ID</th>
-                      <th className="p-1.5 font-bold">Team Name</th>
-                      <th className="p-1.5 font-bold">R1</th>
-                      <th className="p-1.5 font-bold">R2</th>
-                      <th className="p-1.5 font-bold">R3</th>
-                      <th className="p-1.5 font-bold">Penalty (s)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#0A261C] text-slate-300">
-                    {LEADERBOARD_ROWS.map((row) => (
-                      <tr key={row.teamId} className="hover:bg-[#04241B]/40 transition-colors">
-                        <td className="p-1.5 text-[#00F5A0] font-bold">{row.teamId}</td>
-                        <td className="p-1.5 text-white">{row.teamName}</td>
-                        <td className="p-1.5">{row.r1}</td>
-                        <td className="p-1.5">{row.r2}</td>
-                        <td className="p-1.5">{row.r3}</td>
-                        <td className="p-1.5 text-slate-400">{row.penalty}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              /* Content: Field Info List */
-              <div className="flex flex-col gap-2 max-h-52 overflow-y-auto p-1 font-mono text-xs">
-                {LEADERBOARD_FIELD_INFO.map((f) => (
-                  <div key={f.field} className="p-2 rounded-lg bg-[#010907] border border-[#0A261C] text-[11px]">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[#00F5A0] font-bold">{f.field}</span>
-                      <span className="text-slate-400 text-[10px]">{f.type}</span>
-                    </div>
-                    <p className="text-slate-300 text-[10px] leading-tight">{f.desc}</p>
+          {(() => {
+            const currentDataset = DATASET_REGISTRY[selectedDatasetFile] || DATASET_REGISTRY['round_performance.csv'];
+            return (
+              <div className="rounded-2xl border border-[#0D4030] bg-[#031712]/90 p-3.5 backdrop-blur-sm flex flex-col gap-2.5 shadow-lg shrink-0">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 truncate">
+                    <Database className="w-4 h-4 text-[#00F5A0] shrink-0" />
+                    <span className="text-xs font-mono font-bold text-slate-200 truncate">
+                      {currentDataset.dfName} ({currentDataset.fileName})
+                    </span>
                   </div>
-                ))}
+                  <span className="text-[10px] font-mono text-[#00F5A0] font-bold bg-[#04281E] px-2 py-0.5 rounded border border-[#0D4030] shrink-0">
+                    master_dataset
+                  </span>
+                </div>
+
+                {/* Dataset quick-selector chips */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+                  {(Object.keys(DATASET_REGISTRY) as (keyof typeof DATASET_REGISTRY)[]).map((fname) => {
+                    const ds = DATASET_REGISTRY[fname];
+                    const isSelected = selectedDatasetFile === fname;
+                    return (
+                      <button
+                        key={fname}
+                        onClick={() => setSelectedDatasetFile(fname)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap transition-colors border ${
+                          isSelected
+                            ? 'bg-[#00F5A0] text-black font-bold border-[#00F5A0]'
+                            : 'bg-black/40 text-slate-400 border-[#0D4030] hover:text-white hover:bg-[#04241B]'
+                        }`}
+                        title={ds.title}
+                      >
+                        {ds.dfName}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Tab Navigation: [ Dataset ] | [ Field Info ] */}
+                <div className="flex items-center border-b border-[#0D4030]/60 pb-1 font-mono text-xs">
+                  <button
+                    onClick={() => setActiveRightTab('DATASET')}
+                    className={`px-3 py-1 font-bold transition-colors ${
+                      activeRightTab === 'DATASET'
+                        ? 'text-[#00F5A0] border-b-2 border-[#00F5A0]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Dataset Preview
+                  </button>
+                  <button
+                    onClick={() => setActiveRightTab('FIELD_INFO')}
+                    className={`px-3 py-1 font-bold transition-colors ${
+                      activeRightTab === 'FIELD_INFO'
+                        ? 'text-[#00F5A0] border-b-2 border-[#00F5A0]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Field Info ({currentDataset.fieldInfo.length})
+                  </button>
+                </div>
+
+                {/* Content: Dataset Table Preview */}
+                {activeRightTab === 'DATASET' ? (
+                  <div className="overflow-x-auto border border-[#0A261C] rounded-lg bg-[#010907] max-h-52 overflow-y-auto">
+                    <table className="w-full text-left font-mono text-[10px] border-collapse">
+                      <thead>
+                        <tr className="border-b border-[#0D4030] bg-[#02130F] text-slate-300">
+                          {currentDataset.columns.map((col) => (
+                            <th key={col} className="p-1.5 font-bold whitespace-nowrap">{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#0A261C] text-slate-300">
+                        {currentDataset.previewRows.map((row: any, rIdx: number) => (
+                          <tr key={rIdx} className="hover:bg-[#04241B]/40 transition-colors">
+                            {currentDataset.columns.map((col) => (
+                              <td key={col} className="p-1.5 whitespace-nowrap">
+                                {String(row[col] ?? '')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  /* Content: Field Info List */
+                  <div className="flex flex-col gap-2 max-h-52 overflow-y-auto p-1 font-mono text-xs">
+                    {currentDataset.fieldInfo.map((f) => (
+                      <div key={f.field} className="p-2 rounded-lg bg-[#010907] border border-[#0A261C] text-[11px]">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[#00F5A0] font-bold">{f.field}</span>
+                          <span className="text-slate-400 text-[10px]">{f.type}</span>
+                        </div>
+                        <p className="text-slate-300 text-[10px] leading-tight">{f.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Bottom Dataset Actions */}
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    onClick={() => setShowFullDatasetModal(true)}
+                    className="px-3 py-1.5 rounded-lg border border-[#00F5A0]/50 hover:border-[#00F5A0] bg-[#04241B]/40 hover:bg-[#04241B] text-[#00F5A0] text-[11px] font-mono font-bold flex items-center gap-1.5 transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View Full Dataset</span>
+                  </button>
+
+                  <a
+                    href={`/api/arena/analytics/dataset-download/${currentDataset.fileName}`}
+                    download={currentDataset.fileName}
+                    className="p-1.5 rounded-lg border border-[#0D4030] bg-[#02130F] hover:bg-[#04241B] text-slate-300 hover:text-white transition-colors"
+                    title={`Download ${currentDataset.fileName}`}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
-            )}
-
-            {/* Bottom Dataset Actions */}
-            <div className="flex items-center justify-between pt-1">
-              <button
-                onClick={() => setShowFullDatasetModal(true)}
-                className="px-3 py-1.5 rounded-lg border border-[#00F5A0]/50 hover:border-[#00F5A0] bg-[#04241B]/40 hover:bg-[#04241B] text-[#00F5A0] text-[11px] font-mono font-bold flex items-center gap-1.5 transition-colors"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>View Full Dataset</span>
-              </button>
-
-              <a
-                href="/api/arena/analytics/dataset-download/teams.csv"
-                download="teams.csv"
-                className="p-1.5 rounded-lg border border-[#0D4030] bg-[#02130F] hover:bg-[#04241B] text-slate-300 hover:text-white transition-colors"
-                title="Download CSV"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Lower Card: Rules & Assumptions */}
           <div className="rounded-2xl border border-[#0D4030] bg-[#031712]/90 p-3.5 backdrop-blur-sm flex flex-col gap-2.5 shadow-lg shrink-0">
@@ -1370,79 +1556,46 @@ export const EventAnalyticsArenaPage: React.FC = () => {
 
             {/* Selector tabs */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0 font-mono text-xs">
-              <button
-                onClick={() => setSelectedDatasetFile('IGNITRON_LEADERBOARD')}
-                className={`px-3 py-1 rounded-lg transition-colors ${
-                  selectedDatasetFile === 'IGNITRON_LEADERBOARD'
-                    ? 'bg-[#00F5A0] text-black font-bold'
-                    : 'bg-[#010907] border border-[#0D4030] text-slate-300'
-                }`}
-              >
-                Leaderboard (Active)
-              </button>
-              {arenaState.dataset.files.map((f) => (
-                <button
-                  key={f.filename}
-                  onClick={() => {
-                    setSelectedDatasetFile(f.filename);
-                    setDatasetPage(1);
-                  }}
-                  className={`px-3 py-1 rounded-lg transition-colors ${
-                    selectedDatasetFile === f.filename
-                      ? 'bg-[#00F5A0] text-black font-bold'
-                      : 'bg-[#010907] border border-[#0D4030] text-slate-300'
-                  }`}
-                >
-                  {f.filename}
-                </button>
-              ))}
+              {(Object.keys(DATASET_REGISTRY) as (keyof typeof DATASET_REGISTRY)[]).map((fname) => {
+                const isSelected = selectedDatasetFile === fname;
+                const ds = DATASET_REGISTRY[fname];
+                return (
+                  <button
+                    key={fname}
+                    onClick={() => {
+                      setSelectedDatasetFile(fname);
+                      setDatasetPage(1);
+                    }}
+                    className={`px-3 py-1 rounded-lg transition-colors whitespace-nowrap ${
+                      isSelected
+                        ? 'bg-[#00F5A0] text-black font-bold'
+                        : 'bg-[#010907] border border-[#0D4030] text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    {ds.dfName} ({fname})
+                  </button>
+                );
+              })}
             </div>
 
             {/* Search filter for CSVs */}
-            {selectedDatasetFile !== 'IGNITRON_LEADERBOARD' && (
-              <div className="relative shrink-0">
-                <Search className="w-4 h-4 text-emerald-500 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={datasetSearch}
-                  onChange={(e) => {
-                    setDatasetSearch(e.target.value);
-                    setDatasetPage(1);
-                  }}
-                  placeholder="Search records by keyword, ID, team..."
-                  className="w-full bg-[#010907] border border-[#0D4030] rounded-xl pl-9 pr-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-[#00F5A0]"
-                />
-              </div>
-            )}
+            <div className="relative shrink-0">
+              <Search className="w-4 h-4 text-emerald-500 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={datasetSearch}
+                onChange={(e) => {
+                  setDatasetSearch(e.target.value);
+                  setDatasetPage(1);
+                }}
+                placeholder="Search records by keyword, ID, team..."
+                className="w-full bg-[#010907] border border-[#0D4030] rounded-xl pl-9 pr-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-[#00F5A0]"
+              />
+            </div>
 
             {/* Table Area */}
             <div className="flex-1 overflow-auto border border-[#0D4030] rounded-xl bg-[#010907]">
-              {selectedDatasetFile === 'IGNITRON_LEADERBOARD' ? (
-                <table className="w-full text-left font-mono text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-[#0D4030] bg-[#02130F] text-slate-300">
-                      <th className="p-2 font-bold">Team ID</th>
-                      <th className="p-2 font-bold">Team Name</th>
-                      <th className="p-2 font-bold">R1 Score</th>
-                      <th className="p-2 font-bold">R2 Score</th>
-                      <th className="p-2 font-bold">R3 Score</th>
-                      <th className="p-2 font-bold">Penalty (s)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#0A261C] text-slate-300">
-                    {LEADERBOARD_ROWS.map((row) => (
-                      <tr key={row.teamId} className="hover:bg-[#04241B]/40">
-                        <td className="p-2 text-[#00F5A0] font-bold">{row.teamId}</td>
-                        <td className="p-2 text-white font-medium">{row.teamName}</td>
-                        <td className="p-2">{row.r1}</td>
-                        <td className="p-2">{row.r2}</td>
-                        <td className="p-2">{row.r3}</td>
-                        <td className="p-2 text-slate-400">{row.penalty}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : isBackendDatasetLoading ? (
+              {isBackendDatasetLoading ? (
                 <div className="h-40 flex items-center justify-center font-mono text-xs text-[#00F5A0]">
                   <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading records...
                 </div>
@@ -1465,11 +1618,29 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-              ) : (
-                <div className="p-6 text-center text-xs font-mono text-slate-500">
-                  No matching records found.
-                </div>
-              )}
+              ) : (() => {
+                const fallbackDs = DATASET_REGISTRY[selectedDatasetFile] || DATASET_REGISTRY['round_performance.csv'];
+                return (
+                  <table className="w-full text-left font-mono text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#0D4030] bg-[#02130F] text-slate-300">
+                        {fallbackDs.columns.map((c: string) => (
+                          <th key={c} className="p-2 font-bold whitespace-nowrap">{c}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#0A261C] text-slate-300">
+                      {fallbackDs.previewRows.map((row: any, i: number) => (
+                        <tr key={i} className="hover:bg-[#04241B]/40">
+                          {fallbackDs.columns.map((c: string) => (
+                            <td key={c} className="p-2 whitespace-nowrap">{String(row[c] ?? '')}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
 
             {/* Pagination Controls for CSVs */}

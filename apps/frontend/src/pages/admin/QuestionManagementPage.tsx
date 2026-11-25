@@ -458,7 +458,7 @@ export const QuestionManagementPage: React.FC = () => {
             }`}
           >
             <Clock className="w-4 h-4 text-emerald-600" />
-            <span>Round 3: Final (100 Marks: 20 + 25 + 45 + 10)</span>
+            <span>Round 3: Final Coding (100 Marks: 20 + 25 + 55)</span>
           </button>
         </div>
 
@@ -483,7 +483,7 @@ export const QuestionManagementPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
               <span>
-                <strong>Round 3 Tournament Rubric:</strong> Case 1 (20 pts) + Case 2 (25 pts) + Case 3 (45 pts) + Code Quality & Architecture (10 pts) = <strong>100 Total Marks</strong>.
+                <strong>Round 3 Tournament Rubric:</strong> Case 1: Participant Performance Analysis (20 pts) + Case 2: Data Cleaning and Submission Analysis (25 pts) + Case 3: Event Intelligence and Team Ranking (55 pts) = <strong>100 Total Marks</strong>.
               </span>
             </div>
             <span className="font-mono font-bold text-emerald-800 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shrink-0 self-start sm:self-auto">
@@ -523,7 +523,7 @@ export const QuestionManagementPage: React.FC = () => {
                 {activeRound === 2
                   ? `Configured Missions: ${questions.length} (Published: ${questions.filter((q) => q.isActive).length})`
                   : activeRound === 3
-                  ? `Total Marks: ${questions.reduce((sum, q) => sum + q.marks, 0) + 10} (90 Cases + 10 Rubric/Quality)`
+                  ? `Total Marks: ${questions.reduce((sum, q) => sum + q.marks, 0)} (6 Questions across 3 Cases)`
                   : `Total Marks: ${questions.reduce((sum, q) => sum + q.marks, 0)}`}
               </span>
             </div>
@@ -799,9 +799,9 @@ export const QuestionManagementPage: React.FC = () => {
                       onChange={(e) => setFormCaseNumber(Number(e.target.value))}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
                     >
-                      <option value={1}>Case 1 (Trie Autocomplete - 20)</option>
-                      <option value={2}>Case 2 (Relay Scheduler - 25)</option>
-                      <option value={3}>Case 3 (Final Flow Router - 45)</option>
+                      <option value={1}>Case 1 (Participant Performance Analysis - 20)</option>
+                      <option value={2}>Case 2 (Data Cleaning and Submission Analysis - 25)</option>
+                      <option value={3}>Case 3 (Event Intelligence and Team Ranking - 55)</option>
                     </select>
                   </div>
                 ) : (
