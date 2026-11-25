@@ -14,6 +14,8 @@ import {
   Search,
   UserPlus,
   Info,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export const TeamLoginPage: React.FC = () => {
@@ -22,6 +24,7 @@ export const TeamLoginPage: React.FC = () => {
 
   const [teamCode, setTeamCode] = useState(prefilledCode);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedParticipantId, setSelectedParticipantId] = useState('');
   const [teamName, setTeamName] = useState<string | null>(null);
   const [participants, setParticipants] = useState<TeamParticipantOption[]>([]);
@@ -316,13 +319,26 @@ export const TeamLoginPage: React.FC = () => {
                 <Lock className="w-4 h-4" />
               </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full pl-9 pr-3 py-2.5 bg-[#011108]/90 border border-emerald-500/30 rounded-xl text-sm text-slate-100 placeholder-emerald-200/40 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 transition-colors shadow-inner"
+                className="w-full pl-9 pr-10 py-2.5 bg-[#011108]/90 border border-emerald-500/30 rounded-xl text-sm text-slate-100 placeholder-emerald-200/40 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 transition-colors shadow-inner"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-emerald-400/60 hover:text-emerald-300 focus:outline-none focus:text-emerald-300 transition-colors cursor-pointer"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
 
