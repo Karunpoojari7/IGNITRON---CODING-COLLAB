@@ -394,7 +394,7 @@ export const TeamDashboardPage: React.FC = () => {
         {/* M-04 Persistent Result & Qualification Announcement Card */}
         {activeCelebration && (
           <div
-            className={`p-5 rounded-3xl border shadow-sm transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in ${
+            className={`max-w-[600px] w-full mx-auto p-5 rounded-3xl border shadow-sm transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in ${
               activeCelebration.type === 'GRAND_WINNER'
                 ? 'bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border-amber-300 text-amber-950'
                 : activeCelebration.type === 'QUALIFIED'
@@ -742,7 +742,7 @@ export const TeamDashboardPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {card.isScorePublished && card.score !== null && card.score !== undefined && (
+                    {card.roundNumber === 1 && card.isScorePublished && card.score !== null && card.score !== undefined && (
                       <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-mono font-bold">
                         Published Round Score: {card.score} pts
                       </div>

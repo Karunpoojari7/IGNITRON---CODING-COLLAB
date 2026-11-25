@@ -54,13 +54,13 @@ export const GoogleCelebrationModal: React.FC<GoogleCelebrationModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[950] flex items-center justify-center p-4 sm:p-6 bg-[rgba(32,33,36,0.5)] backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[950] flex items-center justify-center p-4 sm:p-6 bg-[rgba(32,33,36,0.6)] backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
     >
       {/* Background click to dismiss */}
       <div className="absolute inset-0" onClick={onClose} />
 
-      {/* Large, Beautiful Celebration Card (Expanded Dimensions) */}
-      <div className="relative z-[960] w-full max-w-[520px] sm:max-w-[580px] bg-white rounded-[24px] shadow-2xl border border-slate-100 p-8 sm:p-10 text-center font-sans animate-in zoom-in-95 duration-200 overflow-hidden">
+      {/* Compact, Beautiful Celebration Card (Constrained Max-Width approx 600px) */}
+      <div className="relative z-[960] w-full max-w-[560px] sm:max-w-[600px] mx-auto my-auto bg-white rounded-[24px] shadow-2xl border border-slate-100 p-6 sm:p-8 text-center font-sans animate-in zoom-in-95 duration-200 overflow-hidden">
         {/* Signature Emerald Green Accent Header Line */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-emerald-500" />
 
