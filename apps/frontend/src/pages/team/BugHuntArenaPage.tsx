@@ -43,13 +43,17 @@ import {
 const customDarkTheme = EditorView.theme({
   '&': {
     height: '100%',
+    maxHeight: '100%',
     backgroundColor: '#020b06',
     fontSize: '13px',
   },
   '.cm-scroller': {
-    overflow: 'auto',
+    overflow: 'auto !important',
     fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
     lineHeight: '1.6',
+  },
+  '.cm-content': {
+    paddingBottom: '50px',
   },
   '.cm-gutters': {
     backgroundColor: '#010804',
@@ -118,8 +122,9 @@ export const BugHuntArenaPage: React.FC = () => {
   // Final Submission State
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [finalSubmissionData, setFinalSubmissionData] = useState<any | null>(null);
-  const [showBriefingDetails, setShowBriefingDetails] = useState(false);
+  const [_finalSubmissionData, setFinalSubmissionData] = useState<any | null>(null);
+  const [showBriefingDetails, setShowBriefingDetails] = useState(true);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
 
   // 1. Fetch initial Arena State
   const fetchState = useCallback(async () => {
@@ -221,7 +226,7 @@ export const BugHuntArenaPage: React.FC = () => {
       if (res.isCorrect) {
         setFeedback({
           type: 'success',
-          message: `🎯 Defect Isolated: ${res.bugName || res.bugKey}! (+5 Marks)`,
+          message: `🎯 Defect Isolated: ${res.bugName || res.bugKey}!`,
         });
 
         // Update local arena state with newly confirmed bug
@@ -236,11 +241,9 @@ export const BugHuntArenaPage: React.FC = () => {
           };
         });
 
-        // If investigation complete, guide to Stage 2
+        // If investigation complete, prompt confirmation modal before entering Stage 2
         if (res.isInvestigationComplete) {
-          setTimeout(() => {
-            setActiveStage('repair');
-          }, 1500);
+          setShowUnlockModal(true);
         }
       } else if (res.isDuplicate) {
         setFeedback({
@@ -1008,7 +1011,7 @@ export const BugHuntArenaPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-sm">
-                    Code Repair Terminal Unlocked (20/20 Bug ID Marks Awarded)
+                    Code Repair Terminal Unlocked
                   </h3>
                   <p className="text-xs text-emerald-200/70">
                     Fix the logic flaws in the CodeMirror editor below. Run tests against Judge0 and submit when confident.
@@ -1074,10 +1077,11 @@ export const BugHuntArenaPage: React.FC = () => {
                   </div>
 
                   {/* CodeMirror Editor */}
-                  <div className="flex-1 overflow-hidden">
+                  <div className="flex-1 min-h-0 relative overflow-hidden flex flex-col">
                     <CodeMirror
                       value={repairCode}
                       height="100%"
+                      className="h-full flex-1 overflow-auto min-h-0"
                       extensions={[...editorLanguageExtension, customDarkTheme]}
                       theme={oneDark}
                       onChange={handleCodeChange}
@@ -1241,75 +1245,50 @@ export const BugHuntArenaPage: React.FC = () => {
           </div>
         )}
 
-        {/* STAGE 3: SUBMISSION & FINAL RESULTS VIEW */}
+        {/* STAGE 3: COMPACT SUBMISSION CONFIRMATION VIEW */}
         {activeStage === 'results' && (
-          <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
-            <div className="p-7 sm:p-9 rounded-3xl bg-[#02130a] border-2 border-emerald-400/60 shadow-[0_0_50px_rgba(16,185,129,0.35)] space-y-6 text-center">
+          <div className="max-w-xl mx-auto space-y-6 animate-fade-in">
+            <div className="p-7 sm:p-9 rounded-3xl bg-[#02130a] border-2 border-emerald-400/60 shadow-[0_0_50px_rgba(16,185,129,0.35)] space-y-5 text-center">
               <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 mx-auto shadow-[0_0_20px_rgba(16,185,129,0.5)]">
                 <CheckCircle2 className="w-9 h-9" />
               </div>
 
               <div className="space-y-2">
                 <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  ROUND 2 SUBMITTED
+                  ROUND SUBMITTED SUCCESSFULLY
                 </span>
                 <h3 className="text-2xl font-black text-white">
-                  Bug Hunt Solution Evaluated
+                  Round 2 Submission Recorded
                 </h3>
-                <p className="text-xs text-emerald-200/70 max-w-md mx-auto">
-                  Your repaired code has been processed by the automated test suite and persisted to the authoritative scoreboard.
+                <p className="text-sm text-emerald-200/80 max-w-md mx-auto leading-relaxed">
+                  Your response has been submitted successfully.
+                </p>
+                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Your submission has been recorded. The results will be announced by the organizers.
                 </p>
               </div>
 
-              {/* Rubric Score Breakdown Card */}
-              <div className="p-5 rounded-2xl bg-black/60 border border-emerald-500/30 grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-center">
-                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/20 space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase block">Bug Identification</span>
-                  <span className="text-lg font-bold text-emerald-400">
-                    {arenaState?.scoreBreakdown?.bugIdentification ?? 20} / 20
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/20 space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase block">Test Correctness</span>
-                  <span className="text-lg font-bold text-emerald-400">
-                    {arenaState?.scoreBreakdown?.testCorrectness ?? finalSubmissionData?.score ?? 50} / 50
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/20 space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase block">Edge Cases</span>
-                  <span className="text-lg font-bold text-emerald-400">
-                    {arenaState?.scoreBreakdown?.edgeCases ?? 20} / 20
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/20 space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase block">Code Quality</span>
-                  <span className="text-lg font-bold text-amber-400">
-                    {arenaState?.scoreBreakdown?.codeQuality ?? 10} / 10
-                  </span>
-                </div>
-              </div>
-
-              {/* Total Score Badge */}
-              <div className="flex items-center justify-center gap-3 pt-2">
-                <span className="text-sm font-mono text-slate-300">Total Round 2 Score:</span>
-                <span className="text-3xl font-black font-mono text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.8)]">
-                  {arenaState?.score !== null ? Number(arenaState?.score) : finalSubmissionData?.score || 100} / 100
+              <div className="p-4 rounded-xl bg-black/60 border border-emerald-500/30 font-mono text-center">
+                <span className="text-xs text-emerald-400 font-bold">
+                  Submission Status: <span className="text-white">Submitted</span>
                 </span>
               </div>
 
+              <p className="text-xs text-emerald-400/90 font-medium">
+                Thank you for participating in IGNITRON 2K26!
+              </p>
+
               <div className="pt-4 flex items-center justify-center gap-4">
                 <button
+                  type="button"
                   onClick={() => setActiveStage('repair')}
-                  className="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white text-xs font-mono font-bold transition-colors"
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white text-xs font-mono font-bold transition-colors cursor-pointer"
                 >
                   View Submitted Code
                 </button>
                 <Link
                   to="/team/dashboard"
-                  className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs font-mono transition-all shadow-[0_0_20px_rgba(16,185,129,0.5)]"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs font-mono transition-all shadow-[0_0_20px_rgba(16,185,129,0.5)] cursor-pointer"
                 >
                   Return to Dashboard
                 </Link>
@@ -1318,6 +1297,48 @@ export const BugHuntArenaPage: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* ===================================================================== */}
+      {/* CODE REPAIR UNLOCKED CONFIRMATION MODAL                               */}
+      {/* ===================================================================== */}
+      {showUnlockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#02130A] border-2 border-emerald-400/80 rounded-3xl p-7 max-w-md w-full text-center shadow-[0_0_50px_rgba(16,185,129,0.35)] space-y-5">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 mx-auto shadow-[0_0_20px_rgba(16,185,129,0.5)]">
+              <Unlock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                STAGE UNLOCKED
+              </span>
+              <h2 className="text-xl font-black text-white tracking-wide">
+                CODE REPAIR UNLOCKED
+              </h2>
+              <p className="text-xs text-emerald-300 font-semibold leading-relaxed">
+                Congratulations! You have successfully identified all 4 planted bugs.
+              </p>
+              <p className="text-xs text-emerald-200/80 leading-relaxed">
+                You have unlocked the next stage: <strong>Code Repair &amp; Tests</strong>.
+              </p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                You can now repair your code, run test cases and submit your solution.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowUnlockModal(false);
+                setActiveStage('repair');
+              }}
+              className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-sm rounded-xl transition-all shadow-[0_0_25px_rgba(16,185,129,0.5)] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Continue to Code Repair</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ===================================================================== */}
       {/* FINAL SUBMIT CONFIRMATION MODAL                                      */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Database,
   Code2,
@@ -362,6 +362,10 @@ export const EventAnalyticsArenaPage: React.FC = () => {
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [testRunOutput, setTestRunOutput] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectionRequiredModal, setSelectionRequiredModal] = useState(false);
+  const [selectionHighlighted, setSelectionHighlighted] = useState(false);
+  const [actionErrorModal, setActionErrorModal] = useState<string | null>(null);
+  const [showSubmittedSuccessModal, setShowSubmittedSuccessModal] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<AnalyticsSubmissionResultDto | null>(null);
 
   // Right Panel State: Dataset Explorer Tab ('DATASET' | 'FIELD_INFO')
@@ -535,6 +539,8 @@ export const EventAnalyticsArenaPage: React.FC = () => {
   const handleSelectOption = async (optionKey: 'A' | 'B' | 'C' | 'D') => {
     if (!activeQuestion || arenaState?.isSubmitted || activeQuestion.isSubmitted) return;
     setSelectedOption(optionKey);
+    setSelectionHighlighted(false);
+    setSelectionRequiredModal(false);
 
     try {
       await questionAndArenaService.selectAnalyticsOption(activeQuestion.id, optionKey);
@@ -584,7 +590,8 @@ export const EventAnalyticsArenaPage: React.FC = () => {
     if (!activeQuestion || isSubmitting || arenaState?.isSubmitted) return;
 
     if (activeQuestion.format === 'SELECT_CODE' && !selectedOption) {
-      alert('Please select an option before submitting.');
+      setSelectionRequiredModal(true);
+      setSelectionHighlighted(true);
       return;
     }
 
@@ -606,7 +613,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
       if (msg.toLowerCase().includes('already been officially submitted')) {
         setArenaState((prev) => (prev ? { ...prev, isSubmitted: true } : prev));
       }
-      alert(msg);
+      setActionErrorModal(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -619,19 +626,21 @@ export const EventAnalyticsArenaPage: React.FC = () => {
     if (isFinalizing) return;
     try {
       setIsFinalizing(true);
-      const res = await questionAndArenaService.finalizeRound3();
+      await questionAndArenaService.finalizeRound3();
       setShowFinalModal(false);
-      alert(res.message || 'Round 3 submitted successfully!');
       const updatedState = await questionAndArenaService.getAnalyticsArenaState();
       setArenaState(updatedState);
+      setShowSubmittedSuccessModal(true);
     } catch (err: any) {
       console.error('Finalize failed:', err);
       const msg = err?.response?.data?.message || err?.message || 'Failed to finalize round.';
       if (msg.toLowerCase().includes('already been officially submitted')) {
         setShowFinalModal(false);
         setArenaState((prev) => (prev ? { ...prev, isSubmitted: true } : prev));
+        setShowSubmittedSuccessModal(true);
+      } else {
+        setActionErrorModal(msg);
       }
-      alert(msg);
     } finally {
       setIsFinalizing(false);
     }
@@ -730,6 +739,15 @@ export const EventAnalyticsArenaPage: React.FC = () => {
             <span>Round 3</span>
             <span className="font-normal text-emerald-300">Final Round</span>
           </div>
+          {arenaState?.isSubmitted && (
+            <button
+              onClick={() => setShowSubmittedSuccessModal(true)}
+              className="px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-mono text-xs flex items-center gap-1.5 hover:bg-emerald-500/30 transition-all cursor-pointer"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#00F5A0]" />
+              <span>Submission Status</span>
+            </button>
+          )}
         </div>
 
         {/* Right: Team Badge & Gold Timer Card */}
@@ -1042,7 +1060,11 @@ export const EventAnalyticsArenaPage: React.FC = () => {
 
             {/* 2×2 Options Grid */}
             {activeQuestion?.format === 'SELECT_CODE' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-2.5 transition-all ${
+                selectionHighlighted && !selectedOption
+                  ? 'p-2 rounded-2xl border-2 border-amber-400/80 bg-amber-500/10 ring-2 ring-amber-400/30'
+                  : ''
+              }`}>
                 {/* OPTION A */}
                 <div
                   onClick={() => handleSelectOption('A')}
@@ -1257,7 +1279,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                         : 'bg-red-500/20 text-red-300 border-red-500/30'
                     }`}
                   >
-                    {submissionResult.status} ({submissionResult.score} / {submissionResult.maximumMarks} pts)
+                    {submissionResult.status} (Submitted)
                   </span>
                 ) : testRunOutput ? (
                   <span
@@ -1714,7 +1736,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-400">{q.marks} pts</span>
+                    <span className="text-slate-400 font-mono text-[11px]">Case {q.caseNumber}</span>
                     <span
                       className={`font-bold ${
                         q.isSubmitted ? 'text-[#00F5A0]' : 'text-amber-400'
@@ -1728,7 +1750,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
             </div>
 
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-300">
-              Note: 10 marks are reserved for Code Quality evaluation across your analytical coding solutions, assessed by the tournament judging panel.
+              Note: Analytical coding solutions will be assessed by the tournament judging panel for evaluation.
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2 font-mono text-xs">
@@ -1749,6 +1771,121 @@ export const EventAnalyticsArenaPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* SELECTION REQUIRED MODAL */}
+      {selectionRequiredModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#031712] border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-[0_0_30px_rgba(245,158,11,0.3)]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Selection Required</h3>
+                <p className="text-xs text-amber-400/90 font-mono">Action incomplete</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              Please select an option before submitting. The options area has been highlighted for you.
+            </p>
+
+            <div className="flex justify-end pt-2 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => setSelectionRequiredModal(false)}
+                className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ACTION ERROR / NOTICE MODAL */}
+      {actionErrorModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#031712] border-2 border-emerald-400/60 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                <Info className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Notice</h3>
+                <p className="text-xs text-emerald-400/90 font-mono">Tournament Arena</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed font-mono">
+              {actionErrorModal}
+            </p>
+
+            <div className="flex justify-end pt-2 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => setActionErrorModal(null)}
+                className="px-5 py-2 rounded-xl bg-[#00F5A0] hover:bg-[#34D399] text-black font-bold uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ROUND 3 SUBMITTED CONFIRMATION MODAL */}
+      {showSubmittedSuccessModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="max-w-xl w-full p-7 sm:p-9 rounded-3xl bg-[#02130a] border-2 border-emerald-400/60 shadow-[0_0_50px_rgba(16,185,129,0.35)] space-y-5 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 mx-auto shadow-[0_0_20px_rgba(16,185,129,0.5)]">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                ROUND SUBMITTED SUCCESSFULLY
+              </span>
+              <h3 className="text-2xl font-black text-white">
+                Round 3 Submission Recorded
+              </h3>
+              <p className="text-sm text-emerald-200/80 max-w-md mx-auto leading-relaxed">
+                Your response has been submitted successfully.
+              </p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                Your submission has been recorded. The results will be announced by the organizers.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-black/60 border border-emerald-500/30 font-mono text-center">
+              <span className="text-xs text-emerald-400 font-bold">
+                Submission Status: <span className="text-white">Submitted</span>
+              </span>
+            </div>
+
+            <p className="text-xs text-emerald-400/90 font-medium">
+              Thank you for participating in IGNITRON 2K26!
+            </p>
+
+            <div className="pt-4 flex items-center justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => setShowSubmittedSuccessModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white text-xs font-mono font-bold transition-colors cursor-pointer"
+              >
+                View Submitted Workspace
+              </button>
+              <Link
+                to="/team/dashboard"
+                className="px-6 py-2.5 rounded-xl bg-[#00F5A0] hover:bg-[#34D399] text-black font-black uppercase text-xs font-mono tracking-wider transition-all shadow-[0_0_20px_rgba(0,245,160,0.4)]"
+              >
+                Return to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
