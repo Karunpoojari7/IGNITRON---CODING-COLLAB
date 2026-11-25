@@ -33,6 +33,7 @@ import { useAuth } from '../../context/AuthContext';
 import { questionAndArenaService } from '../../services/question-and-arena.service';
 import { executionService } from '../../services/execution.service';
 import { useCompetitionState, useServerTimer } from '../../hooks/useCompetition';
+import { useParticipantMonitoring } from '../../hooks/useParticipantMonitoring';
 import {
   BugHuntArenaStateDto,
   BugHuntIdentifiedBugDto,
@@ -98,6 +99,43 @@ export const BugHuntArenaPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<'investigation' | 'repair' | 'results'>('investigation');
+
+  const [showLeaveWarningModal, setShowLeaveWarningModal] = useState(false);
+  const [showConcludedModal, setShowConcludedModal] = useState(false);
+
+  const isConcluded =
+    Boolean(
+      compState?.status &&
+        (['ROUND_2_EVALUATION', 'ROUND_3_ACTIVE', 'ROUND_3_EVALUATION', 'FINAL_EVALUATION', 'COMPLETED'].includes(compState.status) ||
+          (compState.currentRoundNumber && compState.currentRoundNumber > 2)),
+    ) || Boolean(timer.isExpired && compState?.deadlineAt);
+
+  const isLocked = isConcluded || Boolean(arenaState?.isSubmitted);
+
+  // Requirement 6: Anti-Cheating & Participant Monitoring
+  const { focusWarning, isRevoked, clearWarning } = useParticipantMonitoring({
+    roundNumber: 2,
+    isRoundActive: Boolean(isRoundActive && !isLocked),
+    isSubmitted: Boolean(arenaState?.isSubmitted),
+    isConcluded,
+  });
+
+  // Requirement 1 & 3: Automatic Round Conclusion & Workspace Locking when timer hits zero
+  useEffect(() => {
+    if (timer.isExpired && !arenaState?.isSubmitted && activeStage !== 'results') {
+      setShowConcludedModal(true);
+    }
+  }, [timer.isExpired, arenaState?.isSubmitted, activeStage]);
+
+  const handleBackToDashboard = () => {
+    if (!isLocked && !isConcluded && !timer.isExpired && isRoundActive) {
+      setShowLeaveWarningModal(true);
+    } else {
+      navigate('/team/dashboard');
+    }
+  };
+
+
 
   // Bug Investigation State
   const [isSubmittingBug, setIsSubmittingBug] = useState(false);
@@ -530,13 +568,14 @@ export const BugHuntArenaPage: React.FC = () => {
       <header className="sticky top-0 z-40 bg-[#02130a]/95 backdrop-blur-xl border-b border-emerald-500/30 px-4 sm:px-6 h-16 flex items-center justify-between shadow-[0_4px_25px_rgba(0,0,0,0.6)]">
         {/* Left: Back & Round Identity */}
         <div className="flex items-center gap-3">
-          <Link
-            to="/team/dashboard"
-            className="p-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300 transition-colors"
+          <button
+            type="button"
+            onClick={handleBackToDashboard}
+            className="p-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300 transition-colors cursor-pointer"
             title="Back to Dashboard"
           >
             <ChevronLeft className="w-4 h-4" />
-          </Link>
+          </button>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
               <Bug className="w-4 h-4" />
@@ -1053,7 +1092,7 @@ export const BugHuntArenaPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handleRunCode}
-                        disabled={isRunningCode || arenaState?.isSubmitted}
+                        disabled={isRunningCode || isLocked || isConcluded || timer.isExpired}
                         className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(16,185,129,0.4)] disabled:opacity-50"
                       >
                         {isRunningCode ? (
@@ -1085,7 +1124,7 @@ export const BugHuntArenaPage: React.FC = () => {
                       extensions={[...editorLanguageExtension, customDarkTheme]}
                       theme={oneDark}
                       onChange={handleCodeChange}
-                      editable={!arenaState?.isSubmitted}
+                      editable={!isLocked && !isConcluded && !timer.isExpired}
                       basicSetup={{
                         lineNumbers: true,
                         bracketMatching: true,
@@ -1386,6 +1425,156 @@ export const BugHuntArenaPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    
+      {/* REQUIREMENT 5: RETURN TO DASHBOARD WARNING MODAL */}
+      {showLeaveWarningModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#031712] border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-[0_0_30px_rgba(245,158,11,0.3)]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Return to Dashboard?</h3>
+                <p className="text-xs text-amber-400/90 font-mono">Active Round in Progress</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              Your competition round is currently active. Returning to the dashboard will not stop the countdown, and your time will continue running.
+            </p>
+            <p className="text-xs text-amber-300/90 font-medium">
+              Are you sure you want to leave the workspace?
+            </p>
+
+            <div className="flex justify-end gap-3 pt-2 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => setShowLeaveWarningModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                Stay in Workspace
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/team/dashboard')}
+                className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md"
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REQUIREMENT 6: COMPETITION FOCUS WARNING MODAL */}
+      {focusWarning && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#031712] border-2 border-amber-400 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-[0_0_40px_rgba(245,158,11,0.35)] text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400 mx-auto shadow-inner">
+              <AlertTriangle className="w-7 h-7 animate-bounce" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-white">Competition Focus Warning</h3>
+              <p className="text-xs font-mono text-amber-400 font-semibold">
+                Warning {focusWarning.violationCount} of {focusWarning.threshold}
+              </p>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              You have left the active competition workspace. Switching tabs or leaving the competition environment is not permitted during the competition.
+            </p>
+            <p className="text-[11px] text-amber-300/80 font-mono">
+              Please return to your workspace immediately. Continued departures will trigger official access revocation.
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={clearWarning}
+                className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold uppercase font-mono text-xs tracking-wider transition-all cursor-pointer shadow-md"
+              >
+                I Understand & Return to Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REQUIREMENT 6: OFFICIAL ACCESS REVOKED MODAL */}
+      {isRevoked && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#180305] border-2 border-red-500 rounded-3xl max-w-md w-full p-7 space-y-5 shadow-[0_0_50px_rgba(239,68,68,0.4)] text-center">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/50 flex items-center justify-center text-red-400 mx-auto">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <div className="space-y-1.5">
+              <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/40">
+                POLICY ENFORCEMENT
+              </span>
+              <h3 className="text-xl font-black text-white">Access Revoked</h3>
+              <p className="text-xs text-red-200/90 leading-relaxed">
+                Your access has been revoked due to exceeding the permitted tab-switching and workspace departure limit according to tournament anti-cheating policy.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-black/60 border border-red-500/30 text-xs text-slate-400 font-mono">
+              Tournament officials have been notified and the incident has been logged.
+            </div>
+            <div className="pt-2">
+              <Link
+                to="/team/dashboard"
+                className="w-full py-3 px-4 rounded-xl bg-red-500 hover:bg-red-400 text-white font-bold uppercase font-mono text-xs tracking-wider transition-all block text-center"
+              >
+                Return to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REQUIREMENT 3 & 4: ROUND CONCLUDED / WORKSPACE LOCKED MODAL */}
+      {showConcludedModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#02130a] border-2 border-emerald-400/60 rounded-3xl max-w-lg w-full p-7 sm:p-8 space-y-5 text-center shadow-[0_0_50px_rgba(16,185,129,0.35)]">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 mx-auto shadow-[0_0_20px_rgba(16,185,129,0.5)]">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                ROUND CONCLUDED
+              </span>
+              <h3 className="text-2xl font-black text-white">Workspace Locked</h3>
+              <p className="text-sm text-emerald-200/90 max-w-md mx-auto leading-relaxed">
+                The competition time has ended. Your workspace is now locked.
+              </p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                Your submitted code has been safely recorded.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-black/60 border border-emerald-500/30 font-mono text-center">
+              <span className="text-xs text-emerald-400 font-bold">
+                Submission Status: <span className="text-white">Submitted</span>
+              </span>
+            </div>
+            <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConcludedModal(false);
+                  setActiveStage('repair');
+                }}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white font-bold transition-colors cursor-pointer"
+              >
+                View Submitted Code
+              </button>
+              <Link
+                to="/team/dashboard"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#00F5A0] hover:bg-[#34D399] text-black font-black uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(0,245,160,0.4)]"
+              >
+                Return to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+</div>
   );
 };
