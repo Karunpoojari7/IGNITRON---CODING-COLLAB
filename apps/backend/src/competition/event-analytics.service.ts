@@ -433,7 +433,7 @@ export class EventAnalyticsService implements OnModuleInit {
         status,
         selectedOption,
         savedCode,
-        score: sub?.score !== null && sub?.score !== undefined ? Number(sub.score) : null,
+        score: null,
         isSubmitted: !!sub,
       };
     });
@@ -473,8 +473,8 @@ export class EventAnalyticsService implements OnModuleInit {
       remainingSeconds,
       isPaused: state?.isPaused ?? false,
       isSubmitted,
-      totalScore: Number(progress.score || 0),
-      scoreBreakdown: progress.scoreBreakdown,
+      totalScore: null,
+      scoreBreakdown: null,
       cases,
       dataset,
       activeParticipantId: teamUser.activeParticipant?.id,
@@ -971,8 +971,8 @@ export class EventAnalyticsService implements OnModuleInit {
       caseNumber: qConfig.caseNumber,
       status: finalStatus,
       isCorrect: finalStatus === 'ACCEPTED',
-      score: awardedScore,
-      maximumMarks: maxMarks,
+      score: null,
+      maximumMarks: null,
       passedCount,
       totalCount,
       message,
@@ -995,7 +995,7 @@ export class EventAnalyticsService implements OnModuleInit {
       return {
         success: true,
         message: 'Round 3 has already been officially submitted.',
-        totalScore: Number(progress.score || 0),
+        totalScore: null,
         submittedAt: progress.submittedAt?.toISOString(),
       };
     }
@@ -1026,7 +1026,7 @@ export class EventAnalyticsService implements OnModuleInit {
     return {
       success: true,
       message: 'Round 3 Event Analytics Engine submitted successfully!',
-      totalScore: Number(progress.score || 0),
+      totalScore: null,
       submittedAt: now.toISOString(),
     };
   }
