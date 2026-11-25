@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, Link } from 'react-router-dom';
 import { questionAndArenaService } from '../../services/question-and-arena.service';
 import { useCompetitionState, useServerTimer } from '../../hooks/useCompetition';
+import { useParticipantMonitoring } from '../../hooks/useParticipantMonitoring';
 import { useAuth } from '../../context/AuthContext';
 import {
   SanitizedQuestionDto,
@@ -52,6 +53,8 @@ export const McqArenaPage: React.FC = () => {
   const [submissionResult, setSubmissionResult] = useState<McqSubmissionResultDto | null>(null);
   const [reviewMode, setReviewMode] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+  const [showLeaveWarningModal, setShowLeaveWarningModal] = useState<boolean>(false);
+  const [showConcludedModal, setShowConcludedModal] = useState<boolean>(false);
 
   // Configured duration from server or default 30m
   const r1ConfiguredDuration =
@@ -78,6 +81,45 @@ export const McqArenaPage: React.FC = () => {
       ? compState?.remainingDurationSeconds ?? initialRemainingSeconds
       : r1ConfiguredDuration * 60,
   );
+
+  const isConcluded =
+    Boolean(
+      compState?.status &&
+        ([
+          'ROUND_1_EVALUATION',
+          'ROUND_2_ACTIVE',
+          'ROUND_2_EVALUATION',
+          'ROUND_3_ACTIVE',
+          'ROUND_3_EVALUATION',
+          'FINAL_EVALUATION',
+          'COMPLETED',
+        ].includes(compState.status) ||
+          (compState.currentRoundNumber && compState.currentRoundNumber > 1)),
+    ) || Boolean(timer.isExpired && compState?.deadlineAt);
+
+  const isLocked = isConcluded || isSubmitted;
+
+  // Requirement 6: Anti-Cheating & Participant Monitoring
+  const { focusWarning, isRevoked, clearWarning } = useParticipantMonitoring({
+    roundNumber: 1,
+    isRoundActive: Boolean(isR1Active && !isLocked && !isConcluded && !timer.isExpired),
+    isSubmitted: Boolean(isSubmitted),
+  });
+
+  // Requirement 1 & 3: Automatic Round Conclusion & Workspace Locking when timer hits zero
+  useEffect(() => {
+    if (timer.isExpired && !isSubmitted && !reviewMode) {
+      setShowConcludedModal(true);
+    }
+  }, [timer.isExpired, isSubmitted, reviewMode]);
+
+  const handleBackToDashboard = () => {
+    if (!isLocked && !isConcluded && !timer.isExpired && isR1Active) {
+      setShowLeaveWarningModal(true);
+    } else {
+      navigate('/team/dashboard');
+    }
+  };
 
   // Fetch initial arena state
   const loadArenaState = async () => {
@@ -126,7 +168,7 @@ export const McqArenaPage: React.FC = () => {
 
   // Handle Option Selection
   const handleSelectOption = async (optionIndex: number) => {
-    if (isSubmitted || effectiveIsPaused || reviewMode) return;
+    if (isSubmitted || isConcluded || isLocked || timer.isExpired || effectiveIsPaused || reviewMode) return;
     const currentQ = questions[currentIndex];
     if (!currentQ) return;
 
@@ -156,7 +198,7 @@ export const McqArenaPage: React.FC = () => {
 
   // Handle Flag Toggle
   const handleToggleFlag = async () => {
-    if (isSubmitted || effectiveIsPaused || reviewMode) return;
+    if (isSubmitted || isConcluded || isLocked || timer.isExpired || effectiveIsPaused || reviewMode) return;
     const currentQ = questions[currentIndex];
     if (!currentQ) return;
 
@@ -234,7 +276,7 @@ export const McqArenaPage: React.FC = () => {
   }
 
   // Pre-Round Waiting Screen / Ineligible Access Screen (Strict Security Guarding)
-  if ((!isR1Active && !isSubmitted) || (error && !isSubmitted)) {
+  if ((!isR1Active && !isSubmitted && !isConcluded) || (error && !isSubmitted && !isConcluded)) {
     const isLockedPreRound =
       !error ||
       error.toLowerCase().includes('will become available') ||
@@ -317,23 +359,31 @@ export const McqArenaPage: React.FC = () => {
           {/* Score Card */}
           <div className="bg-[#010906] rounded-2xl border border-[#0D3E2E] p-6 space-y-3">
             <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
-              Official Round 1 Score
+              Official Round 1 Status
             </div>
-            <div className="text-4xl font-black font-mono text-[#00F5A0] shadow-[0_0_15px_rgba(0,245,160,0.3)]">
-              {submissionResult.score.toFixed(1)}{' '}
-              <span className="text-lg font-bold text-emerald-600">/ 30</span>
+            <div className="text-2xl sm:text-3xl font-black font-mono text-[#00F5A0] shadow-[0_0_15px_rgba(0,245,160,0.3)]">
+              {compState?.status === 'COMPLETED' ? (
+                <>
+                  {submissionResult.score.toFixed(1)}{' '}
+                  <span className="text-lg font-bold text-emerald-600">/ 30</span>
+                </>
+              ) : (
+                <span>Submission Recorded</span>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-[#0D3E2E]">
-              <div className="p-2.5 rounded-xl bg-[#02130F] border border-[#0A261C]">
-                <span className="text-slate-400 block text-[10px] font-mono">Correct Answers</span>
-                <span className="font-bold text-[#00F5A0] font-mono text-sm">
-                  {submissionResult.correctCount} / {submissionResult.totalQuestions}
-                </span>
-              </div>
               <div className="p-2.5 rounded-xl bg-[#02130F] border border-[#0A261C]">
                 <span className="text-slate-400 block text-[10px] font-mono">Attempted</span>
                 <span className="font-bold text-white font-mono text-sm">
                   {submissionResult.answeredCount} / {submissionResult.totalQuestions}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-[#02130F] border border-[#0A261C]">
+                <span className="text-slate-400 block text-[10px] font-mono">Evaluation</span>
+                <span className="font-bold text-amber-400 font-mono text-xs uppercase">
+                  {compState?.status === 'COMPLETED'
+                    ? 'Completed'
+                    : 'Under Review'}
                 </span>
               </div>
             </div>
@@ -465,12 +515,13 @@ export const McqArenaPage: React.FC = () => {
           </div>
 
           {/* Direct Text Links */}
-          <Link
-            to="/team/dashboard"
-            className="text-xs font-mono font-semibold text-slate-300 hover:text-white transition-colors"
+          <button
+            type="button"
+            onClick={handleBackToDashboard}
+            className="text-xs font-mono font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             Dashboard
-          </Link>
+          </button>
 
           <Link
             to="/team/workspace"
@@ -514,7 +565,11 @@ export const McqArenaPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 px-3.5 py-1 rounded-xl bg-[#04241B] border border-[#00F5A0]/40 text-[#00F5A0] font-mono text-xs font-bold shadow-sm">
               <Trophy className="w-3.5 h-3.5 text-amber-400" />
-              <span>Score: {submissionResult?.score.toFixed(1)} / 30 pts</span>
+              <span>
+                {compState?.status === 'COMPLETED'
+                  ? `Score: ${submissionResult?.score.toFixed(1)} / 30 pts`
+                  : 'Evaluation in Progress'}
+              </span>
             </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#010906] border border-[#0A261C] text-slate-400 font-mono text-[11px]">
               <Eye className="w-3.5 h-3.5" />
@@ -527,13 +582,14 @@ export const McqArenaPage: React.FC = () => {
         <div className="sticky top-0 z-20 h-14 px-6 bg-[#02130F]/95 border-b border-[#0D382B] flex items-center justify-between shrink-0 backdrop-blur-md">
           {/* Left: < Dashboard button + R1 badge + Round 1 – MCQ Arena */}
           <div className="flex items-center gap-3">
-            <Link
-              to="/team/dashboard"
-              className="px-3.5 py-1.5 rounded-xl border border-[#0D3E2E] bg-[#02130F] hover:bg-[#031C15] text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors"
+            <button
+              type="button"
+              onClick={handleBackToDashboard}
+              className="px-3.5 py-1.5 rounded-xl border border-[#0D3E2E] bg-[#02130F] hover:bg-[#031C15] text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
               <span>Dashboard</span>
-            </Link>
+            </button>
 
             <span className="px-2.5 py-0.5 rounded-lg bg-[#00F5A0]/20 border border-[#00F5A0]/50 text-[#00F5A0] font-mono font-black text-xs">
               R1
@@ -583,7 +639,7 @@ export const McqArenaPage: React.FC = () => {
             {/* Submit Button */}
             <button
               onClick={() => setConfirmSubmitOpen(true)}
-              disabled={isSubmitted || effectiveIsPaused}
+              disabled={isSubmitted || isLocked || isConcluded || timer.isExpired || effectiveIsPaused}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00D98A] to-[#00F5A0] hover:from-[#00F5A0] hover:to-[#34D399] text-black font-mono font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_15px_rgba(0,245,160,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5 text-black" />
@@ -714,13 +770,24 @@ export const McqArenaPage: React.FC = () => {
               <div>
                 {/* Header Row: QUESTION X OF 15 + +2 Marks + Flag Question */}
                 <div className="flex items-center justify-between pb-3 border-b border-[#0D382B]">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <span className="px-3.5 py-1 rounded-full border border-[#00F5A0]/60 bg-[#00F5A0]/15 text-[#00F5A0] font-mono font-bold text-xs shadow-sm">
                       QUESTION {currentIndex + 1} OF {questions.length}
                     </span>
                     <span className="px-3 py-1 rounded-full border border-[#0D3E2E] bg-[#010906] text-slate-300 font-mono text-xs font-semibold">
                       +{currentQuestion.marks || 2} Marks
                     </span>
+                    {(reviewMode || isConcluded || isSubmitted) && (
+                      answers[currentQuestion.id]?.selectedOption !== null && answers[currentQuestion.id]?.selectedOption !== undefined ? (
+                        <span className="px-3 py-1 rounded-full border border-emerald-500/50 bg-emerald-950/60 text-[#00F5A0] font-mono text-xs font-bold">
+                          Submitted: Option {String.fromCharCode(65 + (answers[currentQuestion.id]?.selectedOption ?? 0))}
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80 text-slate-400 font-mono text-xs font-bold">
+                          Unanswered / Not Submitted
+                        </span>
+                      )
+                    )}
                   </div>
 
                   {!reviewMode && !isSubmitted && (
@@ -768,7 +835,7 @@ export const McqArenaPage: React.FC = () => {
                         key={optIdx}
                         onClick={() => handleSelectOption(optIdx)}
                         className={`p-4 rounded-xl border transition-all flex items-center justify-between ${
-                          reviewMode || isSubmitted || effectiveIsPaused
+                          reviewMode || isSubmitted || isConcluded || isLocked || timer.isExpired || effectiveIsPaused
                             ? 'cursor-default'
                             : 'cursor-pointer'
                         } ${
@@ -979,6 +1046,155 @@ export const McqArenaPage: React.FC = () => {
           </div>
         </div>,
         document.body
+      )}
+      {/* REQUIREMENT 5: RETURN TO DASHBOARD WARNING MODAL */}
+      {showLeaveWarningModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#031712] border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-[0_0_30px_rgba(245,158,11,0.3)]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Return to Dashboard?</h3>
+                <p className="text-xs font-mono text-amber-400">Round 1 is Currently Active</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              Your competition round is currently active. Returning to the dashboard will not stop the countdown, and your time will continue running.
+            </p>
+            <p className="text-xs text-amber-300/90 font-medium">
+              Are you sure you want to leave the workspace?
+            </p>
+
+            <div className="flex justify-end gap-3 pt-2 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => setShowLeaveWarningModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                Stay in Workspace
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/team/dashboard')}
+                className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md"
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REQUIREMENT 6: COMPETITION FOCUS WARNING MODAL */}
+      {focusWarning && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#031712] border-2 border-amber-400 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-[0_0_40px_rgba(245,158,11,0.35)] text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400 mx-auto shadow-inner">
+              <AlertTriangle className="w-7 h-7 animate-bounce" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-white">Competition Focus Warning</h3>
+              <p className="text-xs font-mono text-amber-400 font-semibold">
+                Warning {focusWarning.violationCount} of {focusWarning.threshold}
+              </p>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              You have left the active competition workspace. Switching tabs or leaving the competition environment is not permitted during the competition.
+            </p>
+            <p className="text-[11px] text-amber-300/80 font-mono">
+              Please return to your workspace immediately. Continued departures will trigger official access revocation.
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={clearWarning}
+                className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold uppercase font-mono text-xs tracking-wider transition-all cursor-pointer shadow-md"
+              >
+                I Understand & Return to Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REQUIREMENT 6: OFFICIAL ACCESS REVOKED MODAL */}
+      {isRevoked && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#180305] border-2 border-red-500 rounded-3xl max-w-md w-full p-7 space-y-5 shadow-[0_0_50px_rgba(239,68,68,0.4)] text-center">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/50 flex items-center justify-center text-red-400 mx-auto">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <div className="space-y-1.5">
+              <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/40">
+                POLICY ENFORCEMENT
+              </span>
+              <h3 className="text-xl font-black text-white">Access Revoked</h3>
+              <p className="text-xs text-red-200/90 leading-relaxed">
+                Your access has been revoked due to exceeding the permitted tab-switching and workspace departure limit according to tournament anti-cheating policy.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-black/60 border border-red-500/30 text-xs text-slate-400 font-mono">
+              Tournament officials have been notified and the incident has been logged.
+            </div>
+            <div className="pt-2">
+              <Link
+                to="/team/dashboard"
+                className="w-full py-3 px-4 rounded-xl bg-red-500 hover:bg-red-400 text-white font-bold uppercase font-mono text-xs tracking-wider transition-all block text-center"
+              >
+                Return to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REQUIREMENT 3 & 4: ROUND CONCLUDED / WORKSPACE LOCKED MODAL */}
+      {showConcludedModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#02130a] border-2 border-emerald-400/60 rounded-3xl max-w-lg w-full p-7 sm:p-8 space-y-5 text-center shadow-[0_0_50px_rgba(16,185,129,0.35)]">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-400 mx-auto shadow-[0_0_20px_rgba(16,185,129,0.5)]">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                ROUND CONCLUDED
+              </span>
+              <h3 className="text-2xl font-black text-white">Workspace Locked</h3>
+              <p className="text-sm text-emerald-200/90 max-w-md mx-auto leading-relaxed">
+                The competition time has ended. Your workspace is now locked.
+              </p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                Your submitted answers have been safely recorded.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-black/60 border border-emerald-500/30 font-mono text-center">
+              <span className="text-xs text-emerald-400 font-bold">
+                Submission Status: <span className="text-white">Submitted</span>
+              </span>
+            </div>
+            <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConcludedModal(false);
+                  setReviewMode(true);
+                }}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white font-bold transition-colors cursor-pointer"
+              >
+                View Submitted Answers
+              </button>
+              <Link
+                to="/team/dashboard"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#00F5A0] hover:bg-[#34D399] text-black font-black uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(0,245,160,0.4)]"
+              >
+                Return to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
