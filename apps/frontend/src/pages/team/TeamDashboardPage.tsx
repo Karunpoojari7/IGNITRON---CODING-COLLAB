@@ -724,11 +724,11 @@ export const TeamDashboardPage: React.FC = () => {
                     </div>
 
                     <h3 className="text-lg font-bold text-emerald-950">
-                      {card.name}
+                      {card.name.replace(/^Round\s*\d+\s*:\s*/i, '').replace(/\bBoss\s*/gi, '').trim() || card.name}
                     </h3>
 
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      {card.description}
+                      {card.description.replace(/\bBoss\s*/gi, '').trim()}
                     </p>
 
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs font-mono text-slate-500">
