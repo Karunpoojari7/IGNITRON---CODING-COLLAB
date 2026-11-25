@@ -1,11 +1,14 @@
 import {
   Injectable,
+  Inject,
+  forwardRef,
   BadRequestException,
   NotFoundException,
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { CompetitionService } from './competition.service';
 import { Judge0ClientService } from '../code-execution/judge0-client.service';
 import {
   AuthTeamUser,
@@ -28,10 +31,13 @@ import {
 @Injectable()
 export class ArenaService {
   private readonly logger = new Logger(ArenaService.name);
+  private readonly recentFocusEvents = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly judge0Client: Judge0ClientService,
+    @Inject(forwardRef(() => CompetitionService))
+    private readonly competitionService: CompetitionService,
   ) {}
 
   /**
@@ -131,6 +137,9 @@ export class ArenaService {
     roundNumber: number,
     action: 'READ' | 'WRITE' | 'SUBMIT',
   ) {
+    // 1. Authoritative auto-conclusion check: if deadline passed, transition state immediately
+    await this.competitionService.autoConcludeActiveRoundIfExpired();
+
     const round = await this.getRound(roundNumber);
     const progress = await this.getOrCreateTeamProgress(teamUser.id, round.id, roundNumber);
 
@@ -143,15 +152,24 @@ export class ArenaService {
       state?.countdownEndsAt && state.countdownEndsAt.getTime() > now.getTime(),
     );
 
+    const isRoundConcluded =
+      round.status === 'COMPLETED' ||
+      Boolean(
+        state &&
+          ['ROUND_1_EVALUATION', 'ROUND_2_EVALUATION', 'FINAL_EVALUATION', 'COMPLETED'].includes(state.status as any) &&
+          (state.currentRoundNumber || 0) >= roundNumber,
+      );
+
     const isRoundCurrent = state?.currentRoundNumber === roundNumber;
     const isRoundActive =
       !isCountdownActive &&
+      !isRoundConcluded &&
       (round.status === 'ACTIVE' ||
         (isRoundCurrent && state?.status === (`ROUND_${roundNumber}_ACTIVE` as any)));
 
     // Strict workspace and arena visibility lock before round start and after conclusion
     if (action === 'READ') {
-      const canReviewSubmitted = progress.participationStatus === 'SUBMITTED';
+      const canReviewSubmitted = progress.participationStatus === 'SUBMITTED' || isRoundConcluded;
 
       if (!isRoundActive && !canReviewSubmitted) {
         if (isCountdownActive) {
@@ -167,6 +185,12 @@ export class ArenaService {
 
     // If writing or submitting, enforce strict timing & state boundaries
     if (action === 'WRITE' || action === 'SUBMIT') {
+      if (isRoundConcluded) {
+        throw new ForbiddenException(
+          `Round ${roundNumber} has concluded. All workspace editing and submissions are locked.`,
+        );
+      }
+
       if (state?.isPaused) {
         throw new ForbiddenException('Competition is currently paused by the administrator.');
       }
@@ -182,14 +206,14 @@ export class ArenaService {
       }
 
       const isDeadlineExpired =
-        (isRoundCurrent && state?.deadlineAt && state.deadlineAt.getTime() < now.getTime()) ||
+        (isRoundCurrent && state?.deadlineAt && state.deadlineAt.getTime() <= now.getTime()) ||
         (isRoundCurrent &&
           state?.remainingDurationSeconds !== null &&
           state?.remainingDurationSeconds !== undefined &&
           state.remainingDurationSeconds <= 0);
 
       if (isDeadlineExpired) {
-        throw new ForbiddenException(`Round ${roundNumber} deadline has expired.`);
+        throw new ForbiddenException(`Round ${roundNumber} deadline has expired. Workspace is locked.`);
       }
 
       if (progress.participationStatus === 'SUBMITTED') {
@@ -198,8 +222,9 @@ export class ArenaService {
     }
 
     let remainingSeconds = round.durationMinutes * 60;
-    if (isRoundCurrent && state?.deadlineAt && !state.isPaused) {
-      const now = new Date();
+    if (isRoundConcluded) {
+      remainingSeconds = 0;
+    } else if (isRoundCurrent && state?.deadlineAt && !state.isPaused) {
       remainingSeconds = Math.max(0, Math.floor((state.deadlineAt.getTime() - now.getTime()) / 1000));
     } else if (isRoundCurrent && state?.remainingDurationSeconds !== null && state?.remainingDurationSeconds !== undefined) {
       remainingSeconds = state.remainingDurationSeconds;
@@ -210,6 +235,7 @@ export class ArenaService {
       progress,
       state,
       isRoundActive,
+      isConcluded: isRoundConcluded,
       isPaused: Boolean(state?.isPaused),
       remainingSeconds,
       durationMinutes: round.durationMinutes,
@@ -1645,6 +1671,134 @@ export class ArenaService {
       message: finalSubmissionStatus === 'ACCEPTED'
         ? 'All test cases passed successfully!'
         : `Submission evaluated: ${passedCount}/${testCasesToRun.length} test cases passed. Status: ${finalSubmissionStatus}.`,
+    };
+  }
+
+  /**
+   * Anti-Cheating & Participant Monitoring:
+   * Records suspicious tab-switch / window blur / focus-lost events during active competition.
+   * Debounces duplicate browser events (e.g. visibilitychange + blur firing simultaneously).
+   * Enforces official policy: 3 violations trigger immediate session revocation.
+   */
+  async recordFocusEvent(
+    teamUser: AuthTeamUser,
+    dto: { roundNumber: number; eventType: 'FOCUS_LOST' | 'TAB_SWITCH' | 'WINDOW_BLUR'; details?: string },
+  ) {
+    const roundNumber = dto.roundNumber || 1;
+    const now = Date.now();
+    const participantId = teamUser.activeParticipant?.id || 'unknown-participant';
+    const debounceKey = `${teamUser.id}_${participantId}_${roundNumber}`;
+    const lastEventTime = this.recentFocusEvents.get(debounceKey) || 0;
+
+    // Debounce within 2000ms to avoid duplicate blur/visibilitychange counts
+    if (now - lastEventTime < 2000) {
+      return {
+        recorded: false,
+        debounced: true,
+        message: 'Duplicate event suppressed by debounce guard',
+      };
+    }
+    this.recentFocusEvents.set(debounceKey, now);
+
+    // Verify if round is currently active
+    const state = await this.prisma.competitionState.findUnique({ where: { id: 'global' } });
+    const isRoundActive =
+      state?.status === `ROUND_${roundNumber}_ACTIVE` &&
+      !state?.isPaused &&
+      Boolean(state?.deadlineAt && state.deadlineAt.getTime() > now);
+
+    if (!isRoundActive) {
+      return {
+        recorded: false,
+        isRoundActive: false,
+        message: 'Round is not currently active; event ignored',
+      };
+    }
+
+    // Query existing focus loss warnings for this team in this active round
+    const existingLogs = await this.prisma.activityLog.findMany({
+      where: {
+        actorId: teamUser.id,
+        action: 'FOCUS_LOST_WARNING',
+      },
+      select: { metadata: true },
+    });
+
+    const roundViolations = existingLogs.filter((log: any) => {
+      const meta = log.metadata as any;
+      return meta && Number(meta.roundNumber) === Number(roundNumber);
+    });
+
+    const newViolationCount = roundViolations.length + 1;
+    const threshold = 3; // official tournament policy threshold
+
+    if (newViolationCount >= threshold) {
+      // Exceeded threshold: revoke active session immediately
+      if (teamUser.sessionId) {
+        await this.prisma.teamSession.updateMany({
+          where: { id: teamUser.sessionId, status: 'ACTIVE' },
+          data: {
+            status: 'REVOKED',
+            terminationReason: 'ADMIN_REVOKED',
+            logoutAt: new Date(),
+          },
+        });
+      }
+
+      await this.prisma.activityLog.create({
+        data: {
+          actorType: 'TEAM',
+          actorId: teamUser.id,
+          action: 'ACCESS_REVOKED',
+          description: `Participant "${teamUser.activeParticipant?.fullName || 'Contestant'}" from Team "${teamUser.teamName}" had workspace access revoked due to repeated focus departures (${newViolationCount}/${threshold}) in Round ${roundNumber}.`,
+          metadata: {
+            roundNumber,
+            participantId,
+            participantName: teamUser.activeParticipant?.fullName,
+            teamName: teamUser.teamName,
+            violationCount: newViolationCount,
+            threshold,
+            eventType: dto.eventType,
+            revokedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return {
+        recorded: true,
+        violationCount: newViolationCount,
+        threshold,
+        revoked: true,
+        message: 'Official violation threshold reached. Session access has been revoked.',
+      };
+    }
+
+    // Record formal warning
+    await this.prisma.activityLog.create({
+      data: {
+        actorType: 'TEAM',
+        actorId: teamUser.id,
+        action: 'FOCUS_LOST_WARNING',
+        description: `Participant "${teamUser.activeParticipant?.fullName || 'Contestant'}" from Team "${teamUser.teamName}" left active workspace in Round ${roundNumber} (Warning ${newViolationCount}/${threshold}).`,
+        metadata: {
+          roundNumber,
+          participantId,
+          participantName: teamUser.activeParticipant?.fullName,
+          teamName: teamUser.teamName,
+          violationCount: newViolationCount,
+          threshold,
+          eventType: dto.eventType,
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+
+    return {
+      recorded: true,
+      violationCount: newViolationCount,
+      threshold,
+      revoked: false,
+      message: 'Workspace departure recorded.',
     };
   }
 }
