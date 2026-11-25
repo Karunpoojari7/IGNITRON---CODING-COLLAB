@@ -98,6 +98,12 @@ export const CompetitionControlPage: React.FC = () => {
     action: () => Promise<void> | void;
   } | null>(null);
 
+  // Compact professional confirmation dialog for admin shortlisting
+  const [shortlistConfirmation, setShortlistConfirmation] = useState<{
+    count: number;
+    roundNumber: number;
+  } | null>(null);
+
   // Google-style celebration modal for shortlisting and tournament victory
   const [celebrationModal, setCelebrationModal] = useState<{
     isOpen: boolean;
@@ -312,13 +318,9 @@ export const CompetitionControlPage: React.FC = () => {
       await refetchLogs();
       setSuccessMsg(`Successfully finalized shortlist for Round ${targetRound}: ${res.qualifiedCount} teams qualified!`);
 
-      setCelebrationModal({
-        isOpen: true,
-        mode: 'SHORTLIST',
-        title: `Round ${targetRound} Shortlist Finalized!`,
-        subtext: `You nailed it! Successfully shortlisted and qualified ${res.qualifiedCount} teams for Round ${targetRound}.`,
-        roundName: `Round ${targetRound - 1}`,
-        nextRoundName: `Round ${targetRound}`,
+      setShortlistConfirmation({
+        count: res.qualifiedCount,
+        roundNumber: targetRound,
       });
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to commit shortlisting decisions');
@@ -1944,6 +1946,32 @@ export const CompetitionControlPage: React.FC = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Admin Professional Shortlist Confirmation Dialog */}
+      {shortlistConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#03180f] border border-emerald-500/40 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl shadow-emerald-950/60 space-y-4">
+            <div className="w-12 h-12 mx-auto rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white tracking-tight">
+                Shortlisting Completed
+              </h3>
+              <p className="text-xs text-emerald-200/80 mt-1.5 leading-relaxed">
+                Successfully shortlisted {shortlistConfirmation.count} team{shortlistConfirmation.count === 1 ? '' : 's'} for Round {shortlistConfirmation.roundNumber}.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShortlistConfirmation(null)}
+              className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.35)] cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Google-Style Tournament Celebration Modal */}

@@ -98,7 +98,7 @@ export const AdminLoginPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@ignitron.local"
+                placeholder="Enter administrator email"
                 className="w-full pl-9 pr-3 py-2.5 bg-[#011108]/90 border border-emerald-500/30 rounded-xl text-sm text-slate-100 placeholder-emerald-200/40 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/25 transition-colors shadow-inner"
               />
             </div>
@@ -117,7 +117,7 @@ export const AdminLoginPage: React.FC = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Enter password"
                 className="w-full pl-9 pr-10 py-2.5 bg-[#011108]/90 border border-emerald-500/30 rounded-xl text-sm text-slate-100 placeholder-emerald-200/40 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/25 transition-colors shadow-inner"
               />
               <button
