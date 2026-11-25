@@ -1368,3 +1368,17 @@ export interface CollabParticipant {
   email: string;
   collegeName: string;
 }
+
+export interface ParticipantFocusEventDto {
+  roundNumber: number;
+  eventType: 'FOCUS_LOST' | 'TAB_SWITCH' | 'WINDOW_BLUR';
+  details?: string;
+}
+
+export interface FocusEventResultDto {
+  recorded: boolean;
+  violationCount: number;
+  threshold: number;
+  revoked: boolean;
+  message: string;
+}

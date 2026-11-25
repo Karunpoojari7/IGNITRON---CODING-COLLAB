@@ -17,6 +17,7 @@ import {
   AnalyticsArenaStateDto,
   DatasetMetaDto,
   AnalyticsSubmissionResultDto,
+  FocusEventResultDto,
 } from '@ignitron/shared';
 
 export interface ApiResponseWrapper<T> {
@@ -387,5 +388,18 @@ export const questionAndArenaService = {
     });
     return res.data;
   },
+  async recordFocusEvent(
+    roundNumber: number,
+    eventType: 'FOCUS_LOST' | 'TAB_SWITCH' | 'WINDOW_BLUR' = 'FOCUS_LOST',
+    details?: string,
+  ): Promise<FocusEventResultDto> {
+    const res = await apiClient<ApiResponseWrapper<FocusEventResultDto>>(
+      '/arena/monitor/focus-event',
+      {
+        method: 'POST',
+        body: JSON.stringify({ roundNumber, eventType, details }),
+      },
+    );
+    return res.data;
+  },
 };
-
