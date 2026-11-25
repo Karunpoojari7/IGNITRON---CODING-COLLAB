@@ -442,23 +442,23 @@ export class EventAnalyticsService implements OnModuleInit {
     const cases = [
       {
         caseNumber: 1 as const,
-        caseTitle: 'Case 1 – Data Discovery & Fundamentals',
-        caseDescription: 'Validate dataset metrics, compute weighted scores, and aggregate preliminary leaderboards.',
+        caseTitle: 'Case 1 – Participant Performance Analysis',
+        caseDescription: 'Analyze participant performance, calculate round averages, and extract top individual performers.',
         totalMarks: 20,
         questions: questionDtos.filter((q) => q.caseNumber === 1),
       },
       {
         caseNumber: 2 as const,
-        caseTitle: 'Case 2 – Data Engineering & Integrity',
-        caseDescription: 'Isolate anomalies, detect duplicate records, and clean telemetry log streams.',
+        caseTitle: 'Case 2 – Data Cleaning and Submission Analysis',
+        caseDescription: 'Validate dataset integrity, identify duplicate records, and analyze accepted programming submissions.',
         totalMarks: 25,
         questions: questionDtos.filter((q) => q.caseNumber === 2),
       },
       {
         caseNumber: 3 as const,
-        caseTitle: 'Case 3 – Data Intelligence & Advanced Analytics',
-        caseDescription: 'Implement multi-tier ranking algorithms and execute top-K decision analytics.',
-        totalMarks: 45,
+        caseTitle: 'Case 3 – Event Intelligence and Team Ranking',
+        caseDescription: 'Examine participant engagement telemetry and compute multi-table relational team leaderboards.',
+        totalMarks: 55,
         questions: questionDtos.filter((q) => q.caseNumber === 3),
       },
     ];
