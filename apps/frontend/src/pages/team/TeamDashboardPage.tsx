@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   useTeamCompetitionStatus,
@@ -394,7 +394,7 @@ export const TeamDashboardPage: React.FC = () => {
         {/* M-04 Persistent Result & Qualification Announcement Card */}
         {activeCelebration && (
           <div
-            className={`max-w-[600px] w-full mx-auto p-5 rounded-3xl border shadow-sm transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in ${
+            className={`max-w-[650px] w-full mx-auto p-5 sm:p-6 rounded-3xl border shadow-md transition-all flex flex-col gap-4 animate-in fade-in ${
               activeCelebration.type === 'GRAND_WINNER'
                 ? 'bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border-amber-300 text-amber-950'
                 : activeCelebration.type === 'QUALIFIED'
@@ -404,7 +404,8 @@ export const TeamDashboardPage: React.FC = () => {
                 : 'bg-gradient-to-r from-slate-500/15 via-slate-500/10 to-slate-500/5 border-slate-300 text-slate-900'
             }`}
           >
-            <div className="flex items-start sm:items-center gap-4">
+            {/* Top Row: Icon + Badges + Title */}
+            <div className="flex items-start gap-4">
               <div
                 className={`p-3 rounded-2xl border shrink-0 ${
                   activeCelebration.type === 'GRAND_WINNER'
@@ -427,7 +428,7 @@ export const TeamDashboardPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase border ${
@@ -443,36 +444,40 @@ export const TeamDashboardPage: React.FC = () => {
                     {activeCelebration.type === 'GRAND_WINNER'
                       ? '🏆 CHAMPION DECLARED'
                       : activeCelebration.type === 'QUALIFIED'
-                      ? '✨ STAGE QUALIFIED'
+                      ? '✨ STAGE QUALIFIER'
                       : activeCelebration.type === 'ELIMINATED'
                       ? 'STAGE CONCLUDED'
                       : 'OFFICIAL RESULT'}
                   </span>
-                  <h3 className="font-bold text-sm tracking-tight text-slate-900">
+                  <h3 className="font-bold text-base tracking-tight text-slate-900">
                     {activeCelebration.title}
                   </h3>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+                {/* Full-width description text */}
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1">
                   {activeCelebration.message}
                 </p>
               </div>
             </div>
 
-            <button
-              onClick={() => setCelebrationModalOpen(true)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
-                activeCelebration.type === 'GRAND_WINNER'
-                  ? 'bg-amber-500 hover:bg-amber-400 text-amber-950'
-                  : activeCelebration.type === 'QUALIFIED'
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                  : activeCelebration.type === 'ELIMINATED'
-                  ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                  : 'bg-slate-800 hover:bg-slate-700 text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Replay Celebration / Review Details</span>
-            </button>
+            {/* Bottom Row: Action button properly aligned */}
+            <div className="flex items-center justify-end pt-1 border-t border-black/5">
+              <button
+                onClick={() => setCelebrationModalOpen(true)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
+                  activeCelebration.type === 'GRAND_WINNER'
+                    ? 'bg-amber-500 hover:bg-amber-400 text-amber-950'
+                    : activeCelebration.type === 'QUALIFIED'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                    : activeCelebration.type === 'ELIMINATED'
+                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                    : 'bg-slate-800 hover:bg-slate-700 text-white'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Replay Celebration / Review Details</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -524,6 +529,55 @@ export const TeamDashboardPage: React.FC = () => {
               <span className="text-3xl font-black font-mono text-emerald-900">
                 {(leaderboard as any).winnerTeam.totalScore} <span className="text-sm font-bold text-emerald-700">pts</span>
               </span>
+            </div>
+          </div>
+        )}
+
+        
+        {/* SUBMISSION REMINDER BANNER FOR ACTIVE ROUND (Requirement 2) */}
+        {teamStatus?.competitionStatus.includes('ACTIVE') && (
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-teal-500/15 border-2 border-emerald-500/70 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-black text-sm sm:text-base text-slate-900">
+                    Round {teamStatus.currentRound?.roundNumber || ''} is LIVE — Submission Deadline Approaching
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-800 font-mono text-[10px] font-bold uppercase tracking-wider border border-emerald-400/40">
+                    Live Arena
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Your submission deadline is approaching. Complete and submit your answers before the timer expires. Unsaved changes or unsubmitted work will lock when the timer reaches 00:00.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+              <div className="px-4 py-2 rounded-xl bg-slate-950 border-2 border-emerald-400/60 text-right font-mono shadow-md">
+                <span className="text-[9px] uppercase tracking-wider text-emerald-400 font-bold block">
+                  Time Remaining
+                </span>
+                <span className="text-xl sm:text-2xl font-black text-white">
+                  {timer.formatted}
+                </span>
+              </div>
+              <Link
+                to={
+                  teamStatus.currentRound?.roundNumber === 1
+                    ? '/team/mcq'
+                    : teamStatus.currentRound?.roundNumber === 2
+                    ? '/team/bug-hunt'
+                    : '/team/analytics'
+                }
+                className="px-5 py-3 rounded-xl bg-[#00F5A0] hover:bg-[#34D399] text-black font-black uppercase text-xs font-mono tracking-wider transition-all shadow-[0_0_15px_rgba(0,245,160,0.4)] flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <span>Launch Workspace</span>
+                <span>→</span>
+              </Link>
             </div>
           </div>
         )}

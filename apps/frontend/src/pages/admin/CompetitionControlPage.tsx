@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   useCompetitionState,
@@ -52,6 +52,18 @@ export const CompetitionControlPage: React.FC = () => {
     compState?.isPaused || false,
     compState?.remainingDurationSeconds,
   );
+
+  // Requirement 8: Administrator Dashboard Synchronization
+  // Automatically synchronize competition state and audit logs when countdown reaches zero
+  useEffect(() => {
+    if (timer.isExpired && compState?.status && compState.status.includes('ACTIVE')) {
+      const timerId = setTimeout(() => {
+        refetchState();
+        refetchLogs();
+      }, 1000);
+      return () => clearTimeout(timerId);
+    }
+  }, [timer.isExpired, compState?.status, refetchState, refetchLogs]);
 
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
