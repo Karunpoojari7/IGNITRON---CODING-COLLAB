@@ -627,325 +627,14 @@ export class CompetitionService implements OnModuleInit {
         }
 
         case 'END_ROUND': {
-          let nextStatus: CompetitionStatus;
-          if (currentState.status === 'ROUND_1_ACTIVE') {
-            nextStatus = 'ROUND_1_EVALUATION';
-          } else if (currentState.status === 'ROUND_2_ACTIVE') {
-            nextStatus = 'ROUND_2_EVALUATION';
-          } else if (currentState.status === 'ROUND_3_ACTIVE') {
-            nextStatus = 'FINAL_EVALUATION';
-          } else {
-            throw new BadRequestException(
-              `Cannot end round from state "${currentState.status}". Round must be active.`,
-            );
-          }
-
-          const currentRoundNumber = currentState.currentRoundNumber!;
-          const currentRound = await tx.competitionRound.findUnique({
-            where: { roundNumber: currentRoundNumber },
-          });
-
-          if (currentRound) {
-            await tx.competitionRound.update({
-              where: { id: currentRound.id },
-              data: { status: 'COMPLETED' },
-            });
-
-            // Automatic submission of unsent work for all eligible teams in this round
-            if (currentRoundNumber === 1) {
-              const eligibleR1 = await tx.teamRoundProgress.findMany({
-                where: { roundId: currentRound.id, eligibilityStatus: 'ELIGIBLE' },
-              });
-              const r1Questions = await tx.question.findMany({
-                where: { roundId: currentRound.id, type: 'MCQ' },
-                select: { id: true, correctOption: true, marks: true },
-              });
-
-              for (const prog of eligibleR1) {
-                // If team already genuinely submitted, do not overwrite their work
-                if (prog.participationStatus === 'SUBMITTED') {
-                  continue;
-                }
-
-                // Check if a submission already exists for this team and round
-                const existingSub = await tx.submission.findFirst({
-                  where: { teamId: prog.teamId, roundId: currentRound.id, isTestRun: false },
-                  select: { id: true },
-                });
-                if (existingSub) {
-                  continue;
-                }
-
-                let savedAnswers: Array<{ questionId: string; selectedOption: number | null }> = [];
-                try {
-                  savedAnswers = await tx.teamMcqAnswer.findMany({
-                    where: { teamId: prog.teamId },
-                    select: { questionId: true, selectedOption: true },
-                  });
-                } catch {
-                  savedAnswers = [];
-                }
-
-                // Only consider answers that were actually selected by the team
-                const validAnswers = savedAnswers.filter(
-                  (a) => a.selectedOption !== null && a.selectedOption !== undefined,
-                );
-
-                // Teams with zero answers must NOT receive fabricated evaluated submissions or artificial scores
-                if (validAnswers.length === 0) {
-                  await tx.teamRoundProgress.update({
-                    where: { id: prog.id },
-                    data: {
-                      participationStatus: 'SUBMITTED',
-                      score: 0,
-                      scoreBreakdown: {
-                        totalQuestions: r1Questions.length,
-                        answeredCount: 0,
-                        correctCount: 0,
-                        autoSubmit: true,
-                        noAnswers: true,
-                      },
-                      submittedAt: now,
-                      evaluatedAt: now,
-                    },
-                  });
-                  continue;
-                }
-
-                // Calculate marks strictly on questions actually answered
-                let correctCount = 0;
-                for (const ans of validAnswers) {
-                  const q = r1Questions.find((item) => item.id === ans.questionId);
-                  if (q && q.correctOption !== null && ans.selectedOption === q.correctOption) {
-                    correctCount++;
-                  }
-                }
-                const score = correctCount * 2.0;
-
-                await tx.submission.create({
-                  data: {
-                    teamId: prog.teamId,
-                    roundId: currentRound.id,
-                    sourceCode: JSON.stringify(validAnswers),
-                    language: 'json',
-                    score,
-                    submissionStatus: 'EVALUATED',
-                    submittedAt: now,
-                    evaluatedAt: now,
-                    isTestRun: false,
-                    testCaseResults: {
-                      totalQuestions: r1Questions.length,
-                      answeredCount: validAnswers.length,
-                      correctCount,
-                      autoSubmit: true,
-                    },
-                  },
-                });
-
-                await tx.teamRoundProgress.update({
-                  where: { id: prog.id },
-                  data: {
-                    participationStatus: 'SUBMITTED',
-                    score,
-                    scoreBreakdown: {
-                      totalQuestions: r1Questions.length,
-                      answeredCount: validAnswers.length,
-                      correctCount,
-                      autoSubmit: true,
-                    },
-                    submittedAt: now,
-                    evaluatedAt: now,
-                  },
-                });
-              }
-
-              // Automatically qualify Round 1 teams for Round 2 so Round 2 immediately unlocks and glows
-              const r2 = await tx.competitionRound.findUnique({ where: { roundNumber: 2 } });
-              if (r2) {
-                for (const prog of eligibleR1) {
-                  await tx.teamRoundProgress.upsert({
-                    where: {
-                      teamId_roundId: {
-                        teamId: prog.teamId,
-                        roundId: r2.id,
-                      },
-                    },
-                    update: {
-                      eligibilityStatus: 'ELIGIBLE',
-                    },
-                    create: {
-                      teamId: prog.teamId,
-                      roundId: r2.id,
-                      eligibilityStatus: 'ELIGIBLE',
-                      participationStatus: 'NOT_STARTED',
-                      score: 0,
-                    },
-                  });
-                }
-              }
-            } else if (currentRoundNumber === 2) {
-              const eligibleR2 = await tx.teamRoundProgress.findMany({
-                where: { roundId: currentRound.id, eligibilityStatus: 'ELIGIBLE' },
-              });
-              const r2Question = await tx.question.findFirst({
-                where: { roundId: currentRound.id },
-              });
-
-              for (const prog of eligibleR2) {
-                if (prog.participationStatus === 'SUBMITTED') {
-                  continue;
-                }
-
-                // Prevent duplicate submission on repeated END_ROUND
-                const existingSub = await tx.submission.findFirst({
-                  where: { teamId: prog.teamId, roundId: currentRound.id, isTestRun: false },
-                  select: { id: true },
-                });
-
-                if (!existingSub) {
-                  const draft = await tx.workspaceDraft.findUnique({
-                    where: {
-                      teamId_roundId_caseNumber: {
-                        teamId: prog.teamId,
-                        roundId: currentRound.id,
-                        caseNumber: 1,
-                      },
-                    },
-                  });
-                  if (draft && draft.sourceCode.trim().length > 0) {
-                    await tx.submission.create({
-                      data: {
-                        teamId: prog.teamId,
-                        roundId: currentRound.id,
-                        questionId: r2Question?.id || null,
-                        sourceCode: draft.sourceCode,
-                        language: draft.language,
-                        submissionStatus: 'PENDING',
-                        submittedAt: now,
-                        isTestRun: false,
-                        testCaseResults: { autoSubmit: true },
-                      },
-                    });
-                  }
-                }
-
-                await tx.teamRoundProgress.update({
-                  where: { id: prog.id },
-                  data: {
-                    participationStatus: 'SUBMITTED',
-                    submittedAt: now,
-                  },
-                });
-              }
-            } else if (currentRoundNumber === 3) {
-              const eligibleR3 = await tx.teamRoundProgress.findMany({
-                where: { roundId: currentRound.id, eligibilityStatus: 'ELIGIBLE' },
-              });
-              const r3Questions = await tx.question.findMany({
-                where: { roundId: currentRound.id },
-              });
-
-              for (const prog of eligibleR3) {
-                if (prog.participationStatus === 'SUBMITTED') {
-                  continue;
-                }
-
-                for (const cNum of [1, 2, 3]) {
-                  const q = r3Questions.find((item) => item.caseNumber === cNum);
-                  if (!q) continue;
-
-                  const existingSub = await tx.submission.findFirst({
-                    where: {
-                      teamId: prog.teamId,
-                      roundId: currentRound.id,
-                      questionId: q.id,
-                      isTestRun: false,
-                    },
-                    select: { id: true },
-                  });
-
-                  if (!existingSub) {
-                    const draft = await tx.workspaceDraft.findUnique({
-                      where: {
-                        teamId_roundId_caseNumber: {
-                          teamId: prog.teamId,
-                          roundId: currentRound.id,
-                          caseNumber: cNum,
-                        },
-                      },
-                    });
-                    if (draft && draft.sourceCode.trim().length > 0) {
-                      await tx.submission.create({
-                        data: {
-                          teamId: prog.teamId,
-                          roundId: currentRound.id,
-                          questionId: q.id,
-                          sourceCode: draft.sourceCode,
-                          language: draft.language,
-                          submissionStatus: 'PENDING',
-                          submittedAt: now,
-                          isTestRun: false,
-                          testCaseResults: { autoSubmit: true },
-                        },
-                      });
-                    }
-                  }
-                }
-
-                await tx.teamRoundProgress.update({
-                  where: { id: prog.id },
-                  data: {
-                    participationStatus: 'SUBMITTED',
-                    submittedAt: now,
-                  },
-                });
-              }
-            }
-          }
-
-          await tx.competitionState.update({
-            where: { id: 'global' },
-            data: {
-              status: nextStatus,
-              isPaused: false,
-              deadlineAt: now,
-              remainingDurationSeconds: 0,
-              countdownEndsAt: null,
-              preRoundAnnouncedRound: null,
-            },
-          });
-
-          await tx.activityLog.create({
-            data: {
-              actorType: 'ADMIN',
-              actorId: adminId,
-              action: 'ROUND_ENDED',
-              description: `Admin ended Round ${currentRoundNumber}. Automatically captured latest participant drafts. Entered ${nextStatus}.`,
-              metadata: {
-                endedRound: currentRoundNumber,
-                nextStatus,
-              },
-            },
-          });
-
-          try {
-            await tx.announcement.create({
-              data: {
-                title: `ROUND CONCLUDED`,
-                message: `ROUND CONCLUDED\n\nYour latest work has been safely recorded. All arena inputs are locked and evaluation is now in progress.\nYour submission will now be evaluated.\nPlease return to your dashboard and wait for the results.`,
-                priority: 'URGENT',
-                isPublished: true,
-                publishedAt: now,
-                authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
-              },
-            });
-          } catch (annErr: any) {
-            this.logger.warn(`Announcement warning on END_ROUND: ${annErr?.message || annErr}`);
-          }
-
-          return {
-            message: `Round ${currentRoundNumber} concluded. Entered ${nextStatus}.`,
-          };
+          const currentRoundNumber =
+            currentState.currentRoundNumber ||
+            (currentState.status === 'ROUND_1_ACTIVE'
+              ? 1
+              : currentState.status === 'ROUND_2_ACTIVE'
+              ? 2
+              : 3);
+          return await this.concludeRoundInTx(tx, currentRoundNumber, 'ADMIN_MANUAL', adminId);
         }
 
         case 'START_ROUND_2': {
@@ -2461,6 +2150,398 @@ export class CompetitionService implements OnModuleInit {
         },
       });
     });
+  }
+
+  /**
+   * Evaluates server deadline and automatically concludes active round if time has reached 00:00.
+   * Concurrency-safe: only one transaction will transition the round.
+   */
+  async autoConcludeActiveRoundIfExpired(): Promise<boolean> {
+    const now = new Date();
+    const state = await this.prisma.competitionState.findUnique({
+      where: { id: 'global' },
+    });
+
+    if (!state || state.isPaused || !state.deadlineAt) {
+      return false;
+    }
+
+    if (!['ROUND_1_ACTIVE', 'ROUND_2_ACTIVE', 'ROUND_3_ACTIVE'].includes(state.status)) {
+      return false;
+    }
+
+    if (now.getTime() < state.deadlineAt.getTime()) {
+      return false;
+    }
+
+    const currentRoundNumber =
+      state.currentRoundNumber ||
+      (state.status === 'ROUND_1_ACTIVE' ? 1 : state.status === 'ROUND_2_ACTIVE' ? 2 : 3);
+
+    try {
+      this.logger.log(
+        `[Server Deadline Reached] Round ${currentRoundNumber} deadline (${state.deadlineAt.toISOString()}) expired at ${now.toISOString()}. Auto-concluding round...`,
+      );
+      await this.concludeRoundInternal(currentRoundNumber, 'SERVER_DEADLINE', 'system-timer');
+      return true;
+    } catch (err: any) {
+      this.logger.error(`Failed to auto-conclude expired Round ${currentRoundNumber}: ${err?.message || err}`);
+      return false;
+    }
+  }
+
+  /**
+   * Concludes a round inside an isolated transaction.
+   */
+  async concludeRoundInternal(
+    currentRoundNumber: number,
+    reason: 'ADMIN_MANUAL' | 'SERVER_DEADLINE',
+    adminId = 'system',
+  ): Promise<{ message: string; nextStatus: string }> {
+    return await this.prisma.$transaction(async (tx) => {
+      return await this.concludeRoundInTx(tx, currentRoundNumber, reason, adminId);
+    });
+  }
+
+  /**
+   * Core transactional logic for concluding a round:
+   * 1. Updates round status to COMPLETED
+   * 2. Auto-captures and finalizes unsubmitted work for all eligible teams
+   * 3. Transitions global state to evaluation
+   * 4. Logs audit trail and publishes system announcement
+   */
+  private async concludeRoundInTx(
+    tx: any,
+    currentRoundNumber: number,
+    reason: 'ADMIN_MANUAL' | 'SERVER_DEADLINE',
+    adminId = 'system',
+  ) {
+    const currentState = await tx.competitionState.findUnique({
+      where: { id: 'global' },
+    });
+
+    if (!currentState) {
+      throw new NotFoundException('Global competition state record missing');
+    }
+
+    let nextStatus: CompetitionStatus;
+    if (currentState.status === 'ROUND_1_ACTIVE') {
+      nextStatus = 'ROUND_1_EVALUATION';
+    } else if (currentState.status === 'ROUND_2_ACTIVE') {
+      nextStatus = 'ROUND_2_EVALUATION';
+    } else if (currentState.status === 'ROUND_3_ACTIVE') {
+      nextStatus = 'FINAL_EVALUATION';
+    } else {
+      // Already concluded or transitioned by a concurrent process
+      return {
+        message: `Round ${currentRoundNumber} is already in state "${currentState.status}".`,
+        nextStatus: currentState.status,
+      };
+    }
+
+    const now = new Date();
+    const currentRound = await tx.competitionRound.findUnique({
+      where: { roundNumber: currentRoundNumber },
+    });
+
+    if (currentRound) {
+      await tx.competitionRound.update({
+        where: { id: currentRound.id },
+        data: { status: 'COMPLETED' },
+      });
+
+      // Automatic submission of unsent work for all eligible teams in this round
+      if (currentRoundNumber === 1) {
+        const eligibleR1 = await tx.teamRoundProgress.findMany({
+          where: { roundId: currentRound.id, eligibilityStatus: 'ELIGIBLE' },
+        });
+        const r1Questions = await tx.question.findMany({
+          where: { roundId: currentRound.id, type: 'MCQ' },
+          select: { id: true, correctOption: true, marks: true },
+        });
+
+        for (const prog of eligibleR1) {
+          if (prog.participationStatus === 'SUBMITTED') {
+            continue;
+          }
+
+          const existingSub = await tx.submission.findFirst({
+            where: { teamId: prog.teamId, roundId: currentRound.id, isTestRun: false },
+            select: { id: true },
+          });
+          if (existingSub) {
+            continue;
+          }
+
+          let savedAnswers: Array<{ questionId: string; selectedOption: number | null }> = [];
+          try {
+            savedAnswers = await tx.teamMcqAnswer.findMany({
+              where: { teamId: prog.teamId },
+              select: { questionId: true, selectedOption: true },
+            });
+          } catch {
+            savedAnswers = [];
+          }
+
+          const validAnswers = savedAnswers.filter(
+            (a) => a.selectedOption !== null && a.selectedOption !== undefined,
+          );
+
+          if (validAnswers.length === 0) {
+            await tx.teamRoundProgress.update({
+              where: { id: prog.id },
+              data: {
+                participationStatus: 'SUBMITTED',
+                score: 0,
+                scoreBreakdown: {
+                  totalQuestions: r1Questions.length,
+                  answeredCount: 0,
+                  correctCount: 0,
+                  autoSubmit: true,
+                  noAnswers: true,
+                },
+                submittedAt: now,
+                evaluatedAt: now,
+              },
+            });
+            continue;
+          }
+
+          let correctCount = 0;
+          for (const ans of validAnswers) {
+            const q = r1Questions.find((item: any) => item.id === ans.questionId);
+            if (q && q.correctOption !== null && ans.selectedOption === q.correctOption) {
+              correctCount++;
+            }
+          }
+          const score = correctCount * 2.0;
+
+          await tx.submission.create({
+            data: {
+              teamId: prog.teamId,
+              roundId: currentRound.id,
+              sourceCode: JSON.stringify(validAnswers),
+              language: 'json',
+              score,
+              submissionStatus: 'EVALUATED',
+              submittedAt: now,
+              evaluatedAt: now,
+              isTestRun: false,
+              testCaseResults: {
+                totalQuestions: r1Questions.length,
+                answeredCount: validAnswers.length,
+                correctCount,
+                autoSubmit: true,
+              },
+            },
+          });
+
+          await tx.teamRoundProgress.update({
+            where: { id: prog.id },
+            data: {
+              participationStatus: 'SUBMITTED',
+              score,
+              scoreBreakdown: {
+                totalQuestions: r1Questions.length,
+                answeredCount: validAnswers.length,
+                correctCount,
+                autoSubmit: true,
+              },
+              submittedAt: now,
+              evaluatedAt: now,
+            },
+          });
+        }
+
+        const r2 = await tx.competitionRound.findUnique({ where: { roundNumber: 2 } });
+        if (r2) {
+          for (const prog of eligibleR1) {
+            await tx.teamRoundProgress.upsert({
+              where: {
+                teamId_roundId: {
+                  teamId: prog.teamId,
+                  roundId: r2.id,
+                },
+              },
+              update: {
+                eligibilityStatus: 'ELIGIBLE',
+              },
+              create: {
+                teamId: prog.teamId,
+                roundId: r2.id,
+                eligibilityStatus: 'ELIGIBLE',
+                participationStatus: 'NOT_STARTED',
+                score: 0,
+              },
+            });
+          }
+        }
+      } else if (currentRoundNumber === 2) {
+        const eligibleR2 = await tx.teamRoundProgress.findMany({
+          where: { roundId: currentRound.id, eligibilityStatus: 'ELIGIBLE' },
+        });
+        const r2Question = await tx.question.findFirst({
+          where: { roundId: currentRound.id },
+        });
+
+        for (const prog of eligibleR2) {
+          if (prog.participationStatus === 'SUBMITTED') {
+            continue;
+          }
+
+          const existingSub = await tx.submission.findFirst({
+            where: { teamId: prog.teamId, roundId: currentRound.id, isTestRun: false },
+            select: { id: true },
+          });
+
+          if (!existingSub) {
+            const draft = await tx.workspaceDraft.findUnique({
+              where: {
+                teamId_roundId_caseNumber: {
+                  teamId: prog.teamId,
+                  roundId: currentRound.id,
+                  caseNumber: 1,
+                },
+              },
+            });
+            if (draft && draft.sourceCode.trim().length > 0) {
+              await tx.submission.create({
+                data: {
+                  teamId: prog.teamId,
+                  roundId: currentRound.id,
+                  questionId: r2Question?.id || null,
+                  sourceCode: draft.sourceCode,
+                  language: draft.language,
+                  submissionStatus: 'PENDING',
+                  submittedAt: now,
+                  isTestRun: false,
+                  testCaseResults: { autoSubmit: true },
+                },
+              });
+            }
+          }
+
+          await tx.teamRoundProgress.update({
+            where: { id: prog.id },
+            data: {
+              participationStatus: 'SUBMITTED',
+              submittedAt: now,
+            },
+          });
+        }
+      } else if (currentRoundNumber === 3) {
+        const eligibleR3 = await tx.teamRoundProgress.findMany({
+          where: { roundId: currentRound.id, eligibilityStatus: 'ELIGIBLE' },
+        });
+        const r3Questions = await tx.question.findMany({
+          where: { roundId: currentRound.id },
+        });
+
+        for (const prog of eligibleR3) {
+          if (prog.participationStatus === 'SUBMITTED') {
+            continue;
+          }
+
+          for (const cNum of [1, 2, 3]) {
+            const q = r3Questions.find((item: any) => item.caseNumber === cNum);
+            if (!q) continue;
+
+            const existingSub = await tx.submission.findFirst({
+              where: {
+                teamId: prog.teamId,
+                roundId: currentRound.id,
+                questionId: q.id,
+                isTestRun: false,
+              },
+              select: { id: true },
+            });
+
+            if (!existingSub) {
+              const draft = await tx.workspaceDraft.findUnique({
+                where: {
+                  teamId_roundId_caseNumber: {
+                    teamId: prog.teamId,
+                    roundId: currentRound.id,
+                    caseNumber: cNum,
+                  },
+                },
+              });
+              if (draft && draft.sourceCode.trim().length > 0) {
+                await tx.submission.create({
+                  data: {
+                    teamId: prog.teamId,
+                    roundId: currentRound.id,
+                    questionId: q.id,
+                    sourceCode: draft.sourceCode,
+                    language: draft.language,
+                    submissionStatus: 'PENDING',
+                    submittedAt: now,
+                    isTestRun: false,
+                    testCaseResults: { autoSubmit: true },
+                  },
+                });
+              }
+            }
+          }
+
+          await tx.teamRoundProgress.update({
+            where: { id: prog.id },
+            data: {
+              participationStatus: 'SUBMITTED',
+              submittedAt: now,
+            },
+          });
+        }
+      }
+    }
+
+    await tx.competitionState.update({
+      where: { id: 'global' },
+      data: {
+        status: nextStatus,
+        isPaused: false,
+        deadlineAt: now,
+        remainingDurationSeconds: 0,
+        countdownEndsAt: null,
+        preRoundAnnouncedRound: null,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        actorType: reason === 'SERVER_DEADLINE' ? 'SYSTEM' : 'ADMIN',
+        actorId: adminId,
+        action: reason === 'SERVER_DEADLINE' ? 'ROUND_AUTO_CONCLUDED' : 'ROUND_ENDED',
+        description: reason === 'SERVER_DEADLINE'
+          ? `Round ${currentRoundNumber} automatically concluded as server countdown reached 00:00. Automatically captured latest participant drafts. Entered ${nextStatus}.`
+          : `Admin ended Round ${currentRoundNumber}. Automatically captured latest participant drafts. Entered ${nextStatus}.`,
+        metadata: {
+          endedRound: currentRoundNumber,
+          nextStatus,
+          reason,
+        },
+      },
+    });
+
+    try {
+      await tx.announcement.create({
+        data: {
+          title: `ROUND CONCLUDED`,
+          message: `ROUND CONCLUDED\n\nYour latest work has been safely recorded. All arena inputs are locked and evaluation is now in progress.\nYour submission will now be evaluated.\nPlease return to your dashboard and wait for the results.`,
+          priority: 'URGENT',
+          isPublished: true,
+          publishedAt: now,
+          authorId: (await tx.adminAccount.findUnique({ where: { id: adminId } })) ? adminId : null,
+        },
+      });
+    } catch (annErr: any) {
+      this.logger.warn(`Announcement warning on round conclusion: ${annErr?.message || annErr}`);
+    }
+
+    return {
+      message: `Round ${currentRoundNumber} concluded. Entered ${nextStatus}.`,
+      nextStatus,
+    };
   }
 }
 

@@ -304,4 +304,19 @@ export class ArenaController {
     const data = await this.eventAnalyticsService.finalizeRound3(teamUser);
     return { success: true, data };
   }
+
+  /**
+   * Contestant: Report browser focus departure / tab switch during active round
+   */
+  @Post('monitor/focus-event')
+  async recordFocusEvent(
+    @CurrentUser() teamUser: AuthTeamUser,
+    @Body() dto: { roundNumber: number; eventType: 'FOCUS_LOST' | 'TAB_SWITCH' | 'WINDOW_BLUR'; details?: string },
+  ) {
+    const result = await this.arenaService.recordFocusEvent(teamUser, dto);
+    return {
+      success: true,
+      data: result,
+    };
+  }
 }
