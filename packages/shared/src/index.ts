@@ -1268,7 +1268,7 @@ export interface AnalyticsArenaStateDto {
   remainingSeconds: number;
   isPaused: boolean;
   isSubmitted: boolean;
-  totalScore: number;
+  totalScore?: number | null;
   scoreBreakdown?: any;
   cases: AnalyticsCaseDto[];
   dataset: DatasetMetaDto;
@@ -1314,8 +1314,8 @@ export interface AnalyticsSubmissionResultDto {
   caseNumber: number;
   status: 'ACCEPTED' | 'WRONG_ANSWER' | 'COMPILATION_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
   isCorrect: boolean;
-  score: number;
-  maximumMarks: number;
+  score?: number | null;
+  maximumMarks?: number | null;
   passedCount: number;
   totalCount: number;
   message: string;

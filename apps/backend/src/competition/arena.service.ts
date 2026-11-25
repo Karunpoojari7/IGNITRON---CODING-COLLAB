@@ -588,8 +588,8 @@ export class ArenaService {
       isInvestigationComplete,
       isRepairUnlocked: isInvestigationComplete,
       isSubmitted,
-      score: progress.score !== null ? Number(progress.score) : null,
-      scoreBreakdown: progress.scoreBreakdown,
+      score: null,
+      scoreBreakdown: null,
       // Strictly sanitize: Only return info for bugs the team has ALREADY isolated! Never expose un-identified bugs or planted answer locations.
       identifiedBugs: teamReports.map((r) => {
         const bugDef = plantedBugs.find((b) => b.key === r.bugKey);
@@ -1636,8 +1636,8 @@ export class ArenaService {
     return {
       submissionId: submission.id,
       status: submission.submissionStatus,
-      score: calculatedScore,
-      maximumMarks: totalQuestionMarks,
+      score: roundNumber === 1 ? calculatedScore : null,
+      maximumMarks: roundNumber === 1 ? totalQuestionMarks : null,
       passedTestCases: passedCount,
       totalTestCases: testCasesToRun.length,
       testCaseResults: sanitizedTestCaseResults,
