@@ -31,13 +31,12 @@ import { oneDark } from '@codemirror/theme-one-dark';
 
 import { useAuth } from '../../context/AuthContext';
 import { questionAndArenaService } from '../../services/question-and-arena.service';
-import { executionService } from '../../services/execution.service';
 import { useCompetitionState, useServerTimer } from '../../hooks/useCompetition';
 import { useParticipantMonitoring } from '../../hooks/useParticipantMonitoring';
 import {
   BugHuntArenaStateDto,
   BugHuntIdentifiedBugDto,
-  CodeExecutionResultDto,
+  BugHuntTestRunResultDto,
 } from '@ignitron/shared';
 
 // Custom dark theme extension matching IGNITRON emerald/slate UI styling
@@ -155,7 +154,7 @@ export const BugHuntArenaPage: React.FC = () => {
   const [selectedSampleIndex, setSelectedSampleIndex] = useState<number>(0);
   const [customStdin, setCustomStdin] = useState('');
   const [isRunningCode, setIsRunningCode] = useState(false);
-  const [runResult, setRunResult] = useState<CodeExecutionResultDto | null>(null);
+  const [runResult, setRunResult] = useState<BugHuntTestRunResultDto | null>(null);
 
   // Final Submission State
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
@@ -305,44 +304,36 @@ export const BugHuntArenaPage: React.FC = () => {
     }
   };
 
-  // Execute Code Test Run against Judge0
+  // Execute Code Test Run against configured sample tests
   const handleRunCode = async () => {
     if (!repairCode || isRunningCode) return;
-
-    const sample = arenaState?.sampleTestCases?.[selectedSampleIndex];
-    const stdinToUse =
-      selectedSampleIndex === 99 ? customStdin : sample?.stdin || '';
-    const langKey = (arenaState?.language?.toLowerCase() || 'javascript') as any;
 
     try {
       setIsRunningCode(true);
       setRunResult(null);
 
-      const res = await executionService.runCode({
+      const res = await questionAndArenaService.runBugHuntTest({
+        questionId: arenaState?.questionId || '',
         sourceCode: repairCode,
-        languageKey: langKey,
-        stdin: stdinToUse,
-        isTestRun: true,
+        language: arenaState?.language || 'javascript',
+        sampleIndex: selectedSampleIndex === 99 ? undefined : selectedSampleIndex,
+        customStdin: selectedSampleIndex === 99 ? customStdin : undefined,
       });
 
       setRunResult(res);
     } catch (err: any) {
       setRunResult({
-        status: {
-          id: 13,
-          description: 'Internal Error',
-          isSuccess: false,
-          isCompilationError: false,
-          isRuntimeError: true,
-          isTimeLimitExceeded: false,
-          isMemoryLimitExceeded: false,
-        },
-        stdout: null,
-        stderr: err?.message || 'Failed to execute code via Judge0.',
+        status: 'RUNTIME_ERROR',
+        passed: false,
+        sampleIndex: selectedSampleIndex === 99 ? undefined : selectedSampleIndex,
+        stdin: selectedSampleIndex === 99 ? customStdin : (arenaState?.sampleTestCases?.[selectedSampleIndex]?.stdin || ''),
+        expectedOutput: selectedSampleIndex === 99 ? null : (arenaState?.sampleTestCases?.[selectedSampleIndex]?.expectedOutput || null),
+        actualOutput: null,
         compileOutput: null,
+        stderr: err?.message || 'Failed to execute code via Judge0.',
         executionTimeSeconds: null,
         memoryUsageKb: null,
-        isTestRun: true,
+        message: err?.message || 'Execution error',
         executedAt: new Date().toISOString(),
       });
     } finally {
@@ -1148,7 +1139,7 @@ export const BugHuntArenaPage: React.FC = () => {
                     {arenaState?.sampleTestCases?.map((_, i) => (
                       <button
                         key={i}
-                        onClick={() => setSelectedSampleIndex(i)}
+                        onClick={() => { setSelectedSampleIndex(i); setRunResult(null); }}
                         className={`px-3 py-1.5 rounded-xl transition-all ${
                           selectedSampleIndex === i
                             ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30'
@@ -1159,7 +1150,7 @@ export const BugHuntArenaPage: React.FC = () => {
                       </button>
                     ))}
                     <button
-                      onClick={() => setSelectedSampleIndex(99)}
+                      onClick={() => { setSelectedSampleIndex(99); setRunResult(null); }}
                       className={`px-3 py-1.5 rounded-xl transition-all ${
                         selectedSampleIndex === 99
                           ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30'
@@ -1212,12 +1203,24 @@ export const BugHuntArenaPage: React.FC = () => {
                     {runResult && (
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          runResult.status.description.toLowerCase().includes('accepted')
-                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
-                            : 'bg-rose-950 text-rose-300 border border-rose-500/40'
+                          runResult.passed
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                            : runResult.status === 'WRONG_ANSWER'
+                            ? 'bg-rose-950 text-rose-300 border border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.3)]'
+                            : runResult.status === 'COMPILATION_ERROR'
+                            ? 'bg-amber-950 text-amber-300 border border-amber-500/50'
+                            : 'bg-rose-950 text-rose-300 border border-rose-500/50'
                         }`}
                       >
-                        {runResult.status.description}
+                        {runResult.passed
+                          ? '✓ TEST PASSED (ACCEPTED)'
+                          : runResult.status === 'WRONG_ANSWER'
+                          ? '✗ OUTPUT MISMATCH (WRONG ANSWER)'
+                          : runResult.status === 'COMPILATION_ERROR'
+                          ? 'COMPILATION ERROR'
+                          : runResult.status === 'TIME_LIMIT_EXCEEDED'
+                          ? 'TIME LIMIT EXCEEDED'
+                          : 'RUNTIME ERROR'}
                       </span>
                     )}
                   </div>
@@ -1226,43 +1229,116 @@ export const BugHuntArenaPage: React.FC = () => {
                     {isRunningCode ? (
                       <div className="flex items-center gap-2 text-emerald-400 text-xs py-4">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Running solution against Judge0 sandbox...</span>
+                        <span>Executing solution against Judge0 test runner...</span>
                       </div>
                     ) : runResult ? (
-                      <div className="space-y-2">
-                        {runResult.stdout && (
+                      <div className="space-y-3">
+                        {/* Status explanation alert */}
+                        <div
+                          className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
+                            runResult.passed
+                              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                              : runResult.status === 'WRONG_ANSWER'
+                              ? 'bg-rose-950/40 border-rose-500/30 text-rose-300'
+                              : 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {runResult.passed ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                            )}
+                            <span className="font-semibold">{runResult.message}</span>
+                          </div>
+                          {runResult.sampleIndex !== undefined && (
+                            <span className="text-[10px] font-mono opacity-80">
+                              Sample #{runResult.sampleIndex + 1}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Stdin (Input) */}
+                        {runResult.stdin && (
+                          <div className="space-y-1">
+                            <span className="text-[10px] uppercase text-slate-400 font-bold block">
+                              Standard Input (stdin):
+                            </span>
+                            <pre className="p-2 rounded-lg bg-black/70 border border-slate-800 text-slate-300 whitespace-pre-wrap font-mono text-[11px]">
+                              {runResult.stdin}
+                            </pre>
+                          </div>
+                        )}
+
+                        {/* Expected Output vs Actual Output */}
+                        {runResult.expectedOutput !== null && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <span className="text-[10px] uppercase text-emerald-400 font-bold block">
+                                Expected Output:
+                              </span>
+                              <pre className="p-2 rounded-lg bg-black/70 border border-emerald-500/30 text-emerald-300 whitespace-pre-wrap font-mono text-[11px]">
+                                {runResult.expectedOutput || '(empty)'}
+                              </pre>
+                            </div>
+                            <div className="space-y-1">
+                              <span
+                                className={`text-[10px] uppercase font-bold block ${
+                                  runResult.passed ? 'text-emerald-400' : 'text-rose-400'
+                                }`}
+                              >
+                                Your Output (stdout):
+                              </span>
+                              <pre
+                                className={`p-2 rounded-lg bg-black/70 border font-mono text-[11px] whitespace-pre-wrap ${
+                                  runResult.passed
+                                    ? 'border-emerald-500/30 text-emerald-200'
+                                    : 'border-rose-500/40 text-rose-200'
+                                }`}
+                              >
+                                {runResult.actualOutput ?? '(no stdout output)'}
+                              </pre>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Custom Stdin output */}
+                        {runResult.expectedOutput === null && runResult.actualOutput !== null && (
                           <div className="space-y-1">
                             <span className="text-[10px] uppercase text-emerald-400 font-bold block">
-                              Stdout:
+                              Output (stdout):
                             </span>
-                            <pre className="p-2.5 rounded-lg bg-black/70 border border-emerald-500/20 text-emerald-200 whitespace-pre-wrap">
-                              {runResult.stdout}
+                            <pre className="p-2 rounded-lg bg-black/70 border border-emerald-500/20 text-emerald-200 whitespace-pre-wrap font-mono text-[11px]">
+                              {runResult.actualOutput}
                             </pre>
                           </div>
                         )}
 
-                        {runResult.stderr && (
-                          <div className="space-y-1">
-                            <span className="text-[10px] uppercase text-rose-400 font-bold block">
-                              Stderr:
-                            </span>
-                            <pre className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-200 whitespace-pre-wrap">
-                              {runResult.stderr}
-                            </pre>
-                          </div>
-                        )}
-
+                        {/* Compiler Diagnostics */}
                         {runResult.compileOutput && (
                           <div className="space-y-1">
                             <span className="text-[10px] uppercase text-amber-400 font-bold block">
                               Compiler Diagnostics:
                             </span>
-                            <pre className="p-2.5 rounded-lg bg-amber-950/40 border border-amber-500/40 text-amber-200 whitespace-pre-wrap">
+                            <pre className="p-2.5 rounded-lg bg-amber-950/40 border border-amber-500/40 text-amber-200 whitespace-pre-wrap font-mono text-[11px]">
                               {runResult.compileOutput}
                             </pre>
                           </div>
                         )}
 
+                        {/* Stderr / Runtime Error */}
+                        {runResult.stderr && (
+                          <div className="space-y-1">
+                            <span className="text-[10px] uppercase text-rose-400 font-bold block">
+                              Stderr:
+                            </span>
+                            <pre className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-200 whitespace-pre-wrap font-mono text-[11px]">
+                              {runResult.stderr}
+                            </pre>
+                          </div>
+                        )}
+
+                        {/* Execution Metrics */}
                         <div className="flex items-center gap-3 pt-2 text-[10px] text-slate-400 border-t border-emerald-950/80">
                           {runResult.executionTimeSeconds !== null && (
                             <span>Time: <strong className="text-emerald-400">{runResult.executionTimeSeconds}s</strong></span>
@@ -1270,6 +1346,9 @@ export const BugHuntArenaPage: React.FC = () => {
                           {runResult.memoryUsageKb !== null && (
                             <span>Memory: <strong className="text-emerald-400">{Math.round(runResult.memoryUsageKb)} KB</strong></span>
                           )}
+                          <span className="ml-auto text-slate-500">
+                            Status: <strong className="text-slate-300">{runResult.status}</strong>
+                          </span>
                         </div>
                       </div>
                     ) : (

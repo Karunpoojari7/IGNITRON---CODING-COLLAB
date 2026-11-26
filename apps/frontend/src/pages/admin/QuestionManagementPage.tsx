@@ -25,6 +25,7 @@ import {
   Bug,
   Eye,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const QuestionManagementPage: React.FC = () => {
@@ -38,6 +39,7 @@ export const QuestionManagementPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [previewModalOpen, setPreviewModalOpen] = useState<boolean>(false);
   const [previewQuestion, setPreviewQuestion] = useState<QuestionDto | null>(null);
+  const [previewTab, setPreviewTab] = useState<'PARTICIPANT' | 'ADMIN'>('PARTICIPANT');
   const [editingQuestion, setEditingQuestion] = useState<QuestionDto | null>(null);
 
   // Base Form fields
@@ -221,6 +223,7 @@ export const QuestionManagementPage: React.FC = () => {
       endOffset: codeSelectionInfo.endOffset,
       correctedExpression: '',
       notes: '',
+      marks: 5,
       acceptableTokens: [codeSelectionInfo.text.trim()],
     };
     setFormPlantedBugs([...formPlantedBugs, newBug]);
@@ -237,6 +240,7 @@ export const QuestionManagementPage: React.FC = () => {
       expression: '',
       correctedExpression: '',
       notes: '',
+      marks: 5,
       acceptableTokens: [],
     };
     setFormPlantedBugs([...formPlantedBugs, newBug]);
@@ -734,6 +738,12 @@ export const QuestionManagementPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveQuestion} className="space-y-5 text-xs">
+              {formType === 'BUG_HUNT' && (
+                <div className="flex items-center gap-2 pb-1.5 border-b border-emerald-500/30 text-emerald-950 font-bold uppercase tracking-wider text-[11px]">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">A</span>
+                  <span>Section A: Mission Configuration</span>
+                </div>
+              )}
               {/* Basic metadata row */}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
@@ -932,6 +942,12 @@ export const QuestionManagementPage: React.FC = () => {
               {/* Starter Code Editor */}
               {formType !== 'MCQ' && (
                 <div className="space-y-2">
+                  {formType === 'BUG_HUNT' && (
+                    <div className="flex items-center gap-2 pb-1.5 border-b border-emerald-500/30 text-emerald-950 font-bold uppercase tracking-wider text-[11px]">
+                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">B</span>
+                      <span>Section B: Faulty Starter Code (Authoritative Source)</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="font-bold text-slate-700">
@@ -987,6 +1003,10 @@ export const QuestionManagementPage: React.FC = () => {
               {/* ROUND 2 PLANTED BUGS CONFIGURATION */}
               {formType === 'BUG_HUNT' && (
                 <div className="space-y-3 pt-3 border-t border-slate-200">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-rose-500/30 text-rose-950 font-bold uppercase tracking-wider text-[11px]">
+                    <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px]">C</span>
+                    <span>Section C: Planted Bug Configuration (4 Defects — 20 Marks)</span>
+                  </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
@@ -1111,7 +1131,23 @@ export const QuestionManagementPage: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Marks (5 per defect = 20 total)
+                                </label>
+                                <input
+                                  type="number"
+                                  value={bug.marks ?? 5}
+                                  onChange={(e) =>
+                                    handleUpdateBug(bIdx, 'marks', Number(e.target.value))
+                                  }
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                                  min={1}
+                                  required
+                                />
+                              </div>
+
                               <div>
                                 <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
                                   Corrected Expression
@@ -1178,6 +1214,12 @@ export const QuestionManagementPage: React.FC = () => {
                 <div className="space-y-4 pt-3 border-t border-slate-200">
                   {/* Public Sample Test Cases */}
                   <div className="space-y-2">
+                    {formType === 'BUG_HUNT' && (
+                      <div className="flex items-center gap-2 pb-1.5 border-b border-emerald-500/30 text-emerald-950 font-bold uppercase tracking-wider text-[11px]">
+                        <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">D</span>
+                        <span>Section D: Visible Sample Tests (Passing Suite — 50 Marks)</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -1258,6 +1300,12 @@ export const QuestionManagementPage: React.FC = () => {
 
                   {/* Hidden & Edge Cases */}
                   <div className="space-y-2">
+                    {formType === 'BUG_HUNT' && (
+                      <div className="flex items-center gap-2 pb-1.5 border-b border-amber-500/30 text-amber-950 font-bold uppercase tracking-wider text-[11px]">
+                        <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">E</span>
+                        <span>Section E: Hidden & Edge-Case Tests (Boundary Handling — 20 Marks)</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                         <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -1349,7 +1397,13 @@ export const QuestionManagementPage: React.FC = () => {
               )}
 
               {/* Admin notes */}
-              <div>
+              <div className="space-y-2">
+                {formType === 'BUG_HUNT' && (
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-300 text-slate-900 font-bold uppercase tracking-wider text-[11px]">
+                    <span className="w-5 h-5 rounded-full bg-slate-700 text-white flex items-center justify-center text-[10px]">F</span>
+                    <span>Section F: Internal Solution & Notes (Code Cleanliness — 10 Marks)</span>
+                  </div>
+                )}
                 <label className="font-bold text-slate-700 block mb-1">Admin Notes / Internal Solution</label>
                 <textarea
                   rows={2}
@@ -1386,7 +1440,8 @@ export const QuestionManagementPage: React.FC = () => {
       {/* ROUND 2 MISSION PREVIEW MODAL */}
       {previewModalOpen && previewQuestion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-3xl w-full border border-slate-200 shadow-2xl p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full border border-slate-200 shadow-2xl p-6 space-y-4 my-8 max-h-[92vh] overflow-y-auto">
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -1405,6 +1460,9 @@ export const QuestionManagementPage: React.FC = () => {
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-purple-100 text-purple-800">
                     {previewQuestion.language || 'javascript'}
                   </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-100 text-slate-800">
+                    {previewQuestion.marks || 100} Marks
+                  </span>
                 </div>
                 <h2 className="text-lg font-extrabold text-emerald-950 mt-1">
                   {previewQuestion.title}
@@ -1418,99 +1476,207 @@ export const QuestionManagementPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Briefing */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Operational Briefing
-              </h4>
-              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
-                {previewQuestion.description}
-              </p>
+            {/* View Selector Tabs */}
+            <div className="flex border-b border-slate-200 text-xs font-bold">
+              <button
+                onClick={() => setPreviewTab('PARTICIPANT')}
+                className={`px-4 py-2 border-b-2 flex items-center gap-2 transition ${
+                  previewTab === 'PARTICIPANT'
+                    ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Eye className="w-4 h-4" />
+                <span>Participant-Facing Challenge View</span>
+              </button>
+              <button
+                onClick={() => setPreviewTab('ADMIN')}
+                className={`px-4 py-2 border-b-2 flex items-center gap-2 transition ${
+                  previewTab === 'ADMIN'
+                    ? 'border-rose-600 text-rose-700 bg-rose-50/50'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Administrator-Only Confidential Details</span>
+              </button>
             </div>
 
-            {/* Starter Code Viewer with Participant-Aligned Defect Highlights */}
-            {previewQuestion.starterCode && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <Code className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Faulty Starter Code (Exact Participant View &amp; Highlights)</span>
-                  </h4>
-                  <span className="text-[11px] font-mono text-slate-500">
-                    {previewQuestion.starterCode.split('\n').length} Lines
-                  </span>
+            {/* TAB 1: PARTICIPANT-FACING VIEW */}
+            {previewTab === 'PARTICIPANT' && (
+              <div className="space-y-4">
+                <div className="p-3 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs text-emerald-900">
+                  <strong>Participant Experience:</strong> Contestants identify 4 planted defects in the code below to unlock Code Repair, then test and submit their repaired code against visible test scenarios.
                 </div>
-                <div className="text-xs font-mono bg-slate-950 text-slate-200 p-3 rounded-xl overflow-x-auto max-h-72 leading-relaxed border border-slate-800">
-                  {previewQuestion.starterCode.split('\n').map((lineText, idx) => {
-                    const lineNum = idx + 1;
-                    const bugForLine = previewQuestion.plantedBugs?.find(
-                      (b) =>
-                        b.lineNumber === lineNum ||
-                        (b.expression && b.expression.length > 5 && lineText.includes(b.expression.trim())),
-                    );
 
-                    return (
-                      <div
-                        key={lineNum}
-                        className={`flex items-start px-2 py-0.5 rounded transition-colors ${
-                          bugForLine
-                            ? 'bg-rose-950/70 border-l-4 border-rose-500 text-rose-300 font-semibold shadow-[0_0_8px_rgba(244,63,94,0.35)]'
-                            : 'hover:bg-slate-900/60 text-slate-300'
-                        }`}
-                      >
-                        <span
-                          className={`w-8 shrink-0 text-right pr-3 select-none ${
-                            bugForLine ? 'text-rose-400 font-bold' : 'text-slate-600'
-                          }`}
-                        >
-                          {lineNum}
-                        </span>
-                        <span className="flex-1 whitespace-pre">{lineText}</span>
-                        {bugForLine && (
-                          <span className="ml-2 px-1.5 py-0.2 rounded text-[10px] font-mono uppercase bg-rose-600/30 text-rose-300 border border-rose-500/50 shrink-0 select-none">
-                            {bugForLine.name || 'DEFECT'}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Planted Bugs Admin Summary */}
-            {previewQuestion.plantedBugs && previewQuestion.plantedBugs.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <Bug className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Planted Defect Checklist ({previewQuestion.plantedBugs.length})</span>
-                </h4>
+                {/* Briefing */}
                 <div className="space-y-1.5">
-                  {previewQuestion.plantedBugs.map((bug, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2 rounded-lg bg-rose-50/70 border border-rose-200 text-xs flex items-center justify-between"
-                    >
-                      <div>
-                        <span className="font-mono font-bold text-rose-900 mr-2">
-                          Line {bug.lineNumber}:
-                        </span>
-                        <code className="bg-white px-1.5 py-0.5 rounded text-rose-800 font-mono">
-                          {bug.expression}
-                        </code>
-                        <span className="text-slate-600 ml-2">— {bug.description}</span>
-                      </div>
-                      {bug.correctedExpression && (
-                        <span className="text-[10px] font-mono text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
-                          Fix: {bug.correctedExpression}
-                        </span>
-                      )}
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Operational Mission Briefing
+                  </h4>
+                  <div className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200 font-sans">
+                    {previewQuestion.description}
+                  </div>
+                </div>
+
+                {/* Faulty Starter Code */}
+                {previewQuestion.starterCode && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Code className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Authoritative Starter Code ({previewQuestion.language || 'javascript'})</span>
+                      </h4>
+                      <span className="text-[11px] font-mono text-slate-500">
+                        {previewQuestion.starterCode.split('\n').length} Lines
+                      </span>
                     </div>
-                  ))}
+                    <div className="text-xs font-mono bg-slate-950 text-slate-200 p-3 rounded-xl overflow-x-auto max-h-64 leading-relaxed border border-slate-800">
+                      {previewQuestion.starterCode.split('\n').map((lineText, idx) => (
+                        <div key={idx} className="flex items-start px-2 py-0.5 hover:bg-slate-900/60">
+                          <span className="w-8 shrink-0 text-right pr-3 select-none text-slate-600">
+                            {idx + 1}
+                          </span>
+                          <span className="flex-1 whitespace-pre">{lineText}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Visible Sample Test Scenarios */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Visible Sample Test Scenarios ({previewQuestion.sampleTestCases?.length || 0})</span>
+                  </h4>
+                  {previewQuestion.sampleTestCases && previewQuestion.sampleTestCases.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {previewQuestion.sampleTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-3 rounded-xl border border-slate-200 bg-slate-50/60 space-y-1.5 text-xs font-mono">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                            <span>Sample Scenario #{idx + 1}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold block">Input (stdin):</span>
+                            <pre className="p-1.5 bg-white rounded border border-slate-200 text-slate-800 whitespace-pre-wrap">{tc.stdin || '(empty)'}</pre>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase text-emerald-600 font-bold block">Expected Output:</span>
+                            <pre className="p-1.5 bg-white rounded border border-slate-200 text-emerald-800 whitespace-pre-wrap">{tc.expectedOutput}</pre>
+                          </div>
+                          {tc.explanation && (
+                            <p className="text-[10px] text-slate-500 font-sans italic pt-0.5">{tc.explanation}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl border border-dashed border-slate-200 text-center text-slate-500 text-xs">
+                      No visible sample tests configured.
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
+            {/* TAB 2: ADMINISTRATOR-ONLY CONFIDENTIAL VIEW */}
+            {previewTab === 'ADMIN' && (
+              <div className="space-y-4">
+                <div className="p-3 bg-rose-50/70 border border-rose-200/80 rounded-xl text-xs text-rose-900">
+                  <strong>Confidential Administrator Data:</strong> Planted bug fixes, hidden tests, and reference solutions are strictly restricted to the backend and never exposed to contestant clients.
+                </div>
+
+                {/* Planted Defect Checklist */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Bug className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Planted Defect Checklist &amp; Reference Repairs ({previewQuestion.plantedBugs?.length || 0})</span>
+                  </h4>
+                  {previewQuestion.plantedBugs && previewQuestion.plantedBugs.length > 0 ? (
+                    <div className="space-y-2">
+                      {previewQuestion.plantedBugs.map((bug, idx) => (
+                        <div key={idx} className="p-3 rounded-xl bg-rose-50/60 border border-rose-200 text-xs space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-rose-950 font-mono">
+                              #{idx + 1} {bug.name || bug.key} (Line {bug.lineNumber})
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-200 text-rose-900">
+                              {bug.marks ?? 5} Marks
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px]">
+                            <div>
+                              <span className="text-[10px] uppercase text-rose-600 font-bold block">Faulty Expression:</span>
+                              <pre className="p-1.5 bg-white rounded border border-rose-300 text-rose-900 whitespace-pre-wrap">{bug.expression}</pre>
+                            </div>
+                            <div>
+                              <span className="text-[10px] uppercase text-emerald-600 font-bold block">Corrected Fix:</span>
+                              <pre className="p-1.5 bg-white rounded border border-emerald-300 text-emerald-900 whitespace-pre-wrap">{bug.correctedExpression || '(not specified)'}</pre>
+                            </div>
+                          </div>
+                          <div className="text-slate-700 text-xs">
+                            <strong>Root Cause:</strong> {bug.description}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl border border-dashed border-slate-200 text-center text-slate-500 text-xs">
+                      No planted bugs configured.
+                    </div>
+                  )}
+                </div>
+
+                {/* Hidden & Edge-Case Test Suite */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Hidden &amp; Edge-Case Evaluation Suite ({previewQuestion.hiddenTestCases?.length || 0})</span>
+                  </h4>
+                  {previewQuestion.hiddenTestCases && previewQuestion.hiddenTestCases.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {previewQuestion.hiddenTestCases.map((tc: any, idx) => (
+                        <div key={idx} className="p-3 rounded-xl border border-amber-200 bg-amber-50/40 space-y-1.5 text-xs font-mono">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-amber-950">
+                            <span>Hidden Test #{idx + 1}</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-200 text-amber-900">
+                              {tc.marks || 10} pts {tc.isEdgeCase ? '• Edge Case' : ''}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold block">Stdin:</span>
+                            <pre className="p-1.5 bg-white rounded border border-amber-200 text-slate-800 whitespace-pre-wrap">{tc.stdin || '(empty)'}</pre>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase text-amber-700 font-bold block">Expected Output:</span>
+                            <pre className="p-1.5 bg-white rounded border border-amber-200 text-amber-900 whitespace-pre-wrap">{tc.expectedOutput}</pre>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl border border-dashed border-slate-200 text-center text-slate-500 text-xs">
+                      No hidden test cases configured.
+                    </div>
+                  )}
+                </div>
+
+                {/* Internal Benchmark Notes */}
+                {previewQuestion.explanation && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Internal Solution Notes &amp; Rubric Benchmarks
+                    </h4>
+                    <pre className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200 font-mono">
+                      {previewQuestion.explanation}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Footer */}
             <div className="pt-3 border-t border-slate-200 flex justify-end">
               <button
                 onClick={() => setPreviewModalOpen(false)}
