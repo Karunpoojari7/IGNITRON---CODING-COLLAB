@@ -22,6 +22,8 @@ import {
   BugHuntArenaStateDto,
   ReportBugDto,
   ReportBugResultDto,
+  RunBugHuntTestDto,
+  BugHuntTestRunResultDto,
 } from '@ignitron/shared';
 import {
   OFFICIAL_ROUND2_JS_STARTER,
@@ -906,6 +908,139 @@ export class ArenaService {
     };
   }
 
+  /**
+   * Contestant: Real execution of repaired code against administrator-configured visible test cases
+   */
+  async executeBugHuntTest(
+    teamUser: AuthTeamUser,
+    dto: RunBugHuntTestDto,
+  ): Promise<BugHuntTestRunResultDto> {
+    await this.verifyActiveParticipantSession(teamUser);
+    const { round } = await this.assertRoundAccess(teamUser, 2, 'READ');
+
+    const question = await this.prisma.question.findFirst({
+      where: { id: dto.questionId, roundId: round.id },
+    });
+
+    if (!question) {
+      throw new NotFoundException('Round 2 Bug Hunt question not found.');
+    }
+
+    const langKey = (dto.language || question.language || 'javascript').toLowerCase();
+    const langConfig =
+      OFFICIAL_JUDGE0_LANGUAGES.find((l) => l.key === langKey) ||
+      OFFICIAL_JUDGE0_LANGUAGES.find((l) => l.key === 'javascript')!;
+
+    let stdinToUse = '';
+    let expectedOutput: string | null = null;
+    const sampleIdx = dto.sampleIndex ?? 0;
+
+    const sampleTestCases = Array.isArray(question.sampleTestCases)
+      ? (question.sampleTestCases as Array<{ stdin?: string; expectedOutput?: string; explanation?: string }>)
+      : [];
+
+    if (sampleIdx === 99) {
+      // Custom Stdin execution
+      stdinToUse = dto.customStdin || '';
+      expectedOutput = null;
+    } else if (sampleTestCases[sampleIdx]) {
+      stdinToUse = sampleTestCases[sampleIdx].stdin || '';
+      expectedOutput = sampleTestCases[sampleIdx].expectedOutput || '';
+    } else if (sampleTestCases.length > 0) {
+      stdinToUse = sampleTestCases[0].stdin || '';
+      expectedOutput = sampleTestCases[0].expectedOutput || '';
+    }
+
+    let codeToExecute = dto.sourceCode;
+    if (langConfig.key === 'java') {
+      codeToExecute = codeToExecute.replace(/public\s+class\s+[A-Za-z0-9_]+/g, 'public class Main');
+    }
+
+    let execRes: any;
+    try {
+      execRes = await this.judge0Client.execute(
+        codeToExecute,
+        langConfig.id,
+        stdinToUse,
+        EXECUTION_LIMITS.DEFAULT_CPU_TIME_LIMIT_SECONDS,
+        EXECUTION_LIMITS.DEFAULT_MEMORY_LIMIT_KB,
+      );
+    } catch (err: any) {
+      this.logger.error(`Judge0 execution failed for sample test: ${err.message}`);
+      return {
+        status: 'RUNTIME_ERROR',
+        passed: false,
+        sampleIndex: sampleIdx,
+        stdin: stdinToUse,
+        expectedOutput,
+        actualOutput: null,
+        compileOutput: null,
+        stderr: err?.message || 'Execution service unreachable',
+        executionTimeSeconds: null,
+        memoryUsageKb: null,
+        message: 'Execution Service Unreachable',
+        executedAt: new Date().toISOString(),
+      };
+    }
+
+    const normStatus = this.judge0Client.normalizeStatus(execRes.status);
+    const timeNum = execRes.time ? parseFloat(execRes.time) : null;
+    const memNum = execRes.memory ? Number(execRes.memory) : null;
+    const actualOutput = execRes.stdout ?? '';
+
+    let testStatus: 'ACCEPTED' | 'WRONG_ANSWER' | 'COMPILATION_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED' = 'WRONG_ANSWER';
+    let testPassed = false;
+    let message = 'Output mismatch';
+
+    if (normStatus.isCompilationError) {
+      testStatus = 'COMPILATION_ERROR';
+      testPassed = false;
+      message = 'Compilation Failed';
+    } else if (normStatus.isTimeLimitExceeded) {
+      testStatus = 'TIME_LIMIT_EXCEEDED';
+      testPassed = false;
+      message = 'Time Limit Exceeded';
+    } else if (normStatus.isRuntimeError) {
+      testStatus = 'RUNTIME_ERROR';
+      testPassed = false;
+      message = 'Runtime Error';
+    } else if (normStatus.isSuccess) {
+      if (expectedOutput !== null) {
+        const normActual = this.normalizeOutput(actualOutput);
+        const normExpected = this.normalizeOutput(expectedOutput);
+        if (normActual === normExpected) {
+          testStatus = 'ACCEPTED';
+          testPassed = true;
+          message = 'Test Passed';
+        } else {
+          testStatus = 'WRONG_ANSWER';
+          testPassed = false;
+          message = 'Wrong Answer (Output Mismatch)';
+        }
+      } else {
+        // Custom Stdin execution
+        testStatus = 'ACCEPTED';
+        testPassed = true;
+        message = 'Execution Succeeded';
+      }
+    }
+
+    return {
+      status: testStatus,
+      passed: testPassed,
+      sampleIndex: sampleIdx,
+      stdin: stdinToUse,
+      expectedOutput,
+      actualOutput,
+      compileOutput: execRes.compile_output || null,
+      stderr: execRes.stderr || null,
+      executionTimeSeconds: timeNum,
+      memoryUsageKb: memNum,
+      message,
+      executedAt: new Date().toISOString(),
+    };
+  }
+
   // ============================================================================
   // WORKSPACE DRAFTS & CODE SUBMISSIONS (ROUNDS 2 & 3)
   // Strict case draft isolation (Case 1, 2, 3) and independent submission state
@@ -1421,7 +1556,13 @@ export class ArenaService {
       // - Test Correctness: 50
       // - Edge Cases: 20
       // - Code Quality: 10
-      const bugIdScore = 20;
+      const bugReports = await this.prisma.teamBugReport.findMany({
+        where: { teamId: teamUser.id, questionId: question?.id },
+      });
+      const plantedBugs = (question?.plantedBugs as any[]) ||
+        (question?.title === 'Bug Hunt: Distributed Token Bucket Rate Limiter' ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
+      const totalPlanted = Math.max(1, plantedBugs.length);
+      const bugIdScore = Math.min(20, Math.round((bugReports.length / totalPlanted) * 20 * 100) / 100);
       let testCorrectnessScore = 0;
       let edgeCasesScore = 0;
       let codeQualityScore = 0;

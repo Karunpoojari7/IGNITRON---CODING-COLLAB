@@ -23,6 +23,7 @@ import {
   SaveMcqAnswerDto,
   SubmitMcqAnswersDto,
   ReportBugDto,
+  RunBugHuntTestDto,
   SaveAnalyticsDraftDto,
   SelectAnalyticsOptionDto,
   SubmitAnalyticsQuestionDto,
@@ -114,6 +115,19 @@ export class ArenaController {
     @Body() dto: ReportBugDto,
   ) {
     const data = await this.arenaService.reportBug(teamUser, dto);
+    return { success: true, data };
+  }
+
+  /**
+   * Contestant: Test-run Round 2 solution against a specific configured sample test case
+   */
+  @Post('bug-hunt/test-run')
+  @HttpCode(HttpStatus.OK)
+  async runBugHuntTest(
+    @CurrentUser() teamUser: AuthTeamUser,
+    @Body() dto: RunBugHuntTestDto,
+  ) {
+    const data = await this.arenaService.executeBugHuntTest(teamUser, dto);
     return { success: true, data };
   }
 
