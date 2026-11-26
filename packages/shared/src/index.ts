@@ -1071,6 +1071,7 @@ export interface BugHuntPlantedBug {
   expression: string;
   correctedExpression?: string;
   notes?: string;
+  marks?: number;
   acceptableTokens: string[];
   startOffset?: number;
   endOffset?: number;
@@ -1121,6 +1122,29 @@ export interface ReportBugDto {
   lineNumber?: number;
   startOffset?: number;
   endOffset?: number;
+}
+
+export interface RunBugHuntTestDto {
+  questionId: string;
+  sourceCode: string;
+  language?: string;
+  sampleIndex?: number;
+  customStdin?: string;
+}
+
+export interface BugHuntTestRunResultDto {
+  status: 'ACCEPTED' | 'WRONG_ANSWER' | 'COMPILATION_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
+  passed: boolean;
+  sampleIndex?: number;
+  stdin: string;
+  expectedOutput: string | null;
+  actualOutput: string | null;
+  compileOutput: string | null;
+  stderr: string | null;
+  executionTimeSeconds: number | null;
+  memoryUsageKb: number | null;
+  message: string;
+  executedAt: string;
 }
 
 export interface ReportBugResultDto {

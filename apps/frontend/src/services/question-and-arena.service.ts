@@ -14,6 +14,8 @@ import {
   BugHuntArenaStateDto,
   ReportBugDto,
   ReportBugResultDto,
+  RunBugHuntTestDto,
+  BugHuntTestRunResultDto,
   AnalyticsArenaStateDto,
   DatasetMetaDto,
   AnalyticsSubmissionResultDto,
@@ -150,6 +152,14 @@ export const questionAndArenaService = {
   // --------------------------------------------------------------------------
   async getBugHuntState(): Promise<BugHuntArenaStateDto> {
     const res = await apiClient<ApiResponseWrapper<BugHuntArenaStateDto>>('/arena/bug-hunt/state');
+    return res.data;
+  },
+
+  async runBugHuntTest(dto: RunBugHuntTestDto): Promise<BugHuntTestRunResultDto> {
+    const res = await apiClient<ApiResponseWrapper<BugHuntTestRunResultDto>>('/arena/bug-hunt/test-run', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
     return res.data;
   },
 
