@@ -394,7 +394,7 @@ export const TeamDashboardPage: React.FC = () => {
         {/* M-04 Persistent Result & Qualification Announcement Card */}
         {activeCelebration && (
           <div
-            className={`max-w-[650px] w-full mx-auto p-5 sm:p-6 rounded-3xl border shadow-md transition-all flex flex-col gap-4 animate-in fade-in ${
+            className={`p-5 rounded-2xl border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all animate-in fade-in ${
               activeCelebration.type === 'GRAND_WINNER'
                 ? 'bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border-amber-300 text-amber-950'
                 : activeCelebration.type === 'QUALIFIED'
@@ -404,10 +404,10 @@ export const TeamDashboardPage: React.FC = () => {
                 : 'bg-gradient-to-r from-slate-500/15 via-slate-500/10 to-slate-500/5 border-slate-300 text-slate-900'
             }`}
           >
-            {/* Top Row: Icon + Badges + Title */}
-            <div className="flex items-start gap-4">
+            {/* Left Column: Icon + Badges + Title + Description */}
+            <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div
-                className={`p-3 rounded-2xl border shrink-0 ${
+                className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
                   activeCelebration.type === 'GRAND_WINNER'
                     ? 'bg-amber-100 border-amber-300 text-amber-700'
                     : activeCelebration.type === 'QUALIFIED'
@@ -418,17 +418,17 @@ export const TeamDashboardPage: React.FC = () => {
                 }`}
               >
                 {activeCelebration.type === 'GRAND_WINNER' ? (
-                  <Trophy className="w-6 h-6 animate-bounce" />
+                  <Trophy className="w-5 h-5 animate-bounce" />
                 ) : activeCelebration.type === 'QUALIFIED' ? (
-                  <Award className="w-6 h-6" />
+                  <Award className="w-5 h-5" />
                 ) : activeCelebration.type === 'ELIMINATED' ? (
-                  <Heart className="w-6 h-6" />
+                  <Heart className="w-5 h-5" />
                 ) : (
-                  <Sparkles className="w-6 h-6" />
+                  <Sparkles className="w-5 h-5" />
                 )}
               </div>
 
-              <div className="space-y-1 flex-1 min-w-0">
+              <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase border ${
@@ -454,17 +454,17 @@ export const TeamDashboardPage: React.FC = () => {
                   </h3>
                 </div>
                 {/* Full-width description text */}
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1">
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-0.5">
                   {activeCelebration.message}
                 </p>
               </div>
             </div>
 
-            {/* Bottom Row: Action button properly aligned */}
-            <div className="flex items-center justify-end pt-1 border-t border-black/5">
+            {/* Right Column: Action button properly aligned */}
+            <div className="flex items-center justify-end shrink-0 self-start md:self-center">
               <button
                 onClick={() => setCelebrationModalOpen(true)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap ${
                   activeCelebration.type === 'GRAND_WINNER'
                     ? 'bg-amber-500 hover:bg-amber-400 text-amber-950'
                     : activeCelebration.type === 'QUALIFIED'
