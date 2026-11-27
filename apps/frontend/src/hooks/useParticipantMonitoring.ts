@@ -59,6 +59,7 @@ export const useParticipantMonitoring = ({
   const lastBlurEventTimeRef = useRef<number>(0);
   const lastCopyEventTimeRef = useRef<number>(0);
   const pendingWarningRef = useRef<FocusEventResultDto | null>(null);
+  const inFlightSendRef = useRef<Promise<void> | null>(null);
 
   const flushRetryQueue = useCallback(async () => {
     const queue = readRetryQueue();
@@ -126,30 +127,38 @@ export const useParticipantMonitoring = ({
         details,
       };
 
-      try {
-        const res = await proctoringService.recordEventKeepAlive(payload);
-        if (res.recorded) {
-          setLockStatus(res.lockStatus);
-          setWarningCount(res.warningCount);
-          setIncidentCount(res.incidentCount);
-          if (res.lockStatus === 'LOCKED_PENDING_REVIEW' || res.lockStatus === 'BLOCKED') {
-            setLockReason(res.message);
-          } else if (eventType === 'TAB_SWITCH' || eventType === 'PAGE_HIDDEN') {
-            pendingWarningRef.current = {
-              recorded: true,
-              violationCount: res.warningCount,
-              threshold: 3,
-              revoked: false,
-              lockStatus: res.lockStatus,
-              message: res.message,
-            };
+      const sendPromise = (async () => {
+        try {
+          const res = await proctoringService.recordEventKeepAlive(payload);
+          if (res.recorded) {
+            setLockStatus(res.lockStatus);
+            setWarningCount(res.warningCount);
+            setIncidentCount(res.incidentCount);
+            if (res.lockStatus === 'LOCKED_PENDING_REVIEW' || res.lockStatus === 'BLOCKED') {
+              setLockReason(res.message);
+            } else if (eventType === 'TAB_SWITCH' || eventType === 'PAGE_HIDDEN') {
+              pendingWarningRef.current = {
+                recorded: true,
+                violationCount: res.warningCount,
+                threshold: 3,
+                revoked: false,
+                lockStatus: res.lockStatus,
+                message: res.message,
+              };
+            }
           }
+        } catch {
+          // Network failure: enqueue for automatic retry when connection returns
+          const queue = readRetryQueue();
+          queue.push(payload);
+          writeRetryQueue(queue);
         }
-      } catch {
-        // Network failure: enqueue for automatic retry when connection returns
-        const queue = readRetryQueue();
-        queue.push(payload);
-        writeRetryQueue(queue);
+      })();
+
+      inFlightSendRef.current = sendPromise;
+      await sendPromise;
+      if (inFlightSendRef.current === sendPromise) {
+        inFlightSendRef.current = null;
       }
     },
     [roundNumber, isRoundActive, isSubmitted, isConcluded, questionId, arenaType],
@@ -176,16 +185,23 @@ export const useParticipantMonitoring = ({
       return;
     }
 
+    const syncOnReturn = async () => {
+      if (inFlightSendRef.current) {
+        await inFlightSendRef.current.catch(() => {});
+      }
+      await flushRetryQueue();
+      await refreshStatus();
+      if (pendingWarningRef.current) {
+        setFocusWarning(pendingWarningRef.current);
+        pendingWarningRef.current = null;
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' || document.hidden) {
         sendEvent('TAB_SWITCH', 'Browser tab hidden or minimized');
       } else {
-        flushRetryQueue();
-        refreshStatus();
-        if (pendingWarningRef.current) {
-          setFocusWarning(pendingWarningRef.current);
-          pendingWarningRef.current = null;
-        }
+        void syncOnReturn();
       }
     };
 
@@ -194,12 +210,7 @@ export const useParticipantMonitoring = ({
     };
 
     const handleWindowFocus = () => {
-      flushRetryQueue();
-      refreshStatus();
-      if (pendingWarningRef.current) {
-        setFocusWarning(pendingWarningRef.current);
-        pendingWarningRef.current = null;
-      }
+      void syncOnReturn();
     };
 
     const handleCopy = () => {

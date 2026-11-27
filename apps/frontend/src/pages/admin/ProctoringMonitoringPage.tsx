@@ -77,6 +77,11 @@ export const ProctoringMonitoringPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    // Guaranteed 5s fallback refresh in case SSE is buffered by reverse proxy
+    const poll = setInterval(() => {
+      fetchData();
+    }, 5000);
+    return () => clearInterval(poll);
   }, [fetchData]);
 
   // Real-time SSE connection for immediate admin notifications
