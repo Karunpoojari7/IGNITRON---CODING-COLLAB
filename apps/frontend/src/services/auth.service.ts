@@ -9,7 +9,7 @@ import {
   AuthTeamUser,
   TeamLookupResponse,
 } from '@ignitron/shared';
-import { apiClient } from './api';
+import { apiClient, setAuthToken, clearAuthToken } from './api';
 
 export const authService = {
   async registerTeam(dto: RegisterTeamDto): Promise<RegisterTeamResponse> {
@@ -24,13 +24,14 @@ export const authService = {
   },
 
   async adminLogin(dto: AdminLoginDto): Promise<AuthAdminUser> {
-    const res = await apiClient<{ success: boolean; user: AuthAdminUser }>(
+    const res = await apiClient<{ success: boolean; user: AuthAdminUser; token?: string }>(
       '/auth/admin/login',
       {
         method: 'POST',
         body: JSON.stringify(dto),
       },
     );
+    setAuthToken(res.token);
     return res.user;
   },
 
@@ -42,13 +43,14 @@ export const authService = {
   },
 
   async teamLogin(dto: TeamLoginDto): Promise<AuthTeamUser> {
-    const res = await apiClient<{ success: boolean; user: AuthTeamUser }>(
+    const res = await apiClient<{ success: boolean; user: AuthTeamUser; token?: string }>(
       '/auth/team/login',
       {
         method: 'POST',
         body: JSON.stringify(dto),
       },
     );
+    setAuthToken(res.token);
     return res.user;
   },
 
@@ -77,9 +79,13 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
-    await apiClient('/auth/logout', {
-      method: 'POST',
-    });
+    try {
+      await apiClient('/auth/logout', {
+        method: 'POST',
+      });
+    } finally {
+      clearAuthToken();
+    }
   },
 };
 

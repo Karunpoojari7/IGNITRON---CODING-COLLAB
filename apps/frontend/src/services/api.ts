@@ -6,7 +6,43 @@
  * in production.
  */
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '');
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '');
+const AUTH_TOKEN_KEY = 'ignitron_auth_token';
+
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token: string | null | undefined): void {
+  try {
+    if (token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function clearAuthToken(): void {
+  try {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function getAuthHeaders(extraHeaders?: HeadersInit): Headers {
+  const headers = new Headers(extraHeaders || {});
+  const token = getAuthToken();
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return headers;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -35,7 +71,7 @@ export async function apiClient<T>(
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${normalizedEndpoint}`;
 
-  const headers = new Headers(options.headers || {});
+  const headers = getAuthHeaders(options.headers);
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
@@ -66,6 +102,9 @@ export async function apiClient<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthToken();
+    }
     let errorData: unknown;
     if (rawText && rawText.trim()) {
       try {
