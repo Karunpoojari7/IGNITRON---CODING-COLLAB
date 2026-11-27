@@ -16,10 +16,14 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CodeExecutionService } from './code-execution.service';
 import { ExecuteCodeDto } from './dto/execute-code.dto';
 import { AuthTeamUser } from '@ignitron/shared';
+import { ProctoringService } from '../proctoring/proctoring.service';
 
 @Controller('execution')
 export class CodeExecutionController {
-  constructor(private readonly executionService: CodeExecutionService) {}
+  constructor(
+    private readonly executionService: CodeExecutionService,
+    private readonly proctoringService: ProctoringService,
+  ) {}
 
   /**
    * List supported programming languages with official Judge0 IDs
@@ -48,6 +52,7 @@ export class CodeExecutionController {
   @HttpCode(HttpStatus.OK)
   async runCode(@Body() dto: ExecuteCodeDto, @Req() req: any) {
     const teamUser = req.user as AuthTeamUser;
+    await this.proctoringService.assertParticipantNotLocked(teamUser);
     const result = await this.executionService.executeCode(dto, teamUser, false);
     return { success: true, result };
   }

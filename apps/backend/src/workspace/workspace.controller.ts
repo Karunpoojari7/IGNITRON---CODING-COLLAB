@@ -15,11 +15,15 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { WorkspaceService } from './workspace.service';
 import { SaveDraftDto } from './dto/workspace.dto';
 import { AuthTeamUser } from '@ignitron/shared';
+import { ProctoringService } from '../proctoring/proctoring.service';
 
 @Controller('workspace')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class WorkspaceController {
-  constructor(private readonly workspaceService: WorkspaceService) {}
+  constructor(
+    private readonly workspaceService: WorkspaceService,
+    private readonly proctoringService: ProctoringService,
+  ) {}
 
   /**
    * Load the saved workspace draft for the current or specified round
@@ -29,6 +33,7 @@ export class WorkspaceController {
   async getDraft(@Query('roundNumber') roundNumber: string, @Req() req: any) {
     const teamUser = req.user as AuthTeamUser;
     const parsedRound = roundNumber ? parseInt(roundNumber, 10) : undefined;
+    await this.proctoringService.assertParticipantNotLocked(teamUser, parsedRound);
     const draft = await this.workspaceService.getDraft(teamUser, parsedRound);
     return { success: true, draft };
   }
@@ -41,6 +46,7 @@ export class WorkspaceController {
   @HttpCode(HttpStatus.OK)
   async saveDraft(@Body() dto: SaveDraftDto, @Req() req: any) {
     const teamUser = req.user as AuthTeamUser;
+    await this.proctoringService.assertParticipantNotLocked(teamUser, dto.roundNumber);
     const draft = await this.workspaceService.saveDraft(dto, teamUser);
     return { success: true, draft };
   }
