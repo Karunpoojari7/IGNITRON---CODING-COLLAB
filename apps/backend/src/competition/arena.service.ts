@@ -10,6 +10,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { CompetitionService } from './competition.service';
 import { Judge0ClientService } from '../code-execution/judge0-client.service';
+import { ProctoringService } from '../proctoring/proctoring.service';
 import {
   AuthTeamUser,
   McqArenaStateDto,
@@ -29,6 +30,12 @@ import {
   OFFICIAL_ROUND2_JS_STARTER,
   OFFICIAL_ROUND2_PLANTED_BUGS,
 } from './questions.service';
+import {
+  ROUND2_SUPPORTED_LANGUAGES,
+  OFFICIAL_ROUND2_LANGUAGE_STARTERS,
+  OFFICIAL_ROUND2_LANGUAGE_BUGS,
+  OFFICIAL_ROUND2_VERIFICATION_TESTS,
+} from './data/round2-multilang.config';
 
 @Injectable()
 export class ArenaService {
@@ -40,6 +47,7 @@ export class ArenaService {
     private readonly judge0Client: Judge0ClientService,
     @Inject(forwardRef(() => CompetitionService))
     private readonly competitionService: CompetitionService,
+    private readonly proctoringService: ProctoringService,
   ) {}
 
   /**
@@ -141,6 +149,9 @@ export class ArenaService {
   ) {
     // 1. Authoritative auto-conclusion check: if deadline passed, transition state immediately
     await this.competitionService.autoConcludeActiveRoundIfExpired();
+
+    // 1a. Authoritative Anti-Cheat & Proctoring Lock Enforcement
+    await this.proctoringService.assertParticipantNotLocked(teamUser, roundNumber);
 
     const round = await this.getRound(roundNumber);
     const progress = await this.getOrCreateTeamProgress(teamUser.id, round.id, roundNumber);
@@ -595,6 +606,42 @@ export class ArenaService {
     const plantedBugs = (question.plantedBugs as any[]) ||
       (question.title === 'Bug Hunt: Distributed Token Bucket Rate Limiter' ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
 
+    const rubric = (question.rubric as any) || {};
+    const isOfficialTokenBucket = question.title?.includes('Token Bucket');
+    const supportedLanguages = Array.isArray(rubric.supportedLanguages) && rubric.supportedLanguages.length > 0
+      ? rubric.supportedLanguages
+      : isOfficialTokenBucket
+      ? ROUND2_SUPPORTED_LANGUAGES
+      : [(question.language || 'javascript').toLowerCase()];
+
+    const languageStarterCodes: Record<string, string> = {
+      ...(isOfficialTokenBucket ? OFFICIAL_ROUND2_LANGUAGE_STARTERS : {}),
+      ...(rubric.languageStarterCodes || {}),
+    };
+    if (!languageStarterCodes[(question.language || 'javascript').toLowerCase()]) {
+      languageStarterCodes[(question.language || 'javascript').toLowerCase()] = question.starterCode || '';
+    }
+
+    const draftRecord = await this.prisma.workspaceDraft.findUnique({
+      where: {
+        teamId_roundId_caseNumber: {
+          teamId: teamUser.id,
+          roundId: round.id,
+          caseNumber: 1,
+        },
+      },
+    });
+    const languageDrafts: Record<string, string> = {
+      ...((draftRecord?.languageDrafts as Record<string, string>) || {}),
+    };
+    if (draftRecord?.language && draftRecord?.sourceCode && !languageDrafts[draftRecord.language]) {
+      languageDrafts[draftRecord.language] = draftRecord.sourceCode;
+    }
+
+    const hasPerBugVerification =
+      isOfficialTokenBucket ||
+      plantedBugs.some((b: any) => Array.isArray(b.repairValidationTestIndices) && b.repairValidationTestIndices.length > 0);
+
     // Fetch team's already identified bugs for this question
     const teamReports = await this.prisma.teamBugReport.findMany({
       where: { teamId: teamUser.id, questionId: question.id },
@@ -609,8 +656,11 @@ export class ArenaService {
       questionId: question.id,
       title: question.title,
       description: question.description,
-      faultyCode: question.starterCode || '',
+      faultyCode: languageStarterCodes[(question.language || 'javascript').toLowerCase()] || question.starterCode || '',
       language: question.language || 'javascript',
+      supportedLanguages,
+      languageStarterCodes,
+      languageDrafts,
       totalRequired: plantedBugs.length,
       identifiedCount: teamReports.length,
       isInvestigationComplete,
@@ -620,7 +670,7 @@ export class ArenaService {
       scoreBreakdown: null,
       // Strictly sanitize: Only return info for bugs the team has ALREADY isolated! Never expose un-identified bugs or planted answer locations.
       identifiedBugs: teamReports.map((r) => {
-        const bugDef = plantedBugs.find((b) => b.key === r.bugKey);
+        const bugDef = plantedBugs.find((b: any) => b.key === r.bugKey);
         return {
           bugKey: r.bugKey,
           selectedText: r.selectedText,
@@ -633,6 +683,7 @@ export class ArenaService {
         };
       }),
       sampleTestCases: (question.sampleTestCases as any[]) || [],
+      hasPerBugVerification,
       remainingSeconds,
       isPaused,
       deadlineAt: state?.deadlineAt ? state.deadlineAt.toISOString() : null,
@@ -659,7 +710,16 @@ export class ArenaService {
       throw new NotFoundException('Round 2 Bug Hunt question not found.');
     }
 
-    const plantedBugs = (question.plantedBugs as any[]) ||
+    const rubric = (question.rubric as any) || {};
+    const reqLang = (dto.language || question.language || 'javascript').toLowerCase() as keyof typeof OFFICIAL_ROUND2_LANGUAGE_BUGS;
+    const isOfficialTokenBucket = question.title?.includes('Token Bucket');
+    const langPlantedBugs =
+      (rubric.languagePlantedBugs && rubric.languagePlantedBugs[reqLang]) ||
+      (isOfficialTokenBucket && OFFICIAL_ROUND2_LANGUAGE_BUGS[reqLang]) ||
+      null;
+
+    const plantedBugs = langPlantedBugs ||
+      (question.plantedBugs as any[]) ||
       (question.title === 'Bug Hunt: Distributed Token Bucket Rate Limiter' ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
 
     // Fetch existing identified defects for this team
@@ -675,7 +735,7 @@ export class ArenaService {
 
     const formatIdentified = (reports: typeof existingReports) =>
       reports.map((r) => {
-        const bugDef = plantedBugs.find((b) => b.key === r.bugKey);
+        const bugDef = plantedBugs.find((b: any) => b.key === r.bugKey);
         return {
           bugKey: r.bugKey,
           selectedText: r.selectedText,
@@ -1025,6 +1085,113 @@ export class ArenaService {
       }
     }
 
+    // Real-execution repair verification (never exposes hidden test cases)
+    const plantedBugs = (question.plantedBugs as any[]) ||
+      (question.title?.includes('Token Bucket') ? OFFICIAL_ROUND2_PLANTED_BUGS : []);
+    const isOfficialTokenBucket = question.title?.includes('Token Bucket');
+    const hasPerBugVerification =
+      isOfficialTokenBucket ||
+      plantedBugs.some(
+        (b: any) =>
+          Array.isArray(b.repairValidationTestIndices) && b.repairValidationTestIndices.length > 0,
+      );
+
+    let verifiedBugKeys: string[] = [];
+    let sampleTestsPassedCount = testPassed && sampleIdx !== 99 ? 1 : 0;
+    const sampleTestsTotalCount = sampleTestCases.length;
+
+    if (!normStatus.isCompilationError && sampleIdx !== 99) {
+      // Evaluate all visible sample tests for accurate total sample pass count
+      if (sampleTestCases.length > 1) {
+        const sampleResults = await Promise.all(
+          sampleTestCases.map(async (tc, idx) => {
+            if (idx === sampleIdx) return testPassed;
+            try {
+              const r = await this.judge0Client.execute(
+                codeToExecute,
+                langConfig.id,
+                tc.stdin || '',
+                EXECUTION_LIMITS.DEFAULT_CPU_TIME_LIMIT_SECONDS,
+                EXECUTION_LIMITS.DEFAULT_MEMORY_LIMIT_KB,
+              );
+              const st = this.judge0Client.normalizeStatus(r.status);
+              return (
+                st.isSuccess &&
+                this.normalizeOutput(r.stdout ?? '') ===
+                  this.normalizeOutput(tc.expectedOutput || '')
+              );
+            } catch {
+              return false;
+            }
+          }),
+        );
+        sampleTestsPassedCount = sampleResults.filter(Boolean).length;
+      }
+
+      // Evaluate per-bug verification checks via Judge0
+      if (isOfficialTokenBucket) {
+        const checkResults = await Promise.all(
+          OFFICIAL_ROUND2_VERIFICATION_TESTS.map(async (vt) => {
+            try {
+              const r = await this.judge0Client.execute(
+                codeToExecute,
+                langConfig.id,
+                vt.stdin,
+                EXECUTION_LIMITS.DEFAULT_CPU_TIME_LIMIT_SECONDS,
+                EXECUTION_LIMITS.DEFAULT_MEMORY_LIMIT_KB,
+              );
+              const st = this.judge0Client.normalizeStatus(r.status);
+              const passed =
+                st.isSuccess &&
+                this.normalizeOutput(r.stdout ?? '') === this.normalizeOutput(vt.expectedOutput);
+              return passed ? vt.bugKey : null;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        verifiedBugKeys = checkResults.filter((k): k is string => Boolean(k));
+      } else if (hasPerBugVerification) {
+        const allTests = [
+          ...sampleTestCases,
+          ...(Array.isArray(question.hiddenTestCases) ? (question.hiddenTestCases as any[]) : []),
+        ];
+        const bugChecks = await Promise.all(
+          plantedBugs.map(async (b: any) => {
+            const indices: number[] = Array.isArray(b.repairValidationTestIndices)
+              ? b.repairValidationTestIndices
+              : [];
+            if (indices.length === 0) return null;
+            for (const tIdx of indices) {
+              const tc = allTests[tIdx];
+              if (!tc) return null;
+              try {
+                const r = await this.judge0Client.execute(
+                  codeToExecute,
+                  langConfig.id,
+                  tc.stdin || '',
+                  EXECUTION_LIMITS.DEFAULT_CPU_TIME_LIMIT_SECONDS,
+                  EXECUTION_LIMITS.DEFAULT_MEMORY_LIMIT_KB,
+                );
+                const st = this.judge0Client.normalizeStatus(r.status);
+                if (
+                  !st.isSuccess ||
+                  this.normalizeOutput(r.stdout ?? '') !==
+                    this.normalizeOutput(tc.expectedOutput || '')
+                ) {
+                  return null;
+                }
+              } catch {
+                return null;
+              }
+            }
+            return b.key as string;
+          }),
+        );
+        verifiedBugKeys = bugChecks.filter((k): k is string => Boolean(k));
+      }
+    }
+
     return {
       status: testStatus,
       passed: testPassed,
@@ -1038,6 +1205,12 @@ export class ArenaService {
       memoryUsageKb: memNum,
       message,
       executedAt: new Date().toISOString(),
+      verifiedBugKeys,
+      repairsVerifiedCount: verifiedBugKeys.length,
+      totalBugsCount: plantedBugs.length,
+      sampleTestsPassedCount,
+      sampleTestsTotalCount,
+      hasPerBugVerification,
     };
   }
 
@@ -1236,6 +1409,22 @@ export class ArenaService {
       }
     }
 
+    const existingDraft = await this.prisma.workspaceDraft.findUnique({
+      where: {
+        teamId_roundId_caseNumber: {
+          teamId: teamUser.id,
+          roundId: round.id,
+          caseNumber,
+        },
+      },
+      select: { languageDrafts: true },
+    });
+
+    const updatedLanguageDrafts = {
+      ...((existingDraft?.languageDrafts as Record<string, string>) || {}),
+      [language.toLowerCase()]: sourceCode,
+    };
+
     const draft = await this.prisma.workspaceDraft.upsert({
       where: {
         teamId_roundId_caseNumber: {
@@ -1247,6 +1436,7 @@ export class ArenaService {
       update: {
         sourceCode,
         language,
+        languageDrafts: updatedLanguageDrafts,
         version: { increment: 1 },
         lastEditedByParticipantId: teamUser.activeParticipant.id,
         updatedAt: new Date(),
@@ -1257,6 +1447,7 @@ export class ArenaService {
         caseNumber,
         sourceCode,
         language,
+        languageDrafts: updatedLanguageDrafts,
         version: 1,
         lastEditedByParticipantId: teamUser.activeParticipant.id,
       },
