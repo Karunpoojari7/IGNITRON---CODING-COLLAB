@@ -173,6 +173,7 @@ export const BugHuntArenaPage: React.FC = () => {
   const [customStdin, setCustomStdin] = useState('');
   const [isRunningCode, setIsRunningCode] = useState(false);
   const [runResult, setRunResult] = useState<BugHuntTestRunResultDto | null>(null);
+  const [runApiError, setRunApiError] = useState<string | null>(null);
 
   // Final Submission State
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
@@ -381,6 +382,7 @@ export const BugHuntArenaPage: React.FC = () => {
     try {
       setIsRunningCode(true);
       setRunResult(null);
+      setRunApiError(null);
 
       const res = await questionAndArenaService.runBugHuntTest({
         questionId: arenaState?.questionId || '',
@@ -401,20 +403,10 @@ export const BugHuntArenaPage: React.FC = () => {
         setSampleTestsPassed(res.sampleTestsPassedCount);
       }
     } catch (err: any) {
-      setRunResult({
-        status: 'RUNTIME_ERROR',
-        passed: false,
-        sampleIndex: selectedSampleIndex === 99 ? undefined : selectedSampleIndex,
-        stdin: selectedSampleIndex === 99 ? customStdin : (arenaState?.sampleTestCases?.[selectedSampleIndex]?.stdin || ''),
-        expectedOutput: selectedSampleIndex === 99 ? null : (arenaState?.sampleTestCases?.[selectedSampleIndex]?.expectedOutput || null),
-        actualOutput: null,
-        compileOutput: null,
-        stderr: err?.message || 'Failed to execute code via Judge0.',
-        executionTimeSeconds: null,
-        memoryUsageKb: null,
-        message: err?.message || 'Execution error',
-        executedAt: new Date().toISOString(),
-      });
+      // Never disguise HTTP 404 / 500 / network failures as Judge0 runtime errors
+      setRunApiError(
+        err?.message || 'Test execution request failed to reach the backend execution service.',
+      );
     } finally {
       setIsRunningCode(false);
     }
@@ -1282,7 +1274,7 @@ export const BugHuntArenaPage: React.FC = () => {
                     {arenaState?.sampleTestCases?.map((_, i) => (
                       <button
                         key={i}
-                        onClick={() => { setSelectedSampleIndex(i); setRunResult(null); }}
+                        onClick={() => { setSelectedSampleIndex(i); setRunResult(null); setRunApiError(null); }}
                         className={`px-3 py-1.5 rounded-xl transition-all ${
                           selectedSampleIndex === i
                             ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30'
@@ -1293,7 +1285,7 @@ export const BugHuntArenaPage: React.FC = () => {
                       </button>
                     ))}
                     <button
-                      onClick={() => { setSelectedSampleIndex(99); setRunResult(null); }}
+                      onClick={() => { setSelectedSampleIndex(99); setRunResult(null); setRunApiError(null); }}
                       className={`px-3 py-1.5 rounded-xl transition-all ${
                         selectedSampleIndex === 99
                           ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30'
@@ -1343,7 +1335,11 @@ export const BugHuntArenaPage: React.FC = () => {
                       <span className="text-emerald-300 font-bold">Execution Console</span>
                     </div>
 
-                    {runResult && (
+                    {runApiError ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-500/50">
+                        API EXECUTION ERROR
+                      </span>
+                    ) : runResult && (
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           runResult.passed
@@ -1373,6 +1369,17 @@ export const BugHuntArenaPage: React.FC = () => {
                       <div className="flex items-center gap-2 text-emerald-400 text-xs py-4">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span>Executing solution against Judge0 test runner...</span>
+                      </div>
+                    ) : runApiError ? (
+                      <div className="p-3 rounded-xl border border-rose-500/40 bg-rose-950/40 text-rose-200 space-y-2">
+                        <div className="flex items-center gap-2 font-bold text-rose-300">
+                          <AlertTriangle className="w-4 h-4 shrink-0" />
+                          <span>Execution Endpoint Error</span>
+                        </div>
+                        <p className="text-xs font-mono">{runApiError}</p>
+                        <p className="text-[11px] text-rose-300/80">
+                          The backend API did not return a Judge0 execution result. Verify the backend deployment is up to date and reachable.
+                        </p>
                       </div>
                     ) : runResult ? (
                       <div className="space-y-3">
