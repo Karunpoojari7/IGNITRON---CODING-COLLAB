@@ -9,6 +9,7 @@ import { CompetitionModule } from './competition/competition.module';
 import { CodeExecutionModule } from './code-execution/code-execution.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 import { AnnouncementModule } from './announcement/announcement.module';
+import { ProctoringModule } from './proctoring/proctoring.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AnnouncementModule } from './announcement/announcement.module';
     CodeExecutionModule,
     WorkspaceModule,
     AnnouncementModule,
+    ProctoringModule,
   ],
 })
 export class AppModule {}
