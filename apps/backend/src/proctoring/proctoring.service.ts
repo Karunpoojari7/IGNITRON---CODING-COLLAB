@@ -6,7 +6,7 @@ import {
   NotFoundException,
   MessageEvent,
 } from '@nestjs/common';
-import { Subject, Observable } from 'rxjs';
+import { Subject, Observable, merge, interval, map } from 'rxjs';
 import { PrismaService } from '../database/prisma.service';
 import {
   AuthTeamUser,
@@ -30,10 +30,18 @@ export class ProctoringService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Real-time SSE stream for administrator notifications.
+   * Real-time SSE stream for administrator notifications with 20s heartbeat keepalive.
    */
   getAdminEventStream(): Observable<MessageEvent> {
-    return this.eventStream$.asObservable();
+    const heartbeat$ = interval(20000).pipe(
+      map(
+        (): MessageEvent => ({
+          type: 'HEARTBEAT',
+          data: JSON.stringify({ type: 'HEARTBEAT', timestamp: new Date().toISOString() }),
+        }),
+      ),
+    );
+    return merge(this.eventStream$.asObservable(), heartbeat$);
   }
 
   private emitAdminEvent(eventType: string, payload: any) {

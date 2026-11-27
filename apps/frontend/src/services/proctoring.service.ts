@@ -28,23 +28,37 @@ export const proctoringService = {
   /**
    * Uses fetch with keepalive: true so page-hidden / tab-switch events have the best chance
    * of reaching the backend before the browser suspends the tab.
+   * Falls back to standard apiClient fetch if keepalive is rejected by browser CORS preflight.
    */
   async recordEventKeepAlive(dto: RecordProctoringEventDto): Promise<ProctoringRecordResultDto> {
-    const response = await fetch(`${API_BASE_URL}/proctoring/event`, {
-      method: 'POST',
-      credentials: 'include',
-      keepalive: true,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(dto),
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/proctoring/event`, {
+        method: 'POST',
+        credentials: 'include',
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dto),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Proctoring event failed (${response.status})`);
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Proctoring event failed (${response.status}): ${text}`);
+      }
+      const json = (await response.json()) as ApiResponseWrapper<ProctoringRecordResultDto>;
+      return json.data;
+    } catch (keepAliveErr) {
+      // Fallback to standard fetch (without keepalive) in case cross-origin keepalive+preflight was blocked
+      const res = await apiClient<ApiResponseWrapper<ProctoringRecordResultDto>>(
+        '/proctoring/event',
+        {
+          method: 'POST',
+          body: JSON.stringify(dto),
+        },
+      );
+      return res.data;
     }
-    const json = (await response.json()) as ApiResponseWrapper<ProctoringRecordResultDto>;
-    return json.data;
   },
 
   // ---------------------------------------------------------------------------
