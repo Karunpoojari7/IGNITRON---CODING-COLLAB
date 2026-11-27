@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
-  ShieldAlert,
   Download,
   Search,
   Flame,
@@ -31,6 +30,7 @@ import { useAuth } from '../../context/AuthContext';
 import { questionAndArenaService } from '../../services/question-and-arena.service';
 import { useCompetitionState, useServerTimer } from '../../hooks/useCompetition';
 import { useParticipantMonitoring } from '../../hooks/useParticipantMonitoring';
+import { ExamLockOverlay } from '../../components/competition/ExamLockOverlay';
 import {
   AnalyticsArenaStateDto,
   AnalyticsQuestionDto,
@@ -410,11 +410,21 @@ export const EventAnalyticsArenaPage: React.FC = () => {
   const isLocked = isConcluded || Boolean(arenaState?.isSubmitted);
 
   // Requirement 6: Anti-Cheating & Participant Monitoring
-  const { focusWarning, isRevoked, clearWarning } = useParticipantMonitoring({
+  const {
+    focusWarning,
+    isLockedByProctoring,
+    lockStatus,
+    isDisqualified,
+    lockReason,
+    warningCount,
+    clearWarning,
+    refreshStatus,
+  } = useParticipantMonitoring({
     roundNumber: 3,
     isRoundActive: Boolean(isRoundActive && !isLocked),
     isSubmitted: Boolean(arenaState?.isSubmitted),
     isConcluded,
+    arenaType: 'ANALYTICS',
   });
 
   // Requirement 1 & 3: Automatic Round Conclusion & Workspace Locking when timer hits zero
@@ -2008,36 +2018,16 @@ export const EventAnalyticsArenaPage: React.FC = () => {
         </div>
       )}
 
-      {/* REQUIREMENT 6: OFFICIAL ACCESS REVOKED MODAL */}
-      {isRevoked && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-[#180305] border-2 border-red-500 rounded-3xl max-w-md w-full p-7 space-y-5 shadow-[0_0_50px_rgba(239,68,68,0.4)] text-center">
-            <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/50 flex items-center justify-center text-red-400 mx-auto">
-              <ShieldAlert className="w-8 h-8" />
-            </div>
-            <div className="space-y-1.5">
-              <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/40">
-                POLICY ENFORCEMENT
-              </span>
-              <h3 className="text-xl font-black text-white">Access Revoked</h3>
-              <p className="text-xs text-red-200/90 leading-relaxed">
-                Your access has been revoked due to exceeding the permitted tab-switching and workspace departure limit according to tournament anti-cheating policy.
-              </p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-black/60 border border-red-500/30 text-xs text-slate-400 font-mono">
-              Tournament officials have been notified and the incident has been logged.
-            </div>
-            <div className="pt-2">
-              <Link
-                to="/team/dashboard"
-                className="w-full py-3 px-4 rounded-xl bg-red-500 hover:bg-red-400 text-white font-bold uppercase font-mono text-xs tracking-wider transition-all block text-center"
-              >
-                Return to Dashboard
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ANTI-CHEAT EXAM-LOCK OVERLAY */}
+      <ExamLockOverlay
+        isOpen={isLockedByProctoring}
+        lockStatus={lockStatus}
+        isDisqualified={isDisqualified}
+        lockReason={lockReason}
+        warningCount={warningCount}
+        onRefreshStatus={refreshStatus}
+        onReturnToDashboard={() => navigate('/team/dashboard')}
+      />
 
       {/* REQUIREMENT 3 & 4: ROUND CONCLUDED / WORKSPACE LOCKED MODAL */}
       {showConcludedModal && (
