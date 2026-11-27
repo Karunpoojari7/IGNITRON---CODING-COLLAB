@@ -22,6 +22,7 @@ import { LeaderboardManagementPage } from './pages/admin/LeaderboardManagementPa
 import { QuestionManagementPage } from './pages/admin/QuestionManagementPage';
 import { SubmissionsPage } from './pages/admin/SubmissionsPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
+import { ProctoringMonitoringPage } from './pages/admin/ProctoringMonitoringPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -182,6 +183,14 @@ export const App: React.FC = () => {
                 element={
                   <ProtectedRoute requiredType="ADMIN">
                     <SubmissionsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin/proctoring"
+                element={
+                  <ProtectedRoute requiredType="ADMIN">
+                    <ProctoringMonitoringPage />
                   </ProtectedRoute>
                 }
               />
