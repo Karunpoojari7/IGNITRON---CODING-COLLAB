@@ -196,8 +196,67 @@ export class PrismaService
 
       // 9. Ensure columns exist on workspace_drafts
       await this.ensureColumn('workspace_drafts', 'case_number', 'INTEGER NOT NULL DEFAULT 1');
+      await this.ensureColumn('workspace_drafts', 'language_drafts', 'JSON NULL');
       await this.ensureColumn('workspace_drafts', 'version', 'INTEGER NOT NULL DEFAULT 1');
       await this.ensureColumn('workspace_drafts', 'last_edited_by_participant_id', 'VARCHAR(191) NULL');
+
+      // 9a. Ensure Anti-Cheat & Proctoring tables and columns exist
+      await this.ensureColumn('team_sessions', 'lock_status', "VARCHAR(191) NOT NULL DEFAULT 'ACTIVE'");
+      await this.ensureColumn('team_sessions', 'locked_at', 'DATETIME(3) NULL');
+      await this.ensureColumn('team_sessions', 'lock_reason', 'TEXT NULL');
+      await this.ensureColumn('team_sessions', 'warning_count', 'INTEGER NOT NULL DEFAULT 0');
+      await this.ensureColumn('team_sessions', 'last_incident_id', 'VARCHAR(191) NULL');
+
+      await this.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`proctoring_config\` (
+          \`id\` VARCHAR(191) NOT NULL DEFAULT 'global',
+          \`strict_mode_enabled\` BOOLEAN NOT NULL DEFAULT true,
+          \`max_warnings_before_lock\` INTEGER NOT NULL DEFAULT 1,
+          \`auto_revoke_threshold\` INTEGER NOT NULL DEFAULT 3,
+          \`monitor_copy_events\` BOOLEAN NOT NULL DEFAULT true,
+          \`updated_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `).catch(() => {});
+
+      await this.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`proctoring_incidents\` (
+          \`id\` VARCHAR(191) NOT NULL,
+          \`team_id\` VARCHAR(191) NOT NULL,
+          \`participant_id\` VARCHAR(191) NOT NULL,
+          \`session_id\` VARCHAR(191) NULL,
+          \`round_number\` INTEGER NOT NULL,
+          \`question_id\` VARCHAR(191) NULL,
+          \`arena_type\` VARCHAR(191) NULL,
+          \`event_type\` VARCHAR(191) NOT NULL,
+          \`confidence\` VARCHAR(191) NOT NULL DEFAULT 'HIGH',
+          \`idempotency_key\` VARCHAR(191) NULL,
+          \`lock_status_at_event\` VARCHAR(191) NOT NULL DEFAULT 'ACTIVE',
+          \`review_status\` VARCHAR(191) NOT NULL DEFAULT 'PENDING',
+          \`details\` JSON NULL,
+          \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`proctoring_incidents_idempotency_key_key\` (\`idempotency_key\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `).catch(() => {});
+
+      await this.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`proctoring_audit_logs\` (
+          \`id\` VARCHAR(191) NOT NULL,
+          \`admin_id\` VARCHAR(191) NULL,
+          \`admin_email\` VARCHAR(191) NULL,
+          \`admin_name\` VARCHAR(191) NULL,
+          \`team_id\` VARCHAR(191) NOT NULL,
+          \`participant_id\` VARCHAR(191) NULL,
+          \`session_id\` VARCHAR(191) NULL,
+          \`action\` VARCHAR(191) NOT NULL,
+          \`reason\` TEXT NULL,
+          \`previous_state\` VARCHAR(191) NULL,
+          \`new_state\` VARCHAR(191) NULL,
+          \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `).catch(() => {});
 
       // 10. Ensure columns exist on team_round_progress
       await this.ensureColumn('team_round_progress', 'score_breakdown', 'JSON NULL');

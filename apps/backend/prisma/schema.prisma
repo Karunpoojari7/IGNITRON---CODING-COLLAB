@@ -314,6 +314,11 @@ model TeamSession {
   loginAt           DateTime                  @default(now()) @map("login_at")
   lastActivityAt    DateTime                  @default(now()) @map("last_activity_at")
   logoutAt          DateTime?                 @map("logout_at")
+  lockStatus        String                    @default("ACTIVE") @map("lock_status")
+  lockedAt          DateTime?                 @map("locked_at")
+  lockReason        String?                   @db.Text @map("lock_reason")
+  warningCount      Int                       @default(0) @map("warning_count")
+  lastIncidentId    String?                   @map("last_incident_id")
   createdAt         DateTime                  @default(now()) @map("created_at")
 
   team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -356,6 +361,7 @@ model WorkspaceDraft {
   caseNumber                Int              @default(1) @map("case_number")
   sourceCode                String           @db.LongText @map("source_code")
   language                  String           @map("language")
+  languageDrafts            Json?            @map("language_drafts")
   version                   Int              @default(1) @map("version")
   lastEditedByParticipantId String?          @map("last_edited_by_participant_id")
   createdAt                 DateTime         @default(now()) @map("created_at")
@@ -474,5 +480,62 @@ model TeamBugReport {
   @@unique([teamId, questionId, bugKey])
   @@index([teamId, questionId])
   @@map("team_bug_reports")
+}
+
+// ------------------------------------------------------------------------------
+// P. ANTI-CHEAT & PROCTORING SYSTEM
+// ------------------------------------------------------------------------------
+model ProctoringConfig {
+  id                  String   @id @default("global")
+  strictModeEnabled   Boolean  @default(true) @map("strict_mode_enabled")
+  maxWarningsBeforeLock Int    @default(1) @map("max_warnings_before_lock")
+  autoRevokeThreshold Int      @default(3) @map("auto_revoke_threshold")
+  monitorCopyEvents   Boolean  @default(true) @map("monitor_copy_events")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("proctoring_config")
+}
+
+model ProctoringIncident {
+  id                String   @id @default(cuid())
+  teamId            String   @map("team_id")
+  participantId     String   @map("participant_id")
+  sessionId         String?  @map("session_id")
+  roundNumber       Int      @map("round_number")
+  questionId        String?  @map("question_id")
+  arenaType         String?  @map("arena_type")
+  eventType         String   @map("event_type")
+  confidence        String   @default("HIGH") @map("confidence")
+  idempotencyKey    String?  @unique @map("idempotency_key")
+  lockStatusAtEvent String   @default("ACTIVE") @map("lock_status_at_event")
+  reviewStatus      String   @default("PENDING") @map("review_status")
+  details           Json?    @map("details")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([teamId, roundNumber])
+  @@index([participantId, roundNumber])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("proctoring_incidents")
+}
+
+model ProctoringAuditLog {
+  id              String   @id @default(cuid())
+  adminId         String?  @map("admin_id")
+  adminEmail      String?  @map("admin_email")
+  adminName       String?  @map("admin_name")
+  teamId          String   @map("team_id")
+  participantId   String?  @map("participant_id")
+  sessionId       String?  @map("session_id")
+  action          String   @map("action")
+  reason          String?  @db.Text @map("reason")
+  previousState   String?  @map("previous_state")
+  newState        String?  @map("new_state")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([teamId])
+  @@index([participantId])
+  @@index([createdAt])
+  @@map("proctoring_audit_logs")
 }
 
