@@ -475,7 +475,11 @@ export const TeamDashboardPage: React.FC = () => {
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Replay Celebration / Review Details</span>
+                <span>
+                  {activeCelebration.type === 'ELIMINATED'
+                    ? 'View Result Details'
+                    : 'Replay Celebration / Review Details'}
+                </span>
               </button>
             </div>
           </div>
