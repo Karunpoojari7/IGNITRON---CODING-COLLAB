@@ -19,11 +19,11 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthTeamUser } from '@ignitron/shared';
 import { ArenaService } from './arena.service';
 import { EventAnalyticsService } from './event-analytics.service';
+import { RunBugHuntTestInputDto } from './dto/bug-hunt.dto';
 import {
   SaveMcqAnswerDto,
   SubmitMcqAnswersDto,
   ReportBugDto,
-  RunBugHuntTestDto,
   SaveAnalyticsDraftDto,
   SelectAnalyticsOptionDto,
   SubmitAnalyticsQuestionDto,
@@ -125,7 +125,7 @@ export class ArenaController {
   @HttpCode(HttpStatus.OK)
   async runBugHuntTest(
     @CurrentUser() teamUser: AuthTeamUser,
-    @Body() dto: RunBugHuntTestDto,
+    @Body() dto: RunBugHuntTestInputDto,
   ) {
     const data = await this.arenaService.executeBugHuntTest(teamUser, dto);
     return { success: true, data };
