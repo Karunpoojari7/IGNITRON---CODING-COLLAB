@@ -1073,6 +1073,7 @@ export interface BugHuntPlantedBug {
   notes?: string;
   marks?: number;
   acceptableTokens: string[];
+  repairValidationTestIndices?: number[];
   startOffset?: number;
   endOffset?: number;
   codeHash?: string;
@@ -1095,6 +1096,8 @@ export interface BugHuntIdentifiedBugDto {
   description?: string;
 }
 
+export type BugHuntLanguageCode = 'c' | 'cpp' | 'javascript' | 'python' | 'java';
+
 export interface BugHuntArenaStateDto {
   roundNumber: 2;
   questionId: string;
@@ -1102,6 +1105,10 @@ export interface BugHuntArenaStateDto {
   description: string;
   faultyCode: string;
   language: string;
+  supportedLanguages?: BugHuntLanguageCode[];
+  languageStarterCodes?: Partial<Record<BugHuntLanguageCode, string>>;
+  languagePlantedBugs?: Partial<Record<BugHuntLanguageCode, Array<Pick<BugHuntPlantedBug, 'key' | 'name' | 'description' | 'lineNumber' | 'expression' | 'startOffset' | 'endOffset' | 'marks'>>>>;
+  languageDrafts?: Partial<Record<BugHuntLanguageCode, string>>;
   totalRequired: number;
   identifiedCount: number;
   isInvestigationComplete: boolean;
@@ -1111,6 +1118,9 @@ export interface BugHuntArenaStateDto {
   scoreBreakdown?: any;
   identifiedBugs: BugHuntIdentifiedBugDto[];
   sampleTestCases?: TestCaseDto[];
+  verifiedBugKeys?: string[];
+  repairsVerifiedCount?: number;
+  hasPerBugVerification?: boolean;
   remainingSeconds: number;
   isPaused: boolean;
   deadlineAt?: string | null;
@@ -1119,6 +1129,7 @@ export interface BugHuntArenaStateDto {
 export interface ReportBugDto {
   questionId: string;
   selectedText: string;
+  language?: string;
   lineNumber?: number;
   startOffset?: number;
   endOffset?: number;
@@ -1145,6 +1156,12 @@ export interface BugHuntTestRunResultDto {
   memoryUsageKb: number | null;
   message: string;
   executedAt: string;
+  verifiedBugKeys?: string[];
+  repairsVerifiedCount?: number;
+  totalBugsCount?: number;
+  sampleTestsPassedCount?: number;
+  sampleTestsTotalCount?: number;
+  hasPerBugVerification?: boolean;
 }
 
 export interface ReportBugResultDto {
@@ -1404,5 +1421,140 @@ export interface FocusEventResultDto {
   violationCount: number;
   threshold: number;
   revoked: boolean;
+  lockStatus?: ProctoringLockStatus;
   message: string;
+}
+
+// ------------------------------------------------------------------------------
+// ANTI-CHEAT & PROCTORING SYSTEM
+// ------------------------------------------------------------------------------
+
+export type ProctoringLockStatus = 'ACTIVE' | 'LOCKED_PENDING_REVIEW' | 'BLOCKED';
+
+export type ProctoringEventType =
+  | 'TAB_SWITCH'
+  | 'PAGE_HIDDEN'
+  | 'WINDOW_BLUR'
+  | 'COPY_EVENT'
+  | 'RETURNED_TO_TAB';
+
+export type ProctoringConfidence = 'HIGH' | 'LOW' | 'INFO';
+
+export type ProctoringReviewStatus =
+  | 'PENDING'
+  | 'WARNED'
+  | 'UNLOCKED'
+  | 'KEPT_LOCKED'
+  | 'BLOCKED'
+  | 'DISQUALIFIED';
+
+export type ProctoringAdminActionType =
+  | 'ISSUE_WARNING'
+  | 'UNLOCK'
+  | 'KEEP_LOCKED'
+  | 'BLOCK_PARTICIPANT'
+  | 'DISQUALIFY_TEAM';
+
+export interface ProctoringPolicyDto {
+  strictModeEnabled: boolean;
+  maxWarningsBeforeLock: number;
+  autoRevokeThreshold: number;
+  monitorCopyEvents: boolean;
+  updatedAt?: string;
+}
+
+export interface RecordProctoringEventDto {
+  roundNumber: number;
+  eventType: ProctoringEventType;
+  idempotencyKey?: string;
+  questionId?: string;
+  arenaType?: string;
+  details?: string;
+}
+
+export interface ProctoringIncidentDto {
+  id: string;
+  teamId: string;
+  teamCode?: string;
+  teamName?: string;
+  participantId: string;
+  participantName?: string;
+  participantEmail?: string;
+  sessionId?: string | null;
+  sessionStatus?: string | null;
+  roundNumber: number;
+  questionId?: string | null;
+  arenaType?: string | null;
+  eventType: ProctoringEventType | string;
+  confidence: ProctoringConfidence | string;
+  lockStatusAtEvent: string;
+  reviewStatus: ProctoringReviewStatus | string;
+  details?: any;
+  createdAt: string;
+}
+
+export interface ProctoringStatusDto {
+  lockStatus: ProctoringLockStatus;
+  isDisqualified: boolean;
+  lockReason?: string | null;
+  lockedAt?: string | null;
+  warningCount: number;
+  incidentCount: number;
+  latestIncident?: ProctoringIncidentDto | null;
+  policy: ProctoringPolicyDto;
+}
+
+export interface ProctoringRecordResultDto {
+  recorded: boolean;
+  duplicate?: boolean;
+  ignored?: boolean;
+  lockStatus: ProctoringLockStatus;
+  warningCount: number;
+  incidentCount: number;
+  incident?: ProctoringIncidentDto;
+  message: string;
+}
+
+export interface ProctoringAuditLogDto {
+  id: string;
+  adminId?: string | null;
+  adminEmail?: string | null;
+  adminName?: string | null;
+  teamId: string;
+  teamName?: string;
+  participantId?: string | null;
+  participantName?: string | null;
+  action: ProctoringAdminActionType | string;
+  reason?: string | null;
+  previousState?: string | null;
+  newState?: string | null;
+  createdAt: string;
+}
+
+export interface AdminProctoringSummaryItemDto {
+  participantId: string;
+  participantName: string;
+  participantEmail: string;
+  teamId: string;
+  teamCode: string;
+  teamName: string;
+  sessionId?: string | null;
+  sessionStatus?: string | null;
+  lockStatus: ProctoringLockStatus;
+  isDisqualified: boolean;
+  lockReason?: string | null;
+  lockedAt?: string | null;
+  warningCount: number;
+  incidentCount: number;
+  latestIncident?: ProctoringIncidentDto | null;
+  incidents: ProctoringIncidentDto[];
+}
+
+export interface AdminProctoringActionDto {
+  teamId: string;
+  participantId?: string;
+  sessionId?: string;
+  roundNumber?: number;
+  action: ProctoringAdminActionType;
+  reason?: string;
 }
