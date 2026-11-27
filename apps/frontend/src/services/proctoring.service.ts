@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { apiClient, API_BASE_URL, getAuthHeaders } from './api';
 import {
   ProctoringStatusDto,
   RecordProctoringEventDto,
@@ -9,8 +9,6 @@ import {
   AdminProctoringActionDto,
   ProctoringLockStatus,
 } from '@ignitron/shared';
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '');
 
 export interface ApiResponseWrapper<T> {
   success: boolean;
@@ -36,9 +34,9 @@ export const proctoringService = {
         method: 'POST',
         credentials: 'include',
         keepalive: true,
-        headers: {
+        headers: getAuthHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify(dto),
       });
 

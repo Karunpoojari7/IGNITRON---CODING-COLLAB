@@ -3,8 +3,9 @@ import {
   SaveWorkspaceDraftDto,
   ApiResponse,
 } from '@ignitron/shared';
+import { API_BASE_URL, getAuthHeaders } from './api';
 
-const API_BASE = '/api/workspace';
+const API_BASE = `${API_BASE_URL}/workspace`;
 
 export const workspaceService = {
   /**
@@ -13,9 +14,9 @@ export const workspaceService = {
   async getDraft(roundNumber?: number): Promise<WorkspaceDraftDto> {
     const query = roundNumber ? `?roundNumber=${roundNumber}` : '';
     const res = await fetch(`${API_BASE}/draft${query}`, {
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: getAuthHeaders({
+        Accept: 'application/json',
+      }),
       credentials: 'include',
     });
 
@@ -38,10 +39,10 @@ export const workspaceService = {
   async saveDraft(dto: SaveWorkspaceDraftDto): Promise<WorkspaceDraftDto> {
     const res = await fetch(`${API_BASE}/draft`, {
       method: 'PUT',
-      headers: {
+      headers: getAuthHeaders({
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+        Accept: 'application/json',
+      }),
       credentials: 'include',
       body: JSON.stringify(dto),
     });
