@@ -19,11 +19,13 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
   AuthTeamUser,
   AuthAdminUser,
-  RecordProctoringEventDto,
-  ProctoringPolicyDto,
-  AdminProctoringActionDto,
 } from '@ignitron/shared';
 import { ProctoringService } from './proctoring.service';
+import {
+  RecordProctoringEventInputDto,
+  UpdateProctoringPolicyInputDto,
+  AdminProctoringActionInputDto,
+} from './dto/proctoring.dto';
 
 @Controller('proctoring')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -50,7 +52,7 @@ export class ProctoringController {
   @HttpCode(HttpStatus.OK)
   async recordEvent(
     @CurrentUser() teamUser: AuthTeamUser,
-    @Body() dto: RecordProctoringEventDto,
+    @Body() dto: RecordProctoringEventInputDto,
   ) {
     const data = await this.proctoringService.recordEvent(teamUser, dto);
     return { success: true, data };
@@ -104,7 +106,7 @@ export class ProctoringController {
   @Roles('ADMIN')
   async updatePolicy(
     @CurrentUser() admin: AuthAdminUser,
-    @Body() dto: Partial<ProctoringPolicyDto>,
+    @Body() dto: UpdateProctoringPolicyInputDto,
   ) {
     const data = await this.proctoringService.updatePolicy(admin, dto);
     return { success: true, data };
@@ -115,7 +117,7 @@ export class ProctoringController {
   @HttpCode(HttpStatus.OK)
   async performAction(
     @CurrentUser() admin: AuthAdminUser,
-    @Body() dto: AdminProctoringActionDto,
+    @Body() dto: AdminProctoringActionInputDto,
   ) {
     const data = await this.proctoringService.performAdminAction(admin, dto);
     return { success: true, data };
