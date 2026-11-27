@@ -7,6 +7,7 @@ import {
   SESSION_CONFIG,
 } from '@ignitron/shared';
 import { authService } from '../services/auth.service';
+import { clearAuthToken } from '../services/api';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -30,12 +31,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const currentUser = await authService.getMe();
       setUser(currentUser);
-    } catch {
-      setUser(null);
+    } catch (err: any) {
+      if (err?.status === 401 || err?.status === 403 || isLoading) {
+        clearAuthToken();
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isLoading]);
 
   useEffect(() => {
     refreshUser();
@@ -72,11 +76,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const loginAdmin = async (dto: AdminLoginDto) => {
     const adminUser = await authService.adminLogin(dto);
     setUser(adminUser);
+    setIsLoading(false);
   };
 
   const loginTeam = async (dto: TeamLoginDto) => {
     const teamUser = await authService.teamLogin(dto);
     setUser(teamUser);
+    setIsLoading(false);
   };
 
   const logout = useCallback(async () => {

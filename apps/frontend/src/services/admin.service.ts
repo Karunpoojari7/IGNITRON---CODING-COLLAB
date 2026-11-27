@@ -7,7 +7,7 @@ import {
   BulkTeamActionType,
   BulkTeamActionResult,
 } from '@ignitron/shared';
-import { apiClient } from './api';
+import { apiClient, API_BASE_URL, getAuthHeaders } from './api';
 
 export const adminService = {
   async getDashboardStats(): Promise<DashboardStatsDto> {
@@ -119,8 +119,9 @@ export const adminService = {
   },
 
   async exportTeamsCsv(): Promise<string> {
-    const res = await fetch('/api/admin/teams/export/csv', {
+    const res = await fetch(`${API_BASE_URL}/admin/teams/export/csv`, {
       credentials: 'include',
+      headers: getAuthHeaders(),
     });
     if (!res.ok) {
       throw new Error('Failed to export CSV');
