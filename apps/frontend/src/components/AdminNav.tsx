@@ -8,6 +8,7 @@ import {
   Trophy,
   Megaphone,
   FileSpreadsheet,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const ADMIN_NAV_ITEMS = [
@@ -16,6 +17,7 @@ export const ADMIN_NAV_ITEMS = [
   { label: 'Competition Control', path: '/admin/competition', icon: Sliders },
   { label: 'Questions', path: '/admin/questions', icon: HelpCircle },
   { label: 'Submissions', path: '/admin/submissions', icon: FileCheck2 },
+  { label: 'Proctoring', path: '/admin/proctoring', icon: ShieldAlert },
   { label: 'Leaderboard', path: '/admin/leaderboard', icon: Trophy },
   { label: 'Announcements', path: '/admin/announcements', icon: Megaphone },
   { label: 'Reports', path: '/admin/reports', icon: FileSpreadsheet },
