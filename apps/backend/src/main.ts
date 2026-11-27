@@ -23,6 +23,12 @@ async function bootstrap() {
   const port = configService.get<number>('app.port') || 4000;
   const apiPrefix = configService.get<string>('app.apiPrefix') || 'api';
 
+  // Trust Render / reverse-proxy TLS headers (X-Forwarded-Proto, X-Forwarded-For)
+  const httpAdapter = app.getHttpAdapter();
+  if (httpAdapter?.getInstance) {
+    httpAdapter.getInstance().set('trust proxy', 1);
+  }
+
   // Global API route prefix
   app.setGlobalPrefix(apiPrefix);
 
@@ -76,6 +82,7 @@ async function bootstrap() {
       callback(new Error(`CORS error: Origin ${origin} not permitted`));
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
     credentials: true,
   });
 

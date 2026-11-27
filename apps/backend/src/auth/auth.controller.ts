@@ -63,7 +63,7 @@ export class AuthController {
   ) {
     const { user, token } = await this.authService.adminLogin(dto);
     this.setSessionCookie(res, token);
-    return { success: true, user };
+    return { success: true, user, token };
   }
 
   @Post('team/register')
@@ -91,7 +91,7 @@ export class AuthController {
 
     const { user, token } = await this.authService.teamLogin(dto, ip, userAgent);
     this.setSessionCookie(res, token);
-    return { success: true, user };
+    return { success: true, user, token };
   }
 
   @UseGuards(JwtAuthGuard)
