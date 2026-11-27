@@ -14,6 +14,11 @@ import {
   UpdateQuestionDto,
 } from '@ignitron/shared';
 import { ROUND3_QUESTIONS_CONFIG } from './data/round3-questions.config';
+import {
+  ROUND2_SUPPORTED_LANGUAGES,
+  OFFICIAL_ROUND2_LANGUAGE_STARTERS,
+  OFFICIAL_ROUND2_LANGUAGE_BUGS,
+} from './data/round2-multilang.config';
 
 export const OFFICIAL_ROUND2_JS_STARTER = `/**
  * IGNITRON 2K26 — Round 2 Bug Hunt Starter
@@ -844,6 +849,9 @@ The system is failing under stress testing: it allows illegal request bursts, ca
         testCorrectness: 50,
         edgeCases: 20,
         codeQuality: 10,
+        supportedLanguages: ROUND2_SUPPORTED_LANGUAGES,
+        languageStarterCodes: OFFICIAL_ROUND2_LANGUAGE_STARTERS,
+        languagePlantedBugs: OFFICIAL_ROUND2_LANGUAGE_BUGS,
       },
       sampleTestCases: [
         {
@@ -882,7 +890,7 @@ The system is failing under stress testing: it allows illegal request bursts, ca
         starterCode: bugHuntProblem.starterCode,
         language: bugHuntProblem.language,
         marks: bugHuntProblem.marks,
-        rubric: bugHuntProblem.rubric,
+        rubric: bugHuntProblem.rubric as any,
         sampleTestCases: bugHuntProblem.sampleTestCases,
         hiddenTestCases: bugHuntProblem.hiddenTestCases,
         plantedBugs: bugHuntProblem.plantedBugs,
