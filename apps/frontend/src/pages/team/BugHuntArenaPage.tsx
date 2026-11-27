@@ -33,10 +33,12 @@ import { useAuth } from '../../context/AuthContext';
 import { questionAndArenaService } from '../../services/question-and-arena.service';
 import { useCompetitionState, useServerTimer } from '../../hooks/useCompetition';
 import { useParticipantMonitoring } from '../../hooks/useParticipantMonitoring';
+import { ExamLockOverlay } from '../../components/competition/ExamLockOverlay';
 import {
   BugHuntArenaStateDto,
   BugHuntIdentifiedBugDto,
   BugHuntTestRunResultDto,
+  BugHuntLanguageCode,
 } from '@ignitron/shared';
 
 // Custom dark theme extension matching IGNITRON emerald/slate UI styling
@@ -112,11 +114,22 @@ export const BugHuntArenaPage: React.FC = () => {
   const isLocked = isConcluded || Boolean(arenaState?.isSubmitted);
 
   // Requirement 6: Anti-Cheating & Participant Monitoring
-  const { focusWarning, isRevoked, clearWarning } = useParticipantMonitoring({
+  const {
+    focusWarning,
+    isLockedByProctoring,
+    lockStatus,
+    isDisqualified,
+    lockReason,
+    warningCount,
+    clearWarning,
+    refreshStatus,
+  } = useParticipantMonitoring({
     roundNumber: 2,
     isRoundActive: Boolean(isRoundActive && !isLocked),
     isSubmitted: Boolean(arenaState?.isSubmitted),
     isConcluded,
+    questionId: arenaState?.questionId,
+    arenaType: 'BUG_HUNT',
   });
 
   // Requirement 1 & 3: Automatic Round Conclusion & Workspace Locking when timer hits zero
@@ -144,7 +157,12 @@ export const BugHuntArenaPage: React.FC = () => {
   } | null>(null);
 
   // Code Repair Workspace State
+  const [selectedLanguage, setSelectedLanguage] = useState<BugHuntLanguageCode>('javascript');
+  const [languageDrafts, setLanguageDrafts] = useState<Record<string, string>>({});
   const [repairCode, setRepairCode] = useState('');
+  const [repairsVerifiedCount, setRepairsVerifiedCount] = useState(0);
+  const [verifiedBugKeys, setVerifiedBugKeys] = useState<string[]>([]);
+  const [sampleTestsPassed, setSampleTestsPassed] = useState<number | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -171,12 +189,28 @@ export const BugHuntArenaPage: React.FC = () => {
       const data = await questionAndArenaService.getBugHuntState();
       setArenaState(data);
 
-      // Load draft or faulty code into editor
+      // Resolve active language & independent per-language drafts
       const draft = await questionAndArenaService.getWorkspaceDraft(2, 1);
+      const supported = (data.supportedLanguages && data.supportedLanguages.length > 0
+        ? data.supportedLanguages
+        : [(data.language || 'javascript').toLowerCase()]) as BugHuntLanguageCode[];
+      const draftLang = (draft?.language || '').toLowerCase() as BugHuntLanguageCode;
+      const initialLang: BugHuntLanguageCode = supported.includes(draftLang)
+        ? draftLang
+        : ((data.language || 'javascript').toLowerCase() as BugHuntLanguageCode);
+
+      const draftsMap: Record<string, string> = { ...(data.languageDrafts || {}) };
+      if (draft?.sourceCode && draft.sourceCode.trim() !== '' && !draftsMap[initialLang]) {
+        draftsMap[initialLang] = draft.sourceCode;
+      }
+
       const initialCode =
-        draft?.sourceCode && draft.sourceCode.trim() !== ''
-          ? draft.sourceCode
-          : data.faultyCode;
+        draftsMap[initialLang] && draftsMap[initialLang].trim() !== ''
+          ? draftsMap[initialLang]
+          : data.languageStarterCodes?.[initialLang] || data.faultyCode;
+
+      setSelectedLanguage(initialLang);
+      setLanguageDrafts(draftsMap);
       setRepairCode(initialCode);
       lastSavedCodeRef.current = initialCode;
 
@@ -199,9 +233,44 @@ export const BugHuntArenaPage: React.FC = () => {
     fetchState();
   }, [fetchState]);
 
+  // Switch programming language while preserving independent per-language drafts
+  const handleLanguageChange = async (newLang: BugHuntLanguageCode) => {
+    if (newLang === selectedLanguage) return;
+
+    const updatedDrafts = {
+      ...languageDrafts,
+      [selectedLanguage]: repairCode,
+    };
+    setLanguageDrafts(updatedDrafts);
+
+    const nextCode =
+      updatedDrafts[newLang] !== undefined && updatedDrafts[newLang].trim() !== ''
+        ? updatedDrafts[newLang]
+        : arenaState?.languageStarterCodes?.[newLang] || arenaState?.faultyCode || '';
+
+    setSelectedLanguage(newLang);
+    setRepairCode(nextCode);
+    setRunResult(null);
+    lastSavedCodeRef.current = nextCode;
+
+    if (arenaState?.isRepairUnlocked && !arenaState?.isSubmitted && !isLocked) {
+      try {
+        await questionAndArenaService.saveWorkspaceDraft({
+          roundNumber: 2,
+          caseNumber: 1,
+          sourceCode: nextCode,
+          language: newLang,
+        });
+      } catch {
+        // Ignore silent draft sync error
+      }
+    }
+  };
+
   // Autosave repair code debounced by 2 seconds
   const handleCodeChange = (value: string) => {
     setRepairCode(value);
+    setLanguageDrafts((prev) => ({ ...prev, [selectedLanguage]: value }));
     if (!arenaState?.isRepairUnlocked || arenaState?.isSubmitted) return;
 
     if (autosaveTimeoutRef.current) {
@@ -216,7 +285,7 @@ export const BugHuntArenaPage: React.FC = () => {
           roundNumber: 2,
           caseNumber: 1,
           sourceCode: value,
-          language: arenaState?.language || 'javascript',
+          language: selectedLanguage,
         });
         lastSavedCodeRef.current = value;
         setLastSavedTime(
@@ -255,6 +324,7 @@ export const BugHuntArenaPage: React.FC = () => {
       const res = await questionAndArenaService.reportBug({
         questionId: arenaState.questionId,
         selectedText: text,
+        language: selectedLanguage,
         lineNumber: lineNum,
         startOffset,
         endOffset,
@@ -315,12 +385,21 @@ export const BugHuntArenaPage: React.FC = () => {
       const res = await questionAndArenaService.runBugHuntTest({
         questionId: arenaState?.questionId || '',
         sourceCode: repairCode,
-        language: arenaState?.language || 'javascript',
+        language: selectedLanguage,
         sampleIndex: selectedSampleIndex === 99 ? undefined : selectedSampleIndex,
         customStdin: selectedSampleIndex === 99 ? customStdin : undefined,
       });
 
       setRunResult(res);
+      if (res.verifiedBugKeys) {
+        setVerifiedBugKeys(res.verifiedBugKeys);
+      }
+      if (res.repairsVerifiedCount !== undefined) {
+        setRepairsVerifiedCount(res.repairsVerifiedCount);
+      }
+      if (res.sampleTestsPassedCount !== undefined) {
+        setSampleTestsPassed(res.sampleTestsPassedCount);
+      }
     } catch (err: any) {
       setRunResult({
         status: 'RUNTIME_ERROR',
@@ -351,7 +430,7 @@ export const BugHuntArenaPage: React.FC = () => {
         roundNumber: 2,
         caseNumber: 1,
         sourceCode: repairCode,
-        language: arenaState?.language || 'javascript',
+        language: selectedLanguage,
       });
 
       setFinalSubmissionData(res);
@@ -370,9 +449,17 @@ export const BugHuntArenaPage: React.FC = () => {
   };
 
   // Parsed code lines with exact character offsets & syntax tokenization
+  const activeInvestigationCode = useMemo(() => {
+    return (
+      arenaState?.languageStarterCodes?.[selectedLanguage] ||
+      arenaState?.faultyCode ||
+      ''
+    );
+  }, [arenaState?.languageStarterCodes, arenaState?.faultyCode, selectedLanguage]);
+
   const parsedCodeLines = useMemo(() => {
-    if (!arenaState?.faultyCode) return [];
-    const lines = arenaState.faultyCode.split('\n');
+    if (!activeInvestigationCode) return [];
+    const lines = activeInvestigationCode.split('\n');
     let currentOffset = 0;
     const result: Array<{
       lineNumber: number;
@@ -500,21 +587,21 @@ export const BugHuntArenaPage: React.FC = () => {
   };
 
   const langExtension = useMemo(() => {
-    const lang = arenaState?.language?.toLowerCase();
-    if (lang === 'python' || lang === 'py') return 'py';
-    if (lang === 'cpp' || lang === 'c++') return 'cpp';
+    const lang = selectedLanguage?.toLowerCase();
+    if (lang === 'python') return 'py';
+    if (lang === 'cpp') return 'cpp';
     if (lang === 'c') return 'c';
     if (lang === 'java') return 'java';
     return 'js';
-  }, [arenaState?.language]);
+  }, [selectedLanguage]);
 
   const editorLanguageExtension = useMemo(() => {
-    const lang = arenaState?.language?.toLowerCase();
-    if (lang === 'python' || lang === 'py') return [python()];
-    if (lang === 'cpp' || lang === 'c++' || lang === 'c') return [cpp()];
+    const lang = selectedLanguage?.toLowerCase();
+    if (lang === 'python') return [python()];
+    if (lang === 'cpp' || lang === 'c') return [cpp()];
     if (lang === 'java') return [java()];
     return [javascript()];
-  }, [arenaState?.language]);
+  }, [selectedLanguage]);
 
   if (isLoading) {
     return (
@@ -693,14 +780,42 @@ export const BugHuntArenaPage: React.FC = () => {
             {/* Title & Metadata Badges */}
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                  LANG: {(arenaState?.language || 'javascript').toUpperCase()}
-                </span>
+                <div className="flex items-center gap-1.5 bg-purple-950/60 border border-purple-500/40 rounded-lg px-2 py-0.5">
+                  <span className="text-[10px] font-mono font-bold uppercase text-purple-300">LANG:</span>
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => handleLanguageChange(e.target.value as BugHuntLanguageCode)}
+                    disabled={isLocked || isConcluded}
+                    aria-label="Select programming language"
+                    className="bg-transparent text-[11px] font-mono font-bold uppercase text-white focus:outline-none cursor-pointer"
+                  >
+                    {(arenaState?.supportedLanguages && arenaState.supportedLanguages.length > 0
+                      ? arenaState.supportedLanguages
+                      : ['javascript', 'python', 'cpp', 'c', 'java']
+                    ).map((langKey) => (
+                      <option key={langKey} value={langKey} className="bg-[#02130a] text-white">
+                        {langKey === 'cpp'
+                          ? 'C++17'
+                          : langKey === 'c'
+                          ? 'C (GCC)'
+                          : langKey === 'python'
+                          ? 'Python 3'
+                          : langKey === 'java'
+                          ? 'Java 17'
+                          : 'JavaScript'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  TOTAL PLANTED BUGS: {totalRequired}
+                  BUGS IDENTIFIED: {identifiedCount} / {totalRequired}
                 </span>
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  OFFICIAL 100 MARKS
+                  {arenaState?.hasPerBugVerification
+                    ? `REPAIRS VERIFIED: ${repairsVerifiedCount} / ${totalRequired}`
+                    : sampleTestsPassed !== null
+                    ? `TESTS PASSED: ${sampleTestsPassed} / ${arenaState?.sampleTestCases?.length || 0}`
+                    : `OFFICIAL 100 MARKS`}
                 </span>
               </div>
               <h2 className="text-base sm:text-lg font-extrabold text-white">
@@ -1077,7 +1192,35 @@ export const BugHuntArenaPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Code2 className="w-4 h-4 text-emerald-400" />
                       <span className="text-white font-bold">solution.{langExtension}</span>
-                      <span className="text-emerald-400/70 text-[11px]">({(arenaState?.language || 'javascript').toUpperCase()})</span>
+                      <select
+                        value={selectedLanguage}
+                        onChange={(e) => handleLanguageChange(e.target.value as BugHuntLanguageCode)}
+                        disabled={isLocked || isConcluded}
+                        aria-label="Editor programming language"
+                        className="bg-emerald-950/80 border border-emerald-500/30 rounded-lg px-2 py-0.5 text-emerald-300 text-[11px] font-mono font-bold uppercase focus:outline-none cursor-pointer"
+                      >
+                        {(arenaState?.supportedLanguages && arenaState.supportedLanguages.length > 0
+                          ? arenaState.supportedLanguages
+                          : ['javascript', 'python', 'cpp', 'c', 'java']
+                        ).map((langKey) => (
+                          <option key={langKey} value={langKey} className="bg-[#02130a] text-white">
+                            {langKey === 'cpp'
+                              ? 'C++17'
+                              : langKey === 'c'
+                              ? 'C (GCC)'
+                              : langKey === 'python'
+                              ? 'Python 3'
+                              : langKey === 'java'
+                              ? 'Java 17'
+                              : 'JavaScript'}
+                          </option>
+                        ))}
+                      </select>
+                      {verifiedBugKeys.length > 0 && (
+                        <span className="hidden sm:inline-flex px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px]">
+                          REPAIRS VERIFIED: {repairsVerifiedCount} / {totalRequired}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1578,36 +1721,16 @@ export const BugHuntArenaPage: React.FC = () => {
         </div>
       )}
 
-      {/* REQUIREMENT 6: OFFICIAL ACCESS REVOKED MODAL */}
-      {isRevoked && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-[#180305] border-2 border-red-500 rounded-3xl max-w-md w-full p-7 space-y-5 shadow-[0_0_50px_rgba(239,68,68,0.4)] text-center">
-            <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/50 flex items-center justify-center text-red-400 mx-auto">
-              <ShieldAlert className="w-8 h-8" />
-            </div>
-            <div className="space-y-1.5">
-              <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/40">
-                POLICY ENFORCEMENT
-              </span>
-              <h3 className="text-xl font-black text-white">Access Revoked</h3>
-              <p className="text-xs text-red-200/90 leading-relaxed">
-                Your access has been revoked due to exceeding the permitted tab-switching and workspace departure limit according to tournament anti-cheating policy.
-              </p>
-            </div>
-            <div className="p-3.5 rounded-xl bg-black/60 border border-red-500/30 text-xs text-slate-400 font-mono">
-              Tournament officials have been notified and the incident has been logged.
-            </div>
-            <div className="pt-2">
-              <Link
-                to="/team/dashboard"
-                className="w-full py-3 px-4 rounded-xl bg-red-500 hover:bg-red-400 text-white font-bold uppercase font-mono text-xs tracking-wider transition-all block text-center"
-              >
-                Return to Dashboard
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ANTI-CHEAT EXAM-LOCK OVERLAY */}
+      <ExamLockOverlay
+        isOpen={isLockedByProctoring}
+        lockStatus={lockStatus}
+        isDisqualified={isDisqualified}
+        lockReason={lockReason}
+        warningCount={warningCount}
+        onRefreshStatus={refreshStatus}
+        onReturnToDashboard={() => navigate('/team/dashboard')}
+      />
 
       {/* REQUIREMENT 3 & 4: ROUND CONCLUDED / WORKSPACE LOCKED MODAL */}
       {showConcludedModal && (
