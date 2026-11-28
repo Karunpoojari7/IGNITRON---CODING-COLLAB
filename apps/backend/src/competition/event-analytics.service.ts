@@ -740,23 +740,17 @@ export class EventAnalyticsService implements OnModuleInit {
       });
 
       const isCorrect = selectedKey === qConfig.correctOptionKey;
-      if (isCorrect) {
-        awardedScore = maxMarks;
-        finalStatus = 'ACCEPTED';
-        message = `Option ${selectedKey} is correct! Awarded ${awardedScore}/${maxMarks} marks.`;
-      } else {
-        awardedScore = 0;
-        finalStatus = 'WRONG_ANSWER';
-        message = `Option ${selectedKey} is incorrect. Awarded 0/${maxMarks} marks.`;
-      }
+      awardedScore = isCorrect ? maxMarks : 0;
+      finalStatus = isCorrect ? 'ACCEPTED' : 'WRONG_ANSWER';
+      message = `Option ${selectedKey} submitted and recorded.`;
 
       testResults = [
         {
           caseIndex: 1,
-          isHidden: false,
+          isHidden: true,
           passed: isCorrect,
-          status: finalStatus,
-          expectedOutput: `Option ${qConfig.correctOptionKey}`,
+          status: 'RECORDED',
+          expectedOutput: 'Hidden during active competition',
           actualOutput: `Option ${selectedKey}`,
         },
       ];
@@ -969,17 +963,202 @@ export class EventAnalyticsService implements OnModuleInit {
       questionId: question.id,
       orderNumber: question.orderNumber,
       caseNumber: qConfig.caseNumber,
-      status: finalStatus,
-      isCorrect: finalStatus === 'ACCEPTED',
+      status: 'ACCEPTED',
+      isCorrect: false,
       score: null,
       maximumMarks: null,
-      passedCount,
+      passedCount: 0,
       totalCount,
       message,
       stdout,
       stderr,
       compileOutput,
-      testCaseResults: testResults,
+      testCaseResults: [],
+    };
+  }
+
+  /**
+   * Contestant: Submit both MCQ answers for a Round 3 case atomically.
+   * Evaluates marks on the server without revealing correct answers during active competition.
+   */
+  async submitCase(
+    teamUser: AuthTeamUser,
+    dto: {
+      caseNumber: 1 | 2 | 3;
+      answers: Array<{ questionId: string; selectedOption: 'A' | 'B' | 'C' | 'D' }>;
+    },
+  ) {
+    await this.arenaService.verifyActiveParticipantSession(teamUser);
+    const { round, progress } = await this.arenaService.assertRoundAccess(teamUser, 3, 'SUBMIT');
+
+    if (progress.participationStatus === 'SUBMITTED') {
+      throw new BadRequestException('Round 3 has already been officially submitted by your team.');
+    }
+
+    const caseNum = Number(dto.caseNumber) as 1 | 2 | 3;
+    if (![1, 2, 3].includes(caseNum)) {
+      throw new BadRequestException('Invalid case number. Must be 1, 2, or 3.');
+    }
+
+    const caseQuestions = await this.prisma.question.findMany({
+      where: { roundId: round.id, caseNumber: caseNum, isActive: true },
+      orderBy: { orderNumber: 'asc' },
+    });
+
+    if (caseQuestions.length === 0) {
+      throw new NotFoundException(`No questions found for Case ${caseNum}.`);
+    }
+
+    if (!Array.isArray(dto.answers) || dto.answers.length !== caseQuestions.length) {
+      throw new BadRequestException(
+        `All ${caseQuestions.length} questions in Case ${caseNum} must be answered before submitting.`,
+      );
+    }
+
+    const answerByQuestionId = new Map<string, 'A' | 'B' | 'C' | 'D'>();
+    const validKeys = new Set(['A', 'B', 'C', 'D']);
+    for (const ans of dto.answers) {
+      const opt = (ans?.selectedOption || '').toUpperCase() as 'A' | 'B' | 'C' | 'D';
+      if (!ans?.questionId || !validKeys.has(opt)) {
+        throw new BadRequestException('Each question answer must be A, B, C, or D.');
+      }
+      answerByQuestionId.set(ans.questionId, opt);
+    }
+
+    for (const q of caseQuestions) {
+      if (!answerByQuestionId.has(q.id)) {
+        throw new BadRequestException(`Missing answer for question ${q.title}.`);
+      }
+    }
+
+    // Prevent duplicate case submission
+    const existingSubmissions = await this.prisma.submission.findMany({
+      where: {
+        teamId: teamUser.id,
+        roundId: round.id,
+        questionId: { in: caseQuestions.map((q) => q.id) },
+        isTestRun: false,
+      },
+      select: { id: true, questionId: true },
+    });
+
+    if (existingSubmissions.length >= caseQuestions.length) {
+      throw new BadRequestException(`Case ${caseNum} has already been submitted by your team.`);
+    }
+
+    const optionMap: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+    const now = new Date();
+    const currentBreakdown = (progress.scoreBreakdown as any) || {};
+    const questionScores: Record<string, number> = {
+      ...(currentBreakdown.questionScores || {}),
+    };
+    const submittedQuestionIds: string[] = [];
+
+    for (const q of caseQuestions) {
+      const qConfig = ROUND3_QUESTIONS_CONFIG.find((c) => c.orderNumber === q.orderNumber);
+      const selectedKey = answerByQuestionId.get(q.id)!;
+      const maxMarks = qConfig ? qConfig.marks : Number(q.marks);
+      const correctKey = qConfig ? qConfig.correctOptionKey : (['A', 'B', 'C', 'D'][q.correctOption ?? 0] as 'A' | 'B' | 'C' | 'D');
+      const isCorrect = selectedKey === correctKey;
+      const awardedScore = isCorrect ? maxMarks : 0;
+      const finalStatus = isCorrect ? 'ACCEPTED' : 'WRONG_ANSWER';
+
+      const existingMcq = await this.prisma.teamMcqAnswer.findFirst({
+        where: { teamId: teamUser.id, questionId: q.id },
+        select: { id: true },
+      });
+
+      if (existingMcq) {
+        await this.prisma.teamMcqAnswer.update({
+          where: { id: existingMcq.id },
+          data: { selectedOption: optionMap[selectedKey], updatedAt: now },
+        });
+      } else {
+        await this.prisma.teamMcqAnswer.create({
+          data: {
+            teamId: teamUser.id,
+            questionId: q.id,
+            selectedOption: optionMap[selectedKey],
+          },
+        });
+      }
+
+      const existingSub = existingSubmissions.find((s) => s.questionId === q.id);
+      if (!existingSub) {
+        await this.prisma.submission.create({
+          data: {
+            teamId: teamUser.id,
+            roundId: round.id,
+            questionId: q.id,
+            language: 'python',
+            sourceCode: `# Selected Option: ${selectedKey}\n`,
+            stdout: `Option ${selectedKey}`,
+            stderr: null,
+            compileOutput: null,
+            submissionStatus: finalStatus,
+            score: awardedScore,
+            isTestRun: false,
+            testCaseResults: [
+              {
+                caseIndex: 1,
+                isHidden: true,
+                passed: isCorrect,
+                status: finalStatus,
+                actualOutput: `Option ${selectedKey}`,
+              },
+            ] as any,
+            submittedAt: now,
+            evaluatedAt: now,
+          },
+        });
+      }
+
+      questionScores[`q${q.orderNumber}`] = awardedScore;
+      submittedQuestionIds.push(q.id);
+    }
+
+    const case1Score = (questionScores['q1'] || 0) + (questionScores['q2'] || 0);
+    const case2Score = (questionScores['q3'] || 0) + (questionScores['q4'] || 0);
+    const case3Score = (questionScores['q5'] || 0) + (questionScores['q6'] || 0);
+    const codeQualityScore = Number(currentBreakdown.codeQuality || 0);
+    const totalRoundScore = Math.min(100, Math.max(0, case1Score + case2Score + case3Score + codeQualityScore));
+
+    await this.prisma.teamRoundProgress.update({
+      where: { id: progress.id },
+      data: {
+        score: totalRoundScore,
+        evaluatedAt: now,
+        scoreBreakdown: {
+          ...currentBreakdown,
+          questionScores,
+          case1Score,
+          case2Score,
+          case3Score,
+          codeQuality: codeQualityScore,
+          totalScore: totalRoundScore,
+        },
+      },
+    });
+
+    await this.prisma.activityLog.create({
+      data: {
+        actorType: 'TEAM',
+        actorId: teamUser.id,
+        action: 'SUBMIT_ROUND3_CASE',
+        description: `Team "${teamUser.teamName}" submitted Case ${caseNum} (${submittedQuestionIds.length} questions).`,
+        metadata: {
+          caseNumber: caseNum,
+          submittedQuestionIds,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      caseNumber: caseNum,
+      submittedQuestionIds,
+      message: `Case 0${caseNum} answers submitted and recorded.`,
+      submittedAt: now.toISOString(),
     };
   }
 
