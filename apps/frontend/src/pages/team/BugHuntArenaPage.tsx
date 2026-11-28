@@ -196,9 +196,12 @@ export const BugHuntArenaPage: React.FC = () => {
         ? data.supportedLanguages
         : ['c', 'cpp', 'java', 'python']) as BugHuntLanguageCode[];
       const draftLang = (draft?.language || '').toLowerCase() as BugHuntLanguageCode;
+      const savedLocalLang = (localStorage.getItem(`ignitron_r2_lang_${data.questionId}`) || '').toLowerCase() as BugHuntLanguageCode;
       const defaultDataLang = (data.language || 'c').toLowerCase() as BugHuntLanguageCode;
       const initialLang: BugHuntLanguageCode = supported.includes(draftLang)
         ? draftLang
+        : supported.includes(savedLocalLang)
+        ? savedLocalLang
         : supported.includes(defaultDataLang)
         ? defaultDataLang
         : (supported[0] || 'c');
@@ -241,9 +244,25 @@ export const BugHuntArenaPage: React.FC = () => {
   const handleLanguageChange = async (newLang: BugHuntLanguageCode) => {
     if (newLang === selectedLanguage) return;
 
+    if (autosaveTimeoutRef.current) {
+      clearTimeout(autosaveTimeoutRef.current);
+      autosaveTimeoutRef.current = null;
+    }
+
+    const prevLang = selectedLanguage;
+    const prevCode = repairCode;
+
+    if (arenaState?.questionId) {
+      try {
+        localStorage.setItem(`ignitron_r2_lang_${arenaState.questionId}`, newLang);
+      } catch {
+        // Ignore storage quota errors
+      }
+    }
+
     const updatedDrafts = {
       ...languageDrafts,
-      [selectedLanguage]: repairCode,
+      [prevLang]: prevCode,
     };
     setLanguageDrafts(updatedDrafts);
 
@@ -255,10 +274,20 @@ export const BugHuntArenaPage: React.FC = () => {
     setSelectedLanguage(newLang);
     setRepairCode(nextCode);
     setRunResult(null);
+    setRunApiError(null);
+    setFeedback(null);
     lastSavedCodeRef.current = nextCode;
 
     if (arenaState?.isRepairUnlocked && !arenaState?.isSubmitted && !isLocked) {
       try {
+        if (prevCode && prevCode.trim() !== '') {
+          await questionAndArenaService.saveWorkspaceDraft({
+            roundNumber: 2,
+            caseNumber: 1,
+            sourceCode: prevCode,
+            language: prevLang,
+          });
+        }
         await questionAndArenaService.saveWorkspaceDraft({
           roundNumber: 2,
           caseNumber: 1,
@@ -313,7 +342,12 @@ export const BugHuntArenaPage: React.FC = () => {
     const text = (rawText || '').trim();
     if (!text || !arenaState?.questionId || isSubmittingBug) return;
 
-    if (text.startsWith('//') || text.startsWith('/*') || text.startsWith('*')) {
+    if (
+      text.startsWith('//') ||
+      text.startsWith('/*') ||
+      text.startsWith('*') ||
+      (selectedLanguage === 'python' && text.startsWith('#'))
+    ) {
       setFeedback({
         type: 'error',
         message: 'Comments and documentation cannot be reported as defects. Inspect executable statements.',
@@ -470,7 +504,10 @@ export const BugHuntArenaPage: React.FC = () => {
       }>;
     }> = [];
 
-    const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|'(?:\\.|[^'])*'|"(?:\\.|[^"])*"|`(?:\\.|[^`])*`|\+\=|\-\=|\*|\/|\&\&|\|\||\>\=|\<\=|={2,3}|!==|!=|\=|\!|\?|\:|\-|\+|[;,(){}\[\]\.]|\s+|[a-zA-Z0-9_$]+|[^\s\w]+)/g;
+    const isPython = selectedLanguage === 'python';
+    const tokenRegex = isPython
+      ? /(#[^\n]*|'(?:\\.|[^'])*'|"(?:\\.|[^"])*"|\+\=|\-\=|\*|\/|={2,3}|!=|\=|\!|\?|\:|\-|\+|[;,(){}\[\]\.]|\s+|[a-zA-Z0-9_]+|[^\s\w]+)/g
+      : /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|'(?:\\.|[^'])*'|"(?:\\.|[^"])*"|`(?:\\.|[^`])*`|\+\=|\-\=|\*|\/|\&\&|\|\||\>\=|\<\=|={2,3}|!==|!=|\=|\!|\?|\:|\-|\+|[;,(){}\[\]\.]|\s+|[a-zA-Z0-9_$]+|[^\s\w]+)/g;
 
     lines.forEach((lineText, idx) => {
       const lineNum = idx + 1;
@@ -485,7 +522,9 @@ export const BugHuntArenaPage: React.FC = () => {
       let match: RegExpExecArray | null;
       tokenRegex.lastIndex = 0;
 
-      const isCommentLine = /^\s*(\*|\/\/|\/\*)/.test(lineText);
+      const isCommentLine = isPython
+        ? /^\s*#/.test(lineText)
+        : /^\s*(\*|\/\/|\/\*)/.test(lineText);
 
       while ((match = tokenRegex.exec(lineText)) !== null) {
         const text = match[0];
@@ -495,15 +534,18 @@ export const BugHuntArenaPage: React.FC = () => {
         let type: 'keyword' | 'builtin' | 'string' | 'number' | 'operator' | 'comment' | 'punctuation' | 'identifier' | 'whitespace' = 'identifier';
         if (/^\s+$/.test(text)) {
           type = 'whitespace';
-        } else if (/^(\/\/|\/\*)/.test(text) || (isCommentLine && (text === '*' || text === '/**' || text === '*/'))) {
+        } else if (
+          (isPython && text.startsWith('#')) ||
+          (!isPython && (/^(\/\/|\/\*)/.test(text) || (isCommentLine && (text === '*' || text === '/**' || text === '*/'))))
+        ) {
           type = 'comment';
         } else if (/^['"`]/.test(text)) {
           type = 'string';
         } else if (/^\d+(\.\d+)?$/.test(text)) {
           type = 'number';
-        } else if (/^(class|constructor|this|const|let|var|function|return|if|else|try|catch|new|require|import|export|from|def|public|static|void)$/.test(text)) {
+        } else if (/^(class|constructor|this|self|const|let|var|function|return|if|else|elif|try|catch|except|new|require|import|export|from|def|public|private|static|void|int|double|long|bool|boolean|struct|typedef|true|false|True|False|None|while|for|using|namespace|nullptr|NULL)$/.test(text)) {
           type = 'keyword';
-        } else if (/^(Math|Date|console|fs|JSON|parseFloat|parseInt|String|Number|Boolean|System|out|println)$/.test(text)) {
+        } else if (/^(Math|std|math|Date|console|fs|JSON|parseFloat|parseInt|String|Number|Boolean|System|out|println|printf|scanf|fprintf|strlen|strcmp|strtod|strstr|min|max|floor|fmin)$/.test(text)) {
           type = 'builtin';
         } else if (/^(\+\=|\-\=|\*|\/|\&\&|\|\||\>\=|\<\=|={2,3}|!==|!=|\=|\!|\?|\:|\-|\+)$/.test(text)) {
           type = 'operator';
@@ -526,36 +568,58 @@ export const BugHuntArenaPage: React.FC = () => {
     });
 
     return result;
-  }, [arenaState?.faultyCode]);
+  }, [activeInvestigationCode, selectedLanguage]);
 
-  // Set of identified line numbers for red highlight
+  // Resolve identified bug location for the currently selected language (never mixing language coordinates)
+  const getBugLocationForLanguage = useCallback(
+    (b: BugHuntIdentifiedBugDto) => {
+      const langLoc = b.languageLocations?.[selectedLanguage];
+      if (langLoc) {
+        return { lineNumber: langLoc.lineNumber, expression: langLoc.expression, fromLanguageMap: true };
+      }
+      if (!b.language || b.language.toLowerCase() === selectedLanguage.toLowerCase()) {
+        return { lineNumber: b.lineNumber ?? null, expression: b.selectedText ?? null, fromLanguageMap: false };
+      }
+      return null;
+    },
+    [selectedLanguage],
+  );
+
+  // Set of identified line numbers for red highlight in the active language
   const identifiedLineSet = useMemo(() => {
     const lines = new Set<number>();
     if (!arenaState?.identifiedBugs) return lines;
     for (const b of arenaState.identifiedBugs) {
-      if (b.lineNumber) {
-        lines.add(b.lineNumber);
+      const loc = getBugLocationForLanguage(b);
+      if (loc?.lineNumber) {
+        lines.add(loc.lineNumber);
       }
     }
     return lines;
-  }, [arenaState?.identifiedBugs]);
+  }, [arenaState?.identifiedBugs, getBugLocationForLanguage]);
 
-  // Determine if a token belongs to an already identified defect
+  // Determine if a token belongs to an already identified defect in the active language
   const getMatchingIdentifiedBug = useCallback((token: { text: string; startOffset: number; endOffset: number; lineNumber: number }) => {
     if (!arenaState?.identifiedBugs || arenaState.identifiedBugs.length === 0) return null;
     for (const b of arenaState.identifiedBugs) {
-      if (b.startOffset !== null && b.startOffset !== undefined && b.endOffset !== null && b.endOffset !== undefined) {
+      const loc = getBugLocationForLanguage(b);
+      if (!loc) continue;
+      if (loc.fromLanguageMap) {
+        if (loc.lineNumber === token.lineNumber && loc.expression && loc.expression.includes(token.text)) {
+          return b;
+        }
+      } else if (b.startOffset !== null && b.startOffset !== undefined && b.endOffset !== null && b.endOffset !== undefined) {
         if (token.startOffset >= b.startOffset - 2 && token.endOffset <= b.endOffset + 2) {
           return b;
         }
-      } else if (b.lineNumber === token.lineNumber) {
-        if (b.selectedText && b.selectedText.includes(token.text)) {
+      } else if (loc.lineNumber === token.lineNumber) {
+        if (loc.expression && loc.expression.includes(token.text)) {
           return b;
         }
       }
     }
     return null;
-  }, [arenaState?.identifiedBugs]);
+  }, [arenaState?.identifiedBugs, getBugLocationForLanguage]);
 
   const getTokenSyntaxClass = (type: string, isBug: boolean) => {
     if (isBug) {
@@ -964,7 +1028,7 @@ export const BugHuntArenaPage: React.FC = () => {
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
                   <span className="text-emerald-400 font-bold ml-2">
-                    mission_code.{langExtension} &mdash; (Read-Only Investigation &bull; Click to Identify)
+                    mission_code.{langExtension} ({selectedLanguage === 'c' ? 'C · GCC 9.2.0' : selectedLanguage === 'cpp' ? 'C++17 · GCC 9.2.0' : selectedLanguage === 'java' ? 'Java · OpenJDK 13.0.1' : selectedLanguage === 'python' ? 'Python · 3.8.1' : selectedLanguage.toUpperCase()}) &mdash; (Read-Only Investigation &bull; Click to Identify)
                   </span>
                 </div>
                 <span className="text-emerald-400/80 text-[11px] font-mono flex items-center gap-1.5">
@@ -978,9 +1042,13 @@ export const BugHuntArenaPage: React.FC = () => {
                 {parsedCodeLines.map((line) => {
                   const lineNum = line.lineNumber;
                   const isFaultyLine = identifiedLineSet.has(lineNum);
-                  const matchingLineBug = arenaState?.identifiedBugs.find(
-                    (b) => b.lineNumber === lineNum,
-                  );
+                  const matchingLineBug = arenaState?.identifiedBugs.find((b) => {
+                    const loc = getBugLocationForLanguage(b);
+                    return loc?.lineNumber === lineNum;
+                  });
+                  const matchingLineExpr = matchingLineBug
+                    ? getBugLocationForLanguage(matchingLineBug)?.expression || matchingLineBug.selectedText
+                    : null;
 
                   return (
                     <div
@@ -1015,7 +1083,7 @@ export const BugHuntArenaPage: React.FC = () => {
                             Boolean(tokenBug) ||
                             (isFaultyLine &&
                               token.text.length > 2 &&
-                              Boolean(matchingLineBug?.selectedText?.includes(token.text)));
+                              Boolean(matchingLineExpr?.includes(token.text)));
                           const syntaxClass = getTokenSyntaxClass(token.type, isBug);
 
                           if (token.type === 'comment') {
