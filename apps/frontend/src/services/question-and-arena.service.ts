@@ -382,6 +382,31 @@ export const questionAndArenaService = {
     return res.data;
   },
 
+  async submitAnalyticsCase(
+    caseNumber: 1 | 2 | 3,
+    answers: Array<{ questionId: string; selectedOption: 'A' | 'B' | 'C' | 'D' }>,
+  ): Promise<{
+    success: boolean;
+    caseNumber: number;
+    submittedQuestionIds: string[];
+    message: string;
+    submittedAt: string;
+  }> {
+    const res = await apiClient<
+      ApiResponseWrapper<{
+        success: boolean;
+        caseNumber: number;
+        submittedQuestionIds: string[];
+        message: string;
+        submittedAt: string;
+      }>
+    >('/arena/analytics/submit-case', {
+      method: 'POST',
+      body: JSON.stringify({ caseNumber, answers }),
+    });
+    return res.data;
+  },
+
   async finalizeRound3(): Promise<{
     success: boolean;
     message: string;

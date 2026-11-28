@@ -310,6 +310,23 @@ export class ArenaController {
   }
 
   /**
+   * Contestant: Submit all answers for a Round 3 case atomically
+   */
+  @Post('analytics/submit-case')
+  @HttpCode(HttpStatus.OK)
+  async submitAnalyticsCase(
+    @CurrentUser() teamUser: AuthTeamUser,
+    @Body()
+    body: {
+      caseNumber: 1 | 2 | 3;
+      answers: Array<{ questionId: string; selectedOption: 'A' | 'B' | 'C' | 'D' }>;
+    },
+  ) {
+    const data = await this.eventAnalyticsService.submitCase(teamUser, body);
+    return { success: true, data };
+  }
+
+  /**
    * Contestant: Finalize Round 3 submission
    */
   @Post('analytics/finalize')
