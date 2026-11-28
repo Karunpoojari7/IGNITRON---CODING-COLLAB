@@ -157,7 +157,7 @@ export const BugHuntArenaPage: React.FC = () => {
   } | null>(null);
 
   // Code Repair Workspace State
-  const [selectedLanguage, setSelectedLanguage] = useState<BugHuntLanguageCode>('javascript');
+  const [selectedLanguage, setSelectedLanguage] = useState<BugHuntLanguageCode>('c');
   const [languageDrafts, setLanguageDrafts] = useState<Record<string, string>>({});
   const [repairCode, setRepairCode] = useState('');
   const [repairsVerifiedCount, setRepairsVerifiedCount] = useState(0);
@@ -194,11 +194,14 @@ export const BugHuntArenaPage: React.FC = () => {
       const draft = await questionAndArenaService.getWorkspaceDraft(2, 1);
       const supported = (data.supportedLanguages && data.supportedLanguages.length > 0
         ? data.supportedLanguages
-        : [(data.language || 'javascript').toLowerCase()]) as BugHuntLanguageCode[];
+        : ['c', 'cpp', 'java', 'python']) as BugHuntLanguageCode[];
       const draftLang = (draft?.language || '').toLowerCase() as BugHuntLanguageCode;
+      const defaultDataLang = (data.language || 'c').toLowerCase() as BugHuntLanguageCode;
       const initialLang: BugHuntLanguageCode = supported.includes(draftLang)
         ? draftLang
-        : ((data.language || 'javascript').toLowerCase() as BugHuntLanguageCode);
+        : supported.includes(defaultDataLang)
+        ? defaultDataLang
+        : (supported[0] || 'c');
 
       const draftsMap: Record<string, string> = { ...(data.languageDrafts || {}) };
       if (draft?.sourceCode && draft.sourceCode.trim() !== '' && !draftsMap[initialLang]) {
@@ -582,16 +585,15 @@ export const BugHuntArenaPage: React.FC = () => {
     const lang = selectedLanguage?.toLowerCase();
     if (lang === 'python') return 'py';
     if (lang === 'cpp') return 'cpp';
-    if (lang === 'c') return 'c';
     if (lang === 'java') return 'java';
-    return 'js';
+    return 'c';
   }, [selectedLanguage]);
 
   const editorLanguageExtension = useMemo(() => {
     const lang = selectedLanguage?.toLowerCase();
     if (lang === 'python') return [python()];
-    if (lang === 'cpp' || lang === 'c') return [cpp()];
     if (lang === 'java') return [java()];
+    if (lang === 'cpp' || lang === 'c') return [cpp()];
     return [javascript()];
   }, [selectedLanguage]);
 
@@ -783,18 +785,18 @@ export const BugHuntArenaPage: React.FC = () => {
                   >
                     {(arenaState?.supportedLanguages && arenaState.supportedLanguages.length > 0
                       ? arenaState.supportedLanguages
-                      : ['javascript', 'python', 'cpp', 'c', 'java']
+                      : ['c', 'cpp', 'java', 'python']
                     ).map((langKey) => (
                       <option key={langKey} value={langKey} className="bg-[#02130a] text-white">
-                        {langKey === 'cpp'
-                          ? 'C++17'
-                          : langKey === 'c'
-                          ? 'C (GCC)'
-                          : langKey === 'python'
-                          ? 'Python 3'
+                        {langKey === 'c'
+                          ? 'C (GCC 9.2.0)'
+                          : langKey === 'cpp'
+                          ? 'C++17 (GCC 9.2.0)'
                           : langKey === 'java'
-                          ? 'Java 17'
-                          : 'JavaScript'}
+                          ? 'Java (OpenJDK 13.0.1)'
+                          : langKey === 'python'
+                          ? 'Python (3.8.1)'
+                          : langKey.toUpperCase()}
                       </option>
                     ))}
                   </select>
@@ -1193,18 +1195,18 @@ export const BugHuntArenaPage: React.FC = () => {
                       >
                         {(arenaState?.supportedLanguages && arenaState.supportedLanguages.length > 0
                           ? arenaState.supportedLanguages
-                          : ['javascript', 'python', 'cpp', 'c', 'java']
+                          : ['c', 'cpp', 'java', 'python']
                         ).map((langKey) => (
                           <option key={langKey} value={langKey} className="bg-[#02130a] text-white">
-                            {langKey === 'cpp'
-                              ? 'C++17'
-                              : langKey === 'c'
-                              ? 'C (GCC)'
-                              : langKey === 'python'
-                              ? 'Python 3'
+                            {langKey === 'c'
+                              ? 'C (GCC 9.2.0)'
+                              : langKey === 'cpp'
+                              ? 'C++17 (GCC 9.2.0)'
                               : langKey === 'java'
-                              ? 'Java 17'
-                              : 'JavaScript'}
+                              ? 'Java (OpenJDK 13.0.1)'
+                              : langKey === 'python'
+                              ? 'Python (3.8.1)'
+                              : langKey.toUpperCase()}
                           </option>
                         ))}
                       </select>
