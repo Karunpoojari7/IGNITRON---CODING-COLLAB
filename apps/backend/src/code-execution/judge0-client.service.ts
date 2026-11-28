@@ -54,8 +54,13 @@ export class Judge0ClientService {
 
   /**
    * Retrieve list of officially supported languages with verified Judge0 IDs
+   * Matches strictly by exact official Judge0 ID (never substring-matching names).
    */
   async getSupportedLanguages(): Promise<SupportedLanguageItem[]> {
+    const officialCompetitionLangs = OFFICIAL_JUDGE0_LANGUAGES.filter((l) =>
+      ['c', 'cpp', 'java', 'python'].includes(l.key),
+    );
+
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3000);
@@ -67,15 +72,12 @@ export class Judge0ClientService {
 
       if (res.ok) {
         const liveLanguages: any[] = await res.json();
-        // Match live Judge0 languages with official configuration
-        return OFFICIAL_JUDGE0_LANGUAGES.map((official) => {
-          const match = liveLanguages.find(
-            (l) => l.id === official.id || l.name.toLowerCase().includes(official.key),
-          );
+        return officialCompetitionLangs.map((official) => {
+          const exactMatch = liveLanguages.find((l) => l.id === official.id);
           return {
             ...official,
-            id: match?.id ?? official.id,
-            name: match?.name ?? official.name,
+            id: exactMatch?.id ?? official.id,
+            name: exactMatch?.name ?? official.name,
           };
         });
       }
@@ -84,13 +86,13 @@ export class Judge0ClientService {
         `Using static verified Judge0 language mappings: ${err instanceof Error ? err.message : err}`,
       );
     }
-    return OFFICIAL_JUDGE0_LANGUAGES;
+    return officialCompetitionLangs;
   }
 
   /**
-   * Submit untrusted code to Judge0 CE for sandboxed execution
-   * Always prefers unencoded plain JSON with `base64_encoded=false`.
-   * Automatically handles UTF-8 conversion errors by falling back to Base64 retrieval and decoding.
+   * Submit untrusted code to Judge0 CE for sandboxed execution.
+   * Uses wait=true with explicit CPU/wall-time limits and bounded fallback polling,
+   * distinguishing genuine Judge0 TLE (status.id === 5) from HTTP/network timeouts.
    */
   async execute(
     sourceCode: string,
@@ -99,80 +101,108 @@ export class Judge0ClientService {
     cpuTimeLimit: number = EXECUTION_LIMITS.DEFAULT_CPU_TIME_LIMIT_SECONDS,
     memoryLimitKb: number = EXECUTION_LIMITS.DEFAULT_MEMORY_LIMIT_KB,
   ): Promise<Judge0SubmissionResponse> {
+    const wallTimeLimit = EXECUTION_LIMITS.DEFAULT_WALL_TIME_LIMIT_SECONDS;
     const payload = {
       source_code: sourceCode,
       language_id: languageId,
       stdin: stdin,
       cpu_time_limit: cpuTimeLimit,
       cpu_extra_time: 0.5,
-      wall_time_limit: EXECUTION_LIMITS.DEFAULT_WALL_TIME_LIMIT_SECONDS,
+      wall_time_limit: wallTimeLimit,
       memory_limit: memoryLimitKb,
       stack_limit: 64000,
     };
 
-    try {
-      const controller = new AbortController();
-      const timeoutMs = (cpuTimeLimit + 10) * 1000;
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const httpTimeoutMs = Math.max(20000, (wallTimeLimit + 15) * 1000);
 
-      // Note: base64_encoded=false ensures plain text source code and stdin are NOT mistakenly base64-decoded by Judge0.
-      const response = await fetch(
+    try {
+      const submitController = new AbortController();
+      const submitTimeout = setTimeout(() => submitController.abort(), httpTimeoutMs);
+
+      const submitRes = await fetch(
         `${this.judge0Url}/submissions?base64_encoded=false&wait=true`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-          signal: controller.signal,
+          signal: submitController.signal,
         },
       );
-      clearTimeout(timeout);
+      clearTimeout(submitTimeout);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (!submitRes.ok) {
+        const errorText = await submitRes.text();
+        this.logger.error(`Judge0 API error ${submitRes.status}: ${errorText}`);
+        if (submitRes.status === 400 || submitRes.status === 422) {
+          throw new BadRequestException(`Judge0 execution rejected: ${errorText}`);
+        }
+        throw new ServiceUnavailableException(`Judge0 execution failed: ${errorText}`);
+      }
 
-        // Check if Judge0 threw an internal conversion error due to non-UTF8/localized quotes in output
-        if (
-          data.error &&
-          typeof data.error === 'string' &&
-          data.error.includes('base64_encoded=true') &&
-          data.token
-        ) {
-          this.logger.debug(
-            `Judge0 reported conversion error for token ${data.token}. Fetching Base64 representation...`,
-          );
-          return await this.fetchAndDecodeBase64Submission(data.token);
+      const submitData = await submitRes.json();
+
+      if (
+        submitData.error &&
+        typeof submitData.error === 'string' &&
+        submitData.error.includes('base64_encoded=true') &&
+        submitData.token
+      ) {
+        const decoded = await this.fetchAndDecodeBase64Submission(submitData.token);
+        if (decoded.status && decoded.status.id > 2) {
+          return decoded;
+        }
+      }
+
+      if (typeof submitData?.status?.id === 'number' && submitData.status.id > 2) {
+        return this.sanitizeSubmissionResponse(submitData, false);
+      }
+
+      const token: string | undefined = submitData?.token;
+      if (!token) {
+        throw new ServiceUnavailableException('Judge0 did not return a submission token.');
+      }
+
+      // Bounded fallback polling if Judge0 wait=true returned while still In Queue / Processing
+      const pollDeadline = Date.now() + httpTimeoutMs;
+      while (Date.now() < pollDeadline) {
+        await new Promise((r) => setTimeout(r, 1500));
+
+        const pollController = new AbortController();
+        const pollTimeout = setTimeout(() => pollController.abort(), 5000);
+        const pollRes = await fetch(
+          `${this.judge0Url}/submissions/${token}?base64_encoded=true`,
+          { signal: pollController.signal },
+        );
+        clearTimeout(pollTimeout);
+
+        if (!pollRes.ok) {
+          const errText = await pollRes.text().catch(() => '');
+          throw new ServiceUnavailableException(`Judge0 polling failed (${pollRes.status}): ${errText}`);
         }
 
-        return this.sanitizeSubmissionResponse(data, false);
+        const data = await pollRes.json();
+        const statusId = data?.status?.id;
+        if (typeof statusId === 'number' && statusId > 2) {
+          return this.sanitizeSubmissionResponse(data, true);
+        }
       }
 
-      const errorText = await response.text();
-      this.logger.error(`Judge0 API error ${response.status}: ${errorText}`);
-      if (response.status === 400 || response.status === 422) {
-        throw new BadRequestException(`Judge0 execution rejected: ${errorText}`);
-      }
-      throw new ServiceUnavailableException(`Judge0 execution failed: ${errorText}`);
+      throw new ServiceUnavailableException(
+        `Judge0 submission ${token} did not finish within bounded polling window (${httpTimeoutMs}ms).`,
+      );
     } catch (err: any) {
-      if (err instanceof BadRequestException) {
+      if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) {
         throw err;
       }
 
-      if (err.name === 'AbortError') {
-        return {
-          token: `timeout-${Date.now()}`,
-          stdout: null,
-          stderr: 'Execution timed out',
-          time: String(cpuTimeLimit),
-          memory: memoryLimitKb,
-          compile_output: null,
-          message: 'Time Limit Exceeded',
-          status: { id: 5, description: 'Time Limit Exceeded' },
-        };
+      if (err?.name === 'AbortError') {
+        this.logger.error(`HTTP request to Judge0 timed out at ${this.judge0Url}`);
+        throw new ServiceUnavailableException(
+          'Judge0 HTTP request timed out while communicating with execution sandbox.',
+        );
       }
 
-      // If Judge0 is not running locally in development mode or as a resilient fallback, provide simulated isolate execution
+      // If Judge0 is unreachable in development mode, provide simulated isolate execution fallback
       if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SIMULATED_FALLBACK !== 'false') {
         this.logger.warn(
           `Judge0 container unreachable at ${this.judge0Url}: ${err.message}. Executing via resilient sandbox simulator fallback.`,
