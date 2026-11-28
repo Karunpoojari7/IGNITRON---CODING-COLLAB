@@ -1,0 +1,51 @@
+﻿rank,team_id,team_name,department,member_count,round_1_score,round_2_score,round_3_score,total_score
+1,T148,Syntax Ninjas,Information Technology,2,51.0,197.9,176.7,425.6
+2,T147,Recursion Crusaders,Artificial Intelligence & Data Science,2,51.3,179.3,172.0,402.6
+3,T118,Code Architects,Information Technology,2,46.9,161.4,180.6,388.9
+4,T144,Omega Wolves,Information Technology,2,53.0,164.9,166.9,384.8
+5,T145,Nova Commanders,Information Technology,2,51.3,159.2,168.6,379.1
+6,T101,Tensor Titans,Artificial Intelligence & Data Science,2,48.1,165.9,162.3,376.3
+7,T139,Stack Pioneers,Computer Science & Engineering,2,54.0,165.2,157.0,376.2
+8,T122,Algorithm Warriors,Computer Science & Engineering,2,44.7,158.9,170.6,374.2
+9,T149,Neural Wizards,Electronics & Communication,2,47.5,156.4,160.6,364.5
+10,T131,Terminal Knights,Computer Science & Engineering,2,47.6,153.6,157.8,359.0
+11,T104,Matrix Pioneers,Artificial Intelligence & Data Science,2,44.6,155.7,153.3,353.6
+12,T138,Cyber Hawks,Information Technology,2,52.3,146.2,154.5,353.0
+13,T132,Neural Sharks,Artificial Intelligence & Data Science,2,45.3,153.5,151.0,349.8
+14,T117,Matrix Sentinels,Artificial Intelligence & Data Science,2,45.5,133.9,169.8,349.2
+15,T135,Vector Warriors,Information Technology,2,44.3,147.6,157.2,349.1
+16,T141,Vector Wizards,Information Technology,2,44.7,145.9,139.4,330.0
+17,T143,Silicon Wolves,Electronics & Communication,2,41.3,148.4,137.3,327.0
+18,T107,Nexus Warriors,Computer Science & Engineering,2,40.1,142.8,137.0,319.9
+19,T113,Silicon Phantoms,Information Technology,2,39.7,146.6,131.2,317.5
+20,T142,Stack Phantoms,Electronics & Communication,2,44.0,132.8,139.8,316.6
+21,T106,Recursion Masters,Artificial Intelligence & Data Science,2,36.7,142.7,134.7,314.1
+22,T137,Titan Legion,Electronics & Communication,2,43.8,134.4,134.5,312.7
+23,T109,Code Wizards,Artificial Intelligence & Data Science,2,42.8,130.1,136.7,309.6
+24,T150,Apex Phantoms,Artificial Intelligence & Data Science,2,38.8,122.8,145.7,307.3
+25,T123,Async Wizards,Computer Science & Engineering,2,39.8,131.9,135.5,307.2
+26,T124,Specter Sharks,Artificial Intelligence & Data Science,2,36.8,137.4,125.6,299.8
+27,T121,Neural Hawks,Information Technology,2,38.3,131.5,125.5,295.3
+28,T130,Nexus Ninjas,Information Technology,2,37.1,119.9,132.4,289.4
+29,T108,Vector Gladiators,Information Technology,2,40.5,120.0,126.3,286.8
+30,T114,Recursion Knights,Computer Science & Engineering,2,36.1,123.8,125.8,285.7
+31,T111,Quantum Phantoms,Electronics & Communication,2,37.9,122.8,122.8,283.5
+32,T125,Code Ninjas,Information Technology,2,34.1,121.8,127.4,283.3
+33,T133,Nexus Architects,Computer Science & Engineering,2,33.1,121.1,126.5,280.7
+34,T112,Binary Warriors,Electronics & Communication,2,38.0,115.8,121.6,275.4
+35,T127,Helios Crusaders,Artificial Intelligence & Data Science,2,39.1,117.2,110.6,266.9
+36,T119,Async Hunters,Artificial Intelligence & Data Science,2,32.9,113.0,118.7,264.6
+37,T110,Cyber Titans,Computer Science & Engineering,2,32.4,117.8,113.0,263.2
+38,T115,Titan Phantoms,Information Technology,2,33.6,107.1,121.3,262.0
+39,T128,Logic Masters,Electronics & Communication,2,34.2,118.8,106.5,259.5
+40,T140,Terminal Sentinels,Information Technology,2,35.2,109.6,114.1,258.9
+41,T116,Logic Titans,Information Technology,2,32.4,110.4,114.5,257.3
+42,T129,Silicon Titans,Electronics & Communication,2,34.5,110.7,109.1,254.3
+43,T146,Recursion Hunters,Electronics & Communication,2,32.6,109.4,111.1,253.1
+44,T136,Code Sharks,Computer Science & Engineering,2,33.4,103.9,110.7,248.0
+45,T120,Echo Legion,Electronics & Communication,2,32.2,104.7,103.3,240.2
+46,T126,Vector Pioneers,Computer Science & Engineering,2,30.4,111.6,97.5,239.5
+47,T105,Terminal Ninjas,Computer Science & Engineering,2,30.7,104.1,104.6,239.4
+48,T103,Omega Sentinels,Information Technology,2,30.2,97.9,108.1,236.2
+49,T134,Logic Crusaders,Information Technology,2,30.2,90.3,111.3,231.8
+50,T102,Nexus Hunters,Information Technology,2,31.4,93.4,92.5,217.3

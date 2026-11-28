@@ -1,0 +1,11 @@
+﻿metric,value
+participant_count,100
+team_count,50
+submission_count,1000
+duplicate_submission_id_count,0
+p101_total_score,207.4
+highest_participant,"{""participant_id"": ""P196"", ""participant_name"": ""Neha Singh"", ""total_score"": 217.2}"
+accepted_submission_count,302
+highest_team,"{""team_id"": ""T148"", ""team_name"": ""Syntax Ninjas"", ""total_score"": 425.6}"
+top_three_teams,"[{""rank"": 1, ""team_id"": ""T148"", ""team_name"": ""Syntax Ninjas"", ""total_score"": 425.6}, {""rank"": 2, ""team_id"": ""T147"", ""team_name"": ""Recursion Crusaders"", ""total_score"": 402.6}, {""rank"": 3, ""team_id"": ""T118"", ""team_name"": ""Code Architects"", ""total_score"": 388.9}]"
+team_totals_match_leaderboard_csv,True

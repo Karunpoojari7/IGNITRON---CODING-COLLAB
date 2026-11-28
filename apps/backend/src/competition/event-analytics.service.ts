@@ -31,10 +31,10 @@ import {
 
 function resolveDatasetDir(): string {
   const candidates = [
-    path.resolve(__dirname, './data/master_dataset'),
-    path.resolve(__dirname, '../../src/competition/data/master_dataset'),
-    path.resolve(process.cwd(), 'apps/backend/src/competition/data/master_dataset'),
-    path.resolve(process.cwd(), 'src/competition/data/master_dataset'),
+    path.resolve(__dirname, './data/round3_reference_dataset_v2'),
+    path.resolve(__dirname, '../../src/competition/data/round3_reference_dataset_v2'),
+    path.resolve(process.cwd(), 'apps/backend/src/competition/data/round3_reference_dataset_v2'),
+    path.resolve(process.cwd(), 'src/competition/data/round3_reference_dataset_v2'),
   ];
   for (const c of candidates) {
     if (fs.existsSync(c)) {
@@ -48,24 +48,28 @@ const DATASET_DIR = resolveDatasetDir();
 
 const DATASET_FILES_INFO: Record<string, { title: string; description: string }> = {
   'participants.csv': {
-    title: 'Tournament Participants Roster',
-    description: 'Demographic and academic profiles for 100 tournament contestants across 50 collegiate teams.',
+    title: 'Participant Scores (100 Records)',
+    description: 'Participant IDs, names, and Round 1, Round 2, Round 3, and total scores across all 100 contestants.',
   },
-  'teams.csv': {
-    title: 'Collegiate Teams Master Directory',
-    description: '50 competing collegiate teams with institutional affiliations, slots, and registration timestamps.',
+  'submission_ids.csv': {
+    title: 'Submission IDs Audit (1,000 Records)',
+    description: 'Complete list of 1,000 submission identifiers (SUB_10001 to SUB_11000) for duplicate detection.',
   },
-  'round_performance.csv': {
-    title: 'Multi-Round Performance Telemetry',
-    description: '300 granular participant performance records spanning Round 1 (MCQ), Round 2 (Bug Hunt), and Round 3.',
+  'submission_status_summary.csv': {
+    title: 'Submission Status Summary (5 Records)',
+    description: 'Aggregated counts across ACCEPTED, COMPILATION_ERROR, RUNTIME_ERROR, TIME_LIMIT_EXCEEDED, and WRONG_ANSWER.',
   },
-  'submission_logs.csv': {
-    title: 'Code Execution Submission Logs',
-    description: '1,000 real-time telemetry records tracking language runtimes, memory, execution times, and verdicts.',
+  'team_leaderboard.csv': {
+    title: 'Team Leaderboard (50 Records)',
+    description: 'Ranked standings for all 50 teams with department, member count, round scores, and total_score.',
   },
-  'event_activity.csv': {
-    title: 'System Security & Event Activity Audit',
-    description: '500 audit logs detailing client session logins, relay handovers, test runs, and system alerts.',
+  'team_round_scores.csv': {
+    title: 'Team Round Scores (50 Records)',
+    description: 'Per-team total_score, round_2_score, and round_3_score for multi-key ranking verification.',
+  },
+  'verification_summary.csv': {
+    title: 'Verification Summary (10 Metrics)',
+    description: 'Official ground-truth verification metrics matching IGNITRON_Round3_Reference_Dataset.json.',
   },
 };
 
@@ -102,13 +106,36 @@ export class EventAnalyticsService implements OnModuleInit {
       return;
     }
 
-    this.logger.log(`Syncing ${ROUND3_QUESTIONS_CONFIG.length} official Round 3 Event Analytics questions...`);
+    this.logger.log(`Syncing ${ROUND3_QUESTIONS_CONFIG.length} official Round 3 Python Code Tracing Challenge questions...`);
+
+    const activeTitles = ROUND3_QUESTIONS_CONFIG.map((q) => q.title);
+    // Preserve historical Round 3 questions and submissions by deactivating superseded questions
+    // and shifting their orderNumber (+100) so (roundId, orderNumber) remains unique for active Q1-Q6.
+    const legacyQuestions = await this.prisma.question.findMany({
+      where: {
+        roundId: round3.id,
+        title: { notIn: activeTitles },
+      },
+      select: { id: true, orderNumber: true, isActive: true },
+    });
+
+    for (const legacy of legacyQuestions) {
+      if (legacy.isActive || legacy.orderNumber < 100) {
+        await this.prisma.question.update({
+          where: { id: legacy.id },
+          data: {
+            isActive: false,
+            orderNumber: legacy.orderNumber < 100 ? legacy.orderNumber + 100 : legacy.orderNumber,
+          },
+        });
+      }
+    }
 
     for (const qConfig of ROUND3_QUESTIONS_CONFIG) {
       const existing = await this.prisma.question.findFirst({
         where: {
           roundId: round3.id,
-          orderNumber: qConfig.orderNumber,
+          title: qConfig.title,
         },
       });
 
@@ -181,7 +208,14 @@ export class EventAnalyticsService implements OnModuleInit {
     }
 
     const files: DatasetFileMetaDto[] = [];
-    const fileKeys = ['participants.csv', 'teams.csv', 'round_performance.csv', 'submission_logs.csv', 'event_activity.csv'];
+    const fileKeys = [
+      'participants.csv',
+      'submission_ids.csv',
+      'submission_status_summary.csv',
+      'team_leaderboard.csv',
+      'team_round_scores.csv',
+      'verification_summary.csv',
+    ];
 
     for (const filename of fileKeys) {
       const filePath = path.join(DATASET_DIR, filename);
@@ -189,7 +223,7 @@ export class EventAnalyticsService implements OnModuleInit {
         continue;
       }
 
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const content = fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
       const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
       if (lines.length === 0) continue;
 
@@ -220,11 +254,24 @@ export class EventAnalyticsService implements OnModuleInit {
       });
     }
 
+    const jsonPath = path.join(DATASET_DIR, 'IGNITRON_Round3_Reference_Dataset.json');
+    if (fs.existsSync(jsonPath)) {
+      const jsonRows = this.buildReferenceJsonRows(jsonPath);
+      files.unshift({
+        filename: 'IGNITRON_Round3_Reference_Dataset.json',
+        title: 'IGNITRON Round 3 Reference Dataset (JSON)',
+        description: 'Master JSON dataset containing all 5 sections (100 participants, 1,000 submissions, 50 teams) and verification metrics.',
+        recordCount: jsonRows.length,
+        columns: ['section', 'record_count', 'description', 'verified_highlight'],
+        previewRows: jsonRows.slice(0, 10),
+      });
+    }
+
     this.cachedDatasetMeta = {
-      datasetName: 'IGNITRON_EVENT_INTELLIGENCE_DATASET_2026',
-      version: '2026.1',
+      datasetName: 'IGNITRON_Round3_Reference_Dataset',
+      version: '2.0.0',
       description:
-        'Comprehensive multi-round competitive programming tournament telemetry and analytics dataset across 50 collegiate teams and 100 participants.',
+        'Reference dataset for the six Python Code Tracing Challenge questions (100 participants, 50 teams, 1,000 submissions, and verification summary).',
       files,
     };
 
@@ -234,11 +281,12 @@ export class EventAnalyticsService implements OnModuleInit {
   getDatasetFilePath(filename: string): { fullPath: string; mimeType: string } {
     const allowed = [
       'participants.csv',
-      'teams.csv',
-      'round_performance.csv',
-      'submission_logs.csv',
-      'event_activity.csv',
-      'master_dataset.json',
+      'submission_ids.csv',
+      'submission_status_summary.csv',
+      'team_leaderboard.csv',
+      'team_round_scores.csv',
+      'verification_summary.csv',
+      'IGNITRON_Round3_Reference_Dataset.json',
     ];
 
     if (!allowed.includes(filename)) {
@@ -256,7 +304,30 @@ export class EventAnalyticsService implements OnModuleInit {
 
   getDatasetPreview(filename: string, page = 1, limit = 20, search?: string) {
     const { fullPath } = this.getDatasetFilePath(filename);
-    const content = fs.readFileSync(fullPath, 'utf-8');
+
+    if (filename.endsWith('.json')) {
+      let allRows = this.buildReferenceJsonRows(fullPath);
+      if (search && search.trim().length > 0) {
+        const q = search.trim().toLowerCase();
+        allRows = allRows.filter((r) =>
+          Object.values(r).some((v) => String(v).toLowerCase().includes(q)),
+        );
+      }
+      const totalRows = allRows.length;
+      const totalPages = Math.ceil(totalRows / limit) || 1;
+      const p = Math.max(1, Math.min(page, totalPages));
+      const startIdx = (p - 1) * limit;
+      return {
+        totalRows,
+        page: p,
+        limit,
+        totalPages,
+        columns: ['section', 'record_count', 'description', 'verified_highlight'],
+        rows: allRows.slice(startIdx, startIdx + limit),
+      };
+    }
+
+    const content = fs.readFileSync(fullPath, 'utf-8').replace(/^\uFEFF/, '');
     const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
     if (lines.length === 0) {
       return { totalRows: 0, page: 1, limit, totalPages: 0, columns: [], rows: [] };
@@ -295,6 +366,52 @@ export class EventAnalyticsService implements OnModuleInit {
       columns: headers,
       rows,
     };
+  }
+
+  private buildReferenceJsonRows(jsonPath: string): Record<string, any>[] {
+    const raw = fs.readFileSync(jsonPath, 'utf-8').replace(/^\uFEFF/, '');
+    const parsed = JSON.parse(raw);
+    const sections = parsed?.sections || {};
+    const v = parsed?.verification || {};
+
+    return [
+      {
+        section: 'participant_scores',
+        record_count: sections.participant_scores?.record_count ?? 100,
+        description: sections.participant_scores?.description || '',
+        verified_highlight: `P101 total=${v.p101_total_score}; Highest=${v.highest_participant?.participant_id} (${v.highest_participant?.total_score})`,
+      },
+      {
+        section: 'submission_status_summary',
+        record_count: sections.submission_status_summary?.record_count ?? 1000,
+        description: sections.submission_status_summary?.description || '',
+        verified_highlight: `ACCEPTED=${v.accepted_submission_count} / ${v.submission_count}`,
+      },
+      {
+        section: 'submission_ids',
+        record_count: sections.submission_ids?.record_count ?? 1000,
+        description: sections.submission_ids?.description || '',
+        verified_highlight: `Duplicates=${v.duplicate_submission_id_count}`,
+      },
+      {
+        section: 'team_leaderboard',
+        record_count: sections.team_leaderboard?.record_count ?? 50,
+        description: sections.team_leaderboard?.description || '',
+        verified_highlight: `Rank 1=${v.highest_team?.team_id} (${v.highest_team?.team_name}, ${v.highest_team?.total_score})`,
+      },
+      {
+        section: 'team_round_scores',
+        record_count: sections.team_round_scores?.record_count ?? 50,
+        description: sections.team_round_scores?.description || '',
+        verified_highlight: `Totals match leaderboard=${v.team_totals_match_leaderboard_csv}`,
+      },
+      {
+        section: 'verification',
+        record_count: Object.keys(v).length,
+        description: 'Official ground-truth verification metrics',
+        verified_highlight: `Top 3: ${(v.top_three_teams || []).map((t: any) => t.team_id).join(', ')}`,
+      },
+    ];
   }
 
   private parseCsvLine(line: string): string[] {
@@ -438,27 +555,27 @@ export class EventAnalyticsService implements OnModuleInit {
       };
     });
 
-    // Group into 3 cases
+    // Group into 3 cases (2 marks each = 6 marks total)
     const cases = [
       {
         caseNumber: 1 as const,
-        caseTitle: 'Case 1 – Participant Performance Analysis',
-        caseDescription: 'Analyze participant performance, calculate round averages, and extract top individual performers.',
-        totalMarks: 20,
+        caseTitle: 'Case 01 – Data Fundamentals',
+        caseDescription: 'Trace Python snippets to calculate P101\'s total score and identify the highest-scoring participant.',
+        totalMarks: 2,
         questions: questionDtos.filter((q) => q.caseNumber === 1),
       },
       {
         caseNumber: 2 as const,
-        caseTitle: 'Case 2 – Data Cleaning and Submission Analysis',
-        caseDescription: 'Validate dataset integrity, identify duplicate records, and analyze accepted programming submissions.',
-        totalMarks: 25,
+        caseTitle: 'Case 02 – Data Integrity',
+        caseDescription: 'Trace Python snippets to count accepted submissions and detect duplicate submission IDs.',
+        totalMarks: 2,
         questions: questionDtos.filter((q) => q.caseNumber === 2),
       },
       {
         caseNumber: 3 as const,
-        caseTitle: 'Case 3 – Event Intelligence and Team Ranking',
-        caseDescription: 'Examine participant engagement telemetry and compute multi-table relational team leaderboards.',
-        totalMarks: 55,
+        caseTitle: 'Case 03 – Analytical Intelligence',
+        caseDescription: 'Trace Python snippets to find the highest-ranked team and apply multi-key team ranking.',
+        totalMarks: 2,
         questions: questionDtos.filter((q) => q.caseNumber === 3),
       },
     ];
@@ -468,7 +585,7 @@ export class EventAnalyticsService implements OnModuleInit {
 
     return {
       roundNumber: 3,
-      roundName: 'IGNITRON Event Analytics Engine',
+      roundName: 'Python Code Tracing Challenge',
       roundStatus: round.status,
       remainingSeconds,
       isPaused: state?.isPaused ?? false,
@@ -920,7 +1037,7 @@ export class EventAnalyticsService implements OnModuleInit {
     const case3Score = (questionScores['q5'] || 0) + (questionScores['q6'] || 0);
     const codeQualityScore = Number(currentBreakdown.codeQuality || 0);
 
-    const totalRoundScore = Math.min(100, Math.max(0, case1Score + case2Score + case3Score + codeQualityScore));
+    const totalRoundScore = Math.min(6, Math.max(0, case1Score + case2Score + case3Score));
 
     await this.prisma.teamRoundProgress.update({
       where: { id: progress.id },
@@ -1121,7 +1238,7 @@ export class EventAnalyticsService implements OnModuleInit {
     const case2Score = (questionScores['q3'] || 0) + (questionScores['q4'] || 0);
     const case3Score = (questionScores['q5'] || 0) + (questionScores['q6'] || 0);
     const codeQualityScore = Number(currentBreakdown.codeQuality || 0);
-    const totalRoundScore = Math.min(100, Math.max(0, case1Score + case2Score + case3Score + codeQualityScore));
+    const totalRoundScore = Math.min(6, Math.max(0, case1Score + case2Score + case3Score));
 
     await this.prisma.teamRoundProgress.update({
       where: { id: progress.id },
@@ -1193,7 +1310,7 @@ export class EventAnalyticsService implements OnModuleInit {
         actorType: 'TEAM',
         actorId: teamUser.id,
         action: 'FINALIZE_ROUND3',
-        description: `Team "${teamUser.teamName}" officially finalized Round 3 Event Analytics Engine. Total Score: ${progress.score}/100.`,
+        description: `Team "${teamUser.teamName}" officially finalized Round 3 Python Code Tracing Challenge. Total Score: ${progress.score}/6.`,
         metadata: {
           teamId: teamUser.id,
           totalScore: progress.score,

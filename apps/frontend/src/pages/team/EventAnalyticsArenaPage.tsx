@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   FileSpreadsheet,
   Sparkles,
+  Flag,
 } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
@@ -41,112 +42,143 @@ export interface DatasetDef {
 }
 
 export const DATASET_REGISTRY: Record<string, DatasetDef> = {
-  'round_performance.csv': {
-    fileName: 'round_performance.csv',
-    dfName: 'performance',
-    title: 'Multi-Round Performance Telemetry',
-    description: '300 granular records tracking participant scores, accuracy, speed, and completion times across all 3 rounds.',
-    columns: ['participant_id', 'round_number', 'raw_score', 'maximum_score', 'accuracy_score', 'speed_score', 'completion_score', 'completion_time_seconds', 'penalty_seconds'],
+  'IGNITRON_Round3_Reference_Dataset.json': {
+    fileName: 'IGNITRON_Round3_Reference_Dataset.json',
+    dfName: 'reference_json',
+    title: 'IGNITRON Round 3 Reference Dataset (Master JSON)',
+    description: 'Complete JSON dataset containing participant_scores (100), submission_status_summary (1,000), submission_ids (1,000), team_leaderboard (50), team_round_scores (50), and verification.',
+    columns: ['section', 'record_count', 'description', 'verified_highlight'],
     previewRows: [
-      { participant_id: 'P101', round_number: 1, raw_score: 25.4, maximum_score: 30, accuracy_score: 87.0, speed_score: 93.0, completion_score: 94.0, completion_time_seconds: 1554, penalty_seconds: 180 },
-      { participant_id: 'P101', round_number: 2, raw_score: 87.4, maximum_score: 100, accuracy_score: 84.0, speed_score: 80.8, completion_score: 88.5, completion_time_seconds: 1778, penalty_seconds: 0 },
-      { participant_id: 'P101', round_number: 3, raw_score: 94.6, maximum_score: 100, accuracy_score: 87.0, speed_score: 88.4, completion_score: 91.5, completion_time_seconds: 3221, penalty_seconds: 180 },
-      { participant_id: 'P102', round_number: 1, raw_score: 22.7, maximum_score: 30, accuracy_score: 76.2, speed_score: 78.4, completion_score: 70.7, completion_time_seconds: 1233, penalty_seconds: 180 },
-      { participant_id: 'P102', round_number: 2, raw_score: 78.5, maximum_score: 100, accuracy_score: 68.8, speed_score: 80.1, completion_score: 76.5, completion_time_seconds: 1933, penalty_seconds: 120 },
-      { participant_id: 'P102', round_number: 3, raw_score: 67.7, maximum_score: 100, accuracy_score: 66.1, speed_score: 62.9, completion_score: 75.8, completion_time_seconds: 3336, penalty_seconds: 60 },
+      { section: 'participant_scores', record_count: 100, description: 'All participants and their raw scores in Rounds 1, 2 and 3.', verified_highlight: 'P101 total=207.4; Highest=P196 (217.2)' },
+      { section: 'submission_status_summary', record_count: 1000, description: 'Count of submissions by execution status.', verified_highlight: 'ACCEPTED=302 / 1000' },
+      { section: 'submission_ids', record_count: 1000, description: 'All submission IDs; use this list to check for duplicates.', verified_highlight: 'Duplicates=0' },
+      { section: 'team_leaderboard', record_count: 50, description: 'All 50 teams, sorted by total score descending.', verified_highlight: 'Rank 1=T148 (Syntax Ninjas, 425.6)' },
+      { section: 'team_round_scores', record_count: 50, description: 'Team ID and round-wise scores used for ranking and tie-break practice.', verified_highlight: 'Totals match leaderboard=true' },
     ],
     fieldInfo: [
-      { field: 'participant_id', type: 'string (PK)', desc: 'Unique contestant identification code (e.g. P101)' },
-      { field: 'round_number', type: 'integer (1, 2, 3)', desc: 'Tournament competition round index' },
-      { field: 'raw_score', type: 'float', desc: 'Actual points earned by the participant in this round' },
-      { field: 'maximum_score', type: 'integer', desc: 'Maximum available score for the round (R1: 30, R2: 100, R3: 100)' },
-      { field: 'accuracy_score', type: 'float (0-100)', desc: 'Algorithmic accuracy percentage' },
-      { field: 'speed_score', type: 'float (0-100)', desc: 'Execution and completion speed rating' },
-      { field: 'completion_score', type: 'float (0-100)', desc: 'Aggregate problem completion benchmark' },
-      { field: 'completion_time_seconds', type: 'integer', desc: 'Total wall-clock duration in seconds' },
-      { field: 'penalty_seconds', type: 'integer', desc: 'Incurred penalty seconds for failed test runs' },
+      { field: 'dataset_name', type: 'string', desc: 'IGNITRON Round 3 Reference Dataset' },
+      { field: 'sections.participant_scores', type: 'object (100 records)', desc: 'Per-participant round_1_score, round_2_score, round_3_score, total_score' },
+      { field: 'sections.submission_status_summary', type: 'object (5 statuses)', desc: 'Counts for ACCEPTED, COMPILATION_ERROR, RUNTIME_ERROR, TIME_LIMIT_EXCEEDED, WRONG_ANSWER' },
+      { field: 'sections.submission_ids', type: 'object (1,000 IDs)', desc: 'List of submission_id strings SUB_10001..SUB_11000' },
+      { field: 'sections.team_leaderboard', type: 'object (50 teams)', desc: 'Ranked teams with rank, team_id, team_name, department, round scores, total_score' },
+      { field: 'sections.team_round_scores', type: 'object (50 teams)', desc: 'team_id, team_name, total_score, round_2_score, round_3_score' },
+      { field: 'verification', type: 'object (10 metrics)', desc: 'Ground-truth verification values' },
     ],
   },
   'participants.csv': {
     fileName: 'participants.csv',
-    dfName: 'participants',
-    title: 'Tournament Participants Roster',
-    description: 'Demographic and academic profiles for 100 tournament contestants across 50 collegiate teams.',
-    columns: ['participant_id', 'team_id', 'participant_name', 'department', 'year', 'college'],
+    dfName: 'df',
+    title: 'Participant Scores (100 Records)',
+    description: 'Participant IDs, names, and Round 1, Round 2, Round 3, and total scores across all 100 contestants.',
+    columns: ['participant_id', 'participant_name', 'round_1_score', 'round_2_score', 'round_3_score', 'total_score'],
     previewRows: [
-      { participant_id: 'P101', team_id: 'T101', participant_name: 'Akash Patel', department: 'Artificial Intelligence & Data Science', year: 4, college: 'Institute of Technology & Science' },
-      { participant_id: 'P102', team_id: 'T101', participant_name: 'Vikram Chauhan', department: 'Artificial Intelligence & Data Science', year: 3, college: 'University College of Engineering' },
-      { participant_id: 'P103', team_id: 'T102', participant_name: 'Chetan Kapoor', department: 'Information Technology', year: 4, college: 'Academy of Computer Studies' },
-      { participant_id: 'P104', team_id: 'T102', participant_name: 'Rohit Patel', department: 'Information Technology', year: 2, college: 'Institute of Technology & Science' },
+      { participant_id: 'P101', participant_name: 'Akash Patel', round_1_score: 25.4, round_2_score: 87.4, round_3_score: 94.6, total_score: 207.4 },
+      { participant_id: 'P102', participant_name: 'Vikram Chauhan', round_1_score: 22.7, round_2_score: 78.5, round_3_score: 67.7, total_score: 168.9 },
+      { participant_id: 'P103', participant_name: 'Chetan Kapoor', round_1_score: 14.1, round_2_score: 47.0, round_3_score: 47.8, total_score: 108.9 },
+      { participant_id: 'P196', participant_name: 'Neha Singh', round_1_score: 29.0, round_2_score: 96.4, round_3_score: 91.8, total_score: 217.2 },
     ],
     fieldInfo: [
-      { field: 'participant_id', type: 'string (PK)', desc: 'Primary key identifying each individual participant' },
-      { field: 'team_id', type: 'string (FK)', desc: 'Foreign key referencing collegiate team assignment (e.g. T101)' },
-      { field: 'participant_name', type: 'string', desc: 'Full registered contestant name' },
-      { field: 'department', type: 'string', desc: 'Academic engineering discipline' },
-      { field: 'year', type: 'integer (1-4)', desc: 'Current academic collegiate study year' },
-      { field: 'college', type: 'string', desc: 'Affiliated university or engineering institute' },
+      { field: 'participant_id', type: 'string (PK)', desc: 'Unique participant identifier (P101 to P200)' },
+      { field: 'participant_name', type: 'string', desc: 'Full registered participant name' },
+      { field: 'round_1_score', type: 'float', desc: 'Raw score in Round 1' },
+      { field: 'round_2_score', type: 'float', desc: 'Raw score in Round 2' },
+      { field: 'round_3_score', type: 'float', desc: 'Raw score in Round 3' },
+      { field: 'total_score', type: 'float', desc: 'Sum of round_1_score + round_2_score + round_3_score' },
     ],
   },
-  'submission_logs.csv': {
-    fileName: 'submission_logs.csv',
-    dfName: 'submissions',
-    title: 'Code Execution Submission Logs',
-    description: '1,000 real-time telemetry records tracking language runtimes, memory, execution times, and verdicts.',
-    columns: ['submission_id', 'participant_id', 'language', 'execution_status', 'execution_time', 'memory_used', 'submitted_at'],
+  'submission_ids.csv': {
+    fileName: 'submission_ids.csv',
+    dfName: 'ids',
+    title: 'Submission IDs Audit (1,000 Records)',
+    description: 'Complete list of 1,000 submission identifiers (SUB_10001 to SUB_11000) for duplicate detection.',
+    columns: ['submission_id'],
     previewRows: [
-      { submission_id: 'SUB_10001', participant_id: 'P186', language: 'cpp', execution_status: 'TIME_LIMIT_EXCEEDED', execution_time: 1.097, memory_used: 56150, submitted_at: '2026-11-19T14:55:13.000Z' },
-      { submission_id: 'SUB_10002', participant_id: 'P169', language: 'python', execution_status: 'ACCEPTED', execution_time: 0.953, memory_used: 77247, submitted_at: '2026-11-19T11:24:32.000Z' },
-      { submission_id: 'SUB_10003', participant_id: 'P153', language: 'python', execution_status: 'WRONG_ANSWER', execution_time: 1.716, memory_used: 62220, submitted_at: '2026-11-19T10:07:47.000Z' },
-      { submission_id: 'SUB_10004', participant_id: 'P200', language: 'python', execution_status: 'ACCEPTED', execution_time: 0.955, memory_used: 30831, submitted_at: '2026-11-19T14:08:09.000Z' },
+      { submission_id: 'SUB_10001' },
+      { submission_id: 'SUB_10002' },
+      { submission_id: 'SUB_10003' },
+      { submission_id: 'SUB_10004' },
     ],
     fieldInfo: [
-      { field: 'submission_id', type: 'string (PK)', desc: 'Unique compilation run identifier (e.g. SUB_10001)' },
-      { field: 'participant_id', type: 'string (FK)', desc: 'Submitting contestant identifier' },
-      { field: 'language', type: 'string', desc: 'Compiler runtime environment (python, javascript, java, cpp)' },
-      { field: 'execution_status', type: 'string', desc: 'Verdict: ACCEPTED, WRONG_ANSWER, TIME_LIMIT_EXCEEDED, COMPILATION_ERROR' },
-      { field: 'execution_time', type: 'float (seconds)', desc: 'Runtime execution latency in test sandbox' },
-      { field: 'memory_used', type: 'integer (KB)', desc: 'Peak memory consumption during test suite evaluation' },
+      { field: 'submission_id', type: 'string (PK)', desc: 'Unique submission identifier (SUB_10001 to SUB_11000)' },
     ],
   },
-  'event_activity.csv': {
-    fileName: 'event_activity.csv',
-    dfName: 'activity',
-    title: 'Event Activity & Security Audit',
-    description: '500 audit logs detailing participant interactions: LOGIN, TEST_RUN, DOC_READ, SUBMIT, DRAFT_SAVE, VIEW_LEADERBOARD.',
-    columns: ['activity_id', 'participant_id', 'activity_type', 'duration_minutes', 'engagement_score', 'activity_timestamp'],
+  'submission_status_summary.csv': {
+    fileName: 'submission_status_summary.csv',
+    dfName: 'summary',
+    title: 'Submission Status Summary (5 Records)',
+    description: 'Aggregated submission counts across all 5 execution verdicts totaling 1,000 submissions.',
+    columns: ['execution_status', 'count'],
     previewRows: [
-      { activity_id: 'ACT_1001', participant_id: 'P131', activity_type: 'LOGIN', duration_minutes: 29, engagement_score: 58, activity_timestamp: '2026-11-19T13:43:39.000Z' },
-      { activity_id: 'ACT_1002', participant_id: 'P167', activity_type: 'TEST_RUN', duration_minutes: 15, engagement_score: 89, activity_timestamp: '2026-11-19T12:35:54.000Z' },
-      { activity_id: 'ACT_1003', participant_id: 'P120', activity_type: 'DRAFT_SAVE', duration_minutes: 11, engagement_score: 83, activity_timestamp: '2026-11-19T12:42:05.000Z' },
-      { activity_id: 'ACT_1004', participant_id: 'P127', activity_type: 'LOGIN', duration_minutes: 19, engagement_score: 86, activity_timestamp: '2026-11-19T11:57:00.000Z' },
+      { execution_status: 'ACCEPTED', count: 302 },
+      { execution_status: 'COMPILATION_ERROR', count: 188 },
+      { execution_status: 'RUNTIME_ERROR', count: 160 },
+      { execution_status: 'TIME_LIMIT_EXCEEDED', count: 158 },
+      { execution_status: 'WRONG_ANSWER', count: 192 },
     ],
     fieldInfo: [
-      { field: 'activity_id', type: 'string (PK)', desc: 'Audit log identifier' },
-      { field: 'participant_id', type: 'string (FK)', desc: 'Participant who triggered the event' },
-      { field: 'activity_type', type: 'string', desc: 'Action: LOGIN, TEST_RUN, DOC_READ, SUBMIT, DRAFT_SAVE, VIEW_LEADERBOARD' },
-      { field: 'duration_minutes', type: 'integer', desc: 'Duration spent engaged in activity' },
-      { field: 'engagement_score', type: 'integer (0-100)', desc: 'System engagement intensity metric' },
-      { field: 'activity_timestamp', type: 'timestamp', desc: 'ISO 8601 audit timestamp' },
+      { field: 'execution_status', type: 'string', desc: 'Execution verdict category' },
+      { field: 'count', type: 'integer', desc: 'Number of submissions with that execution_status' },
     ],
   },
-  'teams.csv': {
-    fileName: 'teams.csv',
-    dfName: 'teams',
-    title: 'Collegiate Teams Master Directory',
-    description: '50 competing collegiate teams with institutional affiliations, slots, and registration timestamps.',
-    columns: ['team_id', 'team_name', 'department', 'team_size'],
+  'team_leaderboard.csv': {
+    fileName: 'team_leaderboard.csv',
+    dfName: 'leaderboard',
+    title: 'Team Leaderboard (50 Records)',
+    description: 'Ranked standings for all 50 teams with department, member count, round scores, and total_score.',
+    columns: ['rank', 'team_id', 'team_name', 'department', 'member_count', 'round_1_score', 'round_2_score', 'round_3_score', 'total_score'],
     previewRows: [
-      { team_id: 'T101', team_name: 'Tensor Titans', department: 'Artificial Intelligence & Data Science', team_size: 2 },
-      { team_id: 'T102', team_name: 'Nexus Hunters', department: 'Information Technology', team_size: 2 },
-      { team_id: 'T103', team_name: 'Omega Sentinels', department: 'Information Technology', team_size: 2 },
-      { team_id: 'T104', team_name: 'Matrix Pioneers', department: 'Artificial Intelligence & Data Science', team_size: 2 },
+      { rank: 1, team_id: 'T148', team_name: 'Syntax Ninjas', department: 'Information Technology', member_count: 2, round_1_score: 51.0, round_2_score: 197.9, round_3_score: 176.7, total_score: 425.6 },
+      { rank: 2, team_id: 'T147', team_name: 'Recursion Crusaders', department: 'Artificial Intelligence & Data Science', member_count: 2, round_1_score: 51.3, round_2_score: 179.3, round_3_score: 172.0, total_score: 402.6 },
+      { rank: 3, team_id: 'T118', team_name: 'Code Architects', department: 'Information Technology', member_count: 2, round_1_score: 46.9, round_2_score: 161.4, round_3_score: 180.6, total_score: 388.9 },
     ],
     fieldInfo: [
-      { field: 'team_id', type: 'string (PK)', desc: 'Collegiate team identifier (e.g. T101)' },
-      { field: 'team_name', type: 'string', desc: 'Official registered team name' },
-      { field: 'department', type: 'string', desc: 'Academic engineering department' },
-      { field: 'team_size', type: 'integer', desc: 'Number of relay participants (standard: 2)' },
+      { field: 'rank', type: 'integer', desc: 'Official leaderboard rank (1 to 50)' },
+      { field: 'team_id', type: 'string (PK)', desc: 'Team identifier (T101 to T150)' },
+      { field: 'team_name', type: 'string', desc: 'Registered team name' },
+      { field: 'department', type: 'string', desc: 'Academic department' },
+      { field: 'member_count', type: 'integer', desc: 'Number of team members (2)' },
+      { field: 'round_1_score', type: 'float', desc: 'Combined Round 1 score' },
+      { field: 'round_2_score', type: 'float', desc: 'Combined Round 2 score' },
+      { field: 'round_3_score', type: 'float', desc: 'Combined Round 3 score' },
+      { field: 'total_score', type: 'float', desc: 'Combined total score across all 3 rounds' },
+    ],
+  },
+  'team_round_scores.csv': {
+    fileName: 'team_round_scores.csv',
+    dfName: 'scores',
+    title: 'Team Round Scores (50 Records)',
+    description: 'Per-team total_score, round_2_score, and round_3_score for multi-key ranking verification.',
+    columns: ['team_id', 'team_name', 'total_score', 'round_2_score', 'round_3_score'],
+    previewRows: [
+      { team_id: 'T148', team_name: 'Syntax Ninjas', total_score: 425.6, round_2_score: 197.9, round_3_score: 176.7 },
+      { team_id: 'T147', team_name: 'Recursion Crusaders', total_score: 402.6, round_2_score: 179.3, round_3_score: 172.0 },
+      { team_id: 'T118', team_name: 'Code Architects', total_score: 388.9, round_2_score: 161.4, round_3_score: 180.6 },
+    ],
+    fieldInfo: [
+      { field: 'team_id', type: 'string (PK)', desc: 'Team identifier (T101 to T150)' },
+      { field: 'team_name', type: 'string', desc: 'Registered team name' },
+      { field: 'total_score', type: 'float', desc: 'Primary ranking key (descending)' },
+      { field: 'round_2_score', type: 'float', desc: 'Tertiary tie-break key (descending)' },
+      { field: 'round_3_score', type: 'float', desc: 'Secondary tie-break key (descending)' },
+    ],
+  },
+  'verification_summary.csv': {
+    fileName: 'verification_summary.csv',
+    dfName: 'verification',
+    title: 'Verification Summary (10 Metrics)',
+    description: 'Official ground-truth verification metrics matching IGNITRON_Round3_Reference_Dataset.json.',
+    columns: ['metric', 'value'],
+    previewRows: [
+      { metric: 'participant_count', value: '100' },
+      { metric: 'team_count', value: '50' },
+      { metric: 'submission_count', value: '1000' },
+      { metric: 'duplicate_submission_id_count', value: '0' },
+      { metric: 'p101_total_score', value: '207.4' },
+      { metric: 'accepted_submission_count', value: '302' },
+    ],
+    fieldInfo: [
+      { field: 'metric', type: 'string', desc: 'Verification metric key' },
+      { field: 'value', type: 'string/JSON', desc: 'Exact verified reference value' },
     ],
   },
 };
@@ -155,19 +187,12 @@ type NavTab = 'DATASET' | 'CASE_1' | 'CASE_2' | 'CASE_3';
 
 const NAV_TABS: Array<{ id: NavTab; label: string; caseNumber?: 1 | 2 | 3 }> = [
   { id: 'DATASET', label: 'DATASET' },
-  { id: 'CASE_1', label: 'CASE 01 – DATA DISCOVERY', caseNumber: 1 },
-  { id: 'CASE_2', label: 'CASE 02 – DATA ENGINEERING', caseNumber: 2 },
-  { id: 'CASE_3', label: 'CASE 03 – DATA INTELLIGENCE', caseNumber: 3 },
+  { id: 'CASE_1', label: 'CASE 01 – DATA FUNDAMENTALS', caseNumber: 1 },
+  { id: 'CASE_2', label: 'CASE 02 – DATA INTEGRITY', caseNumber: 2 },
+  { id: 'CASE_3', label: 'CASE 03 – ANALYTICAL INTELLIGENCE', caseNumber: 3 },
 ];
 
-const QUESTION_SUBTITLES: Record<number, { name: string; marksLabel?: string }> = {
-  1: { name: 'The Score Computation Lab' },
-  2: { name: 'The Leaderboard Aggregator' },
-  3: { name: 'The Duplicate Detection Challenge' },
-  4: { name: 'The Statistical Anomaly Detector' },
-  5: { name: 'The Ranking Intelligence Engine' },
-  6: { name: 'The Top-K Decision Challenge' },
-};
+const QUESTION_SUBTITLES: Record<number, { name: string; marksLabel?: string }> = {};
 
 function formatProblemDescription(raw: string): string {
   return (raw || '')
@@ -175,6 +200,44 @@ function formatProblemDescription(raw: string): string {
     .replace(/^####\s*/gm, '')
     .replace(/\*\*/g, '')
     .trim();
+}
+
+/** Minimal Python syntax highlighter — returns JSX spans for coloured tokens */
+function highlightPython(code: string): React.ReactNode {
+  if (!code) return null;
+  const lines = code.split('\n');
+  let key = 0;
+
+  const tokenize = (src: string): React.ReactNode[] => {
+    const result: React.ReactNode[] = [];
+    const combined = /(#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*')|\b(def|return|print|for|in|if|elif|else|import|from|as|pass|break|continue|class|lambda|and|or|not|True|False|None|with|yield|raise|try|except|finally|while|del|global|nonlocal|assert|is)\b|\b(len|sum|max|min|sorted|list|dict|set|tuple|int|float|str|bool|range|enumerate|zip|map|filter|round|abs|type|isinstance|hasattr|getattr)\b|\b(\d+\.?\d*)\b/g;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = combined.exec(src)) !== null) {
+      if (m.index > last) {
+        result.push(<span key={key++}>{src.slice(last, m.index)}</span>);
+      }
+      if (m[1]) result.push(<span key={key++} className="text-slate-400 italic">{m[1]}</span>);
+      else if (m[2]) result.push(<span key={key++} className="text-amber-300">{m[2]}</span>);
+      else if (m[3]) result.push(<span key={key++} className="text-violet-400 font-semibold">{m[3]}</span>);
+      else if (m[4]) result.push(<span key={key++} className="text-sky-300">{m[4]}</span>);
+      else if (m[5]) result.push(<span key={key++} className="text-orange-300">{m[5]}</span>);
+      last = combined.lastIndex;
+    }
+    if (last < src.length) result.push(<span key={key++}>{src.slice(last)}</span>);
+    return result;
+  };
+
+  return (
+    <>
+      {lines.map((line, li) => (
+        <span key={li} className="block">
+          {tokenize(line)}
+          {'\n'}
+        </span>
+      ))}
+    </>
+  );
 }
 
 export const EventAnalyticsArenaPage: React.FC = () => {
@@ -190,8 +253,25 @@ export const EventAnalyticsArenaPage: React.FC = () => {
   // Navigation: 4 primary tabs (DATASET, CASE 01, CASE 02, CASE 03)
   const [activeNav, setActiveNav] = useState<NavTab>('CASE_1');
 
-  // Local map of selected options per questionId for instant UI response + autosave
+  // Local map of selected options per questionId + flagging state
   const [selectedOptions, setSelectedOptions] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem('ignitron_r3_flagged');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+  const toggleFlagQuestion = (questionId: string) => {
+    setFlaggedQuestions((prev) => {
+      const next = { ...prev, [questionId]: !prev[questionId] };
+      try {
+        localStorage.setItem('ignitron_r3_flagged', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [savedToast, setSavedToast] = useState<string | null>(null);
 
@@ -206,7 +286,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
   const [showConcludedModal, setShowConcludedModal] = useState(false);
 
   // Dataset Explorer state
-  const [selectedDatasetFile, setSelectedDatasetFile] = useState<string>('round_performance.csv');
+  const [selectedDatasetFile, setSelectedDatasetFile] = useState<string>('IGNITRON_Round3_Reference_Dataset.json');
   const [datasetSearch, setDatasetSearch] = useState<string>('');
   const [datasetPage, setDatasetPage] = useState<number>(1);
   const [backendDatasetData, setBackendDatasetData] = useState<{
@@ -553,11 +633,11 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                   ROUND 03
                 </span>
                 <h1 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                  IGNITRON Event Analytics Engine
+                  Python Code Tracing Challenge
                 </h1>
               </div>
               <p className="text-[11px] text-emerald-300/65 font-mono">
-                {teamUser?.teamName || 'Team Workspace'} &bull; 3 Cases &bull; 6 Questions &bull; 100 Marks
+                {teamUser?.teamName || 'Team Workspace'} &bull; 6 Questions &bull; 1 Mark Each &bull; 6 Marks Total &bull; No Negative Marking
               </p>
             </div>
           </div>
@@ -653,6 +733,48 @@ export const EventAnalyticsArenaPage: React.FC = () => {
             </button>
           </div>
         )}
+
+        {/* Compact Q1-Q6 Question Navigator with Answered & Flagged Indicators */}
+        {allQuestions.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#04140d]/80 border border-emerald-900/60 px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-mono uppercase text-emerald-300/70 mr-1">Questions:</span>
+              {allQuestions.map((q) => {
+                const isAnswered = Boolean(selectedOptions[q.id]);
+                const isFlagged = Boolean(flaggedQuestions[q.id]);
+                const targetTab: NavTab = q.caseNumber === 1 ? 'CASE_1' : q.caseNumber === 2 ? 'CASE_2' : 'CASE_3';
+                const isCurrentCase = activeNav === targetTab;
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveNav(targetTab);
+                      setTimeout(() => {
+                        document.getElementById(`r3-q-${q.orderNumber}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }, 50);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border flex items-center gap-1 cursor-pointer transition ${
+                      q.isSubmitted
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50'
+                        : isAnswered
+                        ? 'bg-emerald-950/90 text-emerald-200 border-emerald-600/60'
+                        : isCurrentCase
+                        ? 'bg-[#071f14] text-white border-emerald-500/50'
+                        : 'bg-[#020a06] text-slate-400 border-emerald-900/50 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>Q{q.orderNumber}</span>
+                    {isFlagged && <Flag className="w-3 h-3 text-amber-400 fill-amber-400" />}
+                  </button>
+                );
+              })}
+            </div>
+            <span className="text-[11px] font-mono text-slate-400">
+              {Object.values(flaggedQuestions).filter(Boolean).length} Flagged
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
@@ -666,7 +788,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
               <div>
                 <h2 className="text-base font-bold text-white flex items-center gap-2">
                   <FileSpreadsheet className="w-4 h-4 text-amber-400" />
-                  <span>IGNITRON Tournament Master Datasets (5 CSV Files)</span>
+                  <span>IGNITRON Round 3 Reference Dataset (JSON + 6 CSV Files)</span>
                 </h2>
                 <p className="text-xs text-emerald-200/70 mt-0.5">
                   Inspect schema fields, preview records, and download CSV files to verify your analytical reasoning.
@@ -901,6 +1023,7 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                 return (
                   <article
                     key={q.id}
+                    id={`r3-q-${q.orderNumber}`}
                     className="rounded-2xl bg-[#04140d]/95 border border-emerald-500/25 p-4 sm:p-5 space-y-4 shadow-lg"
                   >
                     {/* Question Header */}
@@ -921,8 +1044,21 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleFlagQuestion(q.id)}
+                          className={`px-2 py-1 rounded-lg border font-mono text-[11px] flex items-center gap-1 cursor-pointer transition ${
+                            flaggedQuestions[q.id]
+                              ? 'bg-amber-500/20 border-amber-400/60 text-amber-300'
+                              : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-amber-300'
+                          }`}
+                          title="Flag question for review"
+                        >
+                          <Flag className={`w-3 h-3 ${flaggedQuestions[q.id] ? 'fill-amber-400' : ''}`} />
+                          <span>{flaggedQuestions[q.id] ? 'Flagged' : 'Flag'}</span>
+                        </button>
                         <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold">
-                          {q.marks} Marks
+                          {q.marks} {q.marks === 1 ? 'Mark' : 'Marks'}
                         </span>
                         {q.isSubmitted ? (
                           <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-mono text-[11px] font-bold flex items-center gap-1">
@@ -983,11 +1119,15 @@ export const EventAnalyticsArenaPage: React.FC = () => {
                               <div className="text-[11px] font-mono font-bold uppercase text-slate-400">
                                 {opt.label || `Option ${opt.key}`}
                               </div>
-                              <div className="font-mono text-xs text-slate-100 break-words whitespace-pre-wrap">
-                                {opt.key === 'D' && (!opt.code || opt.code.includes('Write your own Python code'))
-                                  ? 'None of the above expressions'
-                                  : opt.code || opt.label}
-                              </div>
+                              {opt.code ? (
+                                <pre className="font-mono text-xs text-slate-100 break-words whitespace-pre-wrap leading-relaxed bg-black/30 rounded-lg p-2 overflow-x-auto">
+                                  {highlightPython(opt.code)}
+                                </pre>
+                              ) : (
+                                <div className="font-mono text-xs text-slate-100 break-words whitespace-pre-wrap">
+                                  {opt.label}
+                                </div>
+                              )}
                             </div>
                           </button>
                         );
