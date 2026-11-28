@@ -236,6 +236,7 @@ export class ProctoringService {
         where: {
           teamId: teamUser.id,
           ...(participantId ? { participantId } : {}),
+          ...(roundNumber ? { roundNumber } : {}),
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -350,7 +351,7 @@ export class ProctoringService {
       };
     }
 
-    // 3. Idempotency check (deduplicate retries/simultaneous events)
+    // 3. Idempotency & rapid-burst deduplication (suppress duplicate events from one physical tab switch)
     if (dto.idempotencyKey) {
       const existing = await this.prisma.proctoringIncident.findUnique({
         where: { idempotencyKey: dto.idempotencyKey },
@@ -365,6 +366,27 @@ export class ProctoringService {
           message: 'Duplicate monitoring event suppressed.',
         };
       }
+    }
+
+    const recentDuplicate = await this.prisma.proctoringIncident.findFirst({
+      where: {
+        teamId: teamUser.id,
+        participantId,
+        roundNumber,
+        eventType: dto.eventType,
+        createdAt: { gte: new Date(now.getTime() - 2000) },
+      },
+      select: { id: true },
+    });
+    if (recentDuplicate) {
+      return {
+        recorded: false,
+        duplicate: true,
+        lockStatus: currentLockStatus,
+        warningCount: session?.warningCount || 0,
+        incidentCount: 0,
+        message: 'Rapid duplicate monitoring event suppressed.',
+      };
     }
 
     // 4. Confidence classification
