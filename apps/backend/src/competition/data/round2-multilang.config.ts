@@ -1,11 +1,10 @@
 import { BugHuntLanguageCode, BugHuntPlantedBug } from '@ignitron/shared';
 
 export const ROUND2_SUPPORTED_LANGUAGES: BugHuntLanguageCode[] = [
-  'javascript',
-  'python',
-  'cpp',
   'c',
+  'cpp',
   'java',
+  'python',
 ];
 
 export const OFFICIAL_ROUND2_JS_STARTER_V2 = `/**
@@ -284,7 +283,6 @@ export const OFFICIAL_ROUND2_C_STARTER = `/**
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <ctype.h>
 
 double mockTimeMs = 1000000.0;
@@ -306,7 +304,7 @@ void initLimiter(TokenBucketLimiter* l, double cap, double rate) {
 
 void refill(TokenBucketLimiter* l) {
     double now = currentTimeMs();
-    double elapsedSeconds = floor((now - l->lastRefillTimestamp) / 1000.0);
+    double elapsedSeconds = (double)((long long)((now - l->lastRefillTimestamp) / 1000.0));
 
     double addedTokens = elapsedSeconds * l->refillRatePerSecond;
     l->tokens += addedTokens;
@@ -574,7 +572,7 @@ export const OFFICIAL_ROUND2_LANGUAGE_BUGS: Record<BugHuntLanguageCode, BugHuntP
       key: 'BUG_INTEGER_TRUNCATION',
       name: 'Integer Division Truncation',
       description: 'std::floor truncation on elapsed time prevents fractional token refills.',
-      lineNumber: 26,
+      lineNumber: 28,
       expression: 'std::floor((now - lastRefillTimestamp) / 1000.0)',
       correctedExpression: '(now - lastRefillTimestamp) / 1000.0',
       marks: 5,
@@ -585,7 +583,7 @@ export const OFFICIAL_ROUND2_LANGUAGE_BUGS: Record<BugHuntLanguageCode, BugHuntP
       key: 'BUG_CLOCK_SKEW_NEGATIVE',
       name: 'Negative Refill on Clock Skew',
       description: 'Missing non-negative check allows clock skew backwards to subtract tokens.',
-      lineNumber: 28,
+      lineNumber: 30,
       expression: 'elapsedSeconds * refillRatePerSecond',
       correctedExpression: 'std::max(0.0, elapsedSeconds) * refillRatePerSecond',
       marks: 5,
@@ -596,7 +594,7 @@ export const OFFICIAL_ROUND2_LANGUAGE_BUGS: Record<BugHuntLanguageCode, BugHuntP
       key: 'BUG_CAPACITY_OVERFLOW',
       name: 'Uncapped Capacity Overflow',
       description: 'Tokens are incremented without enforcing the maximum capacity ceiling.',
-      lineNumber: 29,
+      lineNumber: 31,
       expression: 'tokens += addedTokens;',
       correctedExpression: 'tokens = std::min(capacity, tokens + addedTokens);',
       marks: 5,
@@ -607,7 +605,7 @@ export const OFFICIAL_ROUND2_LANGUAGE_BUGS: Record<BugHuntLanguageCode, BugHuntP
       key: 'BUG_ILLEGAL_CONSUME_DEDUCTION',
       name: 'Token Deduction on Rejection',
       description: 'tryConsume deducts tokens even when request balance is insufficient.',
-      lineNumber: 41,
+      lineNumber: 43,
       expression: 'tokens -= tokensRequested;',
       correctedExpression: '// Remove illegal deduction when returning false',
       marks: 5,
@@ -619,13 +617,17 @@ export const OFFICIAL_ROUND2_LANGUAGE_BUGS: Record<BugHuntLanguageCode, BugHuntP
     {
       key: 'BUG_INTEGER_TRUNCATION',
       name: 'Integer Division Truncation',
-      description: 'floor truncation on elapsed time prevents fractional token refills.',
+      description: 'Integer cast truncation on elapsed time prevents fractional token refills.',
       lineNumber: 29,
-      expression: 'floor((now - l->lastRefillTimestamp) / 1000.0)',
+      expression: '(double)((long long)((now - l->lastRefillTimestamp) / 1000.0))',
       correctedExpression: '(now - l->lastRefillTimestamp) / 1000.0',
       marks: 5,
       repairValidationTestIndices: [0],
-      acceptableTokens: ['floor', 'floor((now - l->lastRefillTimestamp) / 1000.0)'],
+      acceptableTokens: [
+        '(long long)',
+        '(double)((long long)((now - l->lastRefillTimestamp) / 1000.0))',
+        '(long long)((now - l->lastRefillTimestamp) / 1000.0)',
+      ],
     },
     {
       key: 'BUG_CLOCK_SKEW_NEGATIVE',
@@ -644,7 +646,7 @@ export const OFFICIAL_ROUND2_LANGUAGE_BUGS: Record<BugHuntLanguageCode, BugHuntP
       description: 'Tokens are incremented without enforcing the maximum capacity ceiling.',
       lineNumber: 32,
       expression: 'l->tokens += addedTokens;',
-      correctedExpression: 'l->tokens = fmin(l->capacity, l->tokens + addedTokens);',
+      correctedExpression: 'l->tokens = (l->tokens + addedTokens > l->capacity) ? l->capacity : (l->tokens + addedTokens);',
       marks: 5,
       repairValidationTestIndices: [2],
       acceptableTokens: ['l->tokens += addedTokens;', 'l->tokens += addedTokens'],

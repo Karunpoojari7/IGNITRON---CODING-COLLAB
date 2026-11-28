@@ -608,18 +608,29 @@ export class ArenaService {
 
     const rubric = (question.rubric as any) || {};
     const isOfficialTokenBucket = question.title?.includes('Token Bucket');
-    const supportedLanguages = Array.isArray(rubric.supportedLanguages) && rubric.supportedLanguages.length > 0
-      ? rubric.supportedLanguages
-      : isOfficialTokenBucket
+    const configuredQuestionLang = (question.language || '').toLowerCase();
+    const defaultRound2Lang = ROUND2_SUPPORTED_LANGUAGES.includes(configuredQuestionLang as any)
+      ? configuredQuestionLang
+      : 'c';
+    const supportedLanguages = isOfficialTokenBucket
       ? ROUND2_SUPPORTED_LANGUAGES
-      : [(question.language || 'javascript').toLowerCase()];
+      : Array.isArray(rubric.supportedLanguages) && rubric.supportedLanguages.length > 0
+      ? rubric.supportedLanguages.filter((l: string) => ROUND2_SUPPORTED_LANGUAGES.includes(l.toLowerCase() as any))
+      : [defaultRound2Lang];
 
     const languageStarterCodes: Record<string, string> = {
-      ...(isOfficialTokenBucket ? OFFICIAL_ROUND2_LANGUAGE_STARTERS : {}),
+      ...(isOfficialTokenBucket
+        ? {
+            c: OFFICIAL_ROUND2_LANGUAGE_STARTERS.c,
+            cpp: OFFICIAL_ROUND2_LANGUAGE_STARTERS.cpp,
+            java: OFFICIAL_ROUND2_LANGUAGE_STARTERS.java,
+            python: OFFICIAL_ROUND2_LANGUAGE_STARTERS.python,
+          }
+        : {}),
       ...(rubric.languageStarterCodes || {}),
     };
-    if (!languageStarterCodes[(question.language || 'javascript').toLowerCase()]) {
-      languageStarterCodes[(question.language || 'javascript').toLowerCase()] = question.starterCode || '';
+    if (!languageStarterCodes[defaultRound2Lang]) {
+      languageStarterCodes[defaultRound2Lang] = question.starterCode || '';
     }
 
     const draftRecord = await this.prisma.workspaceDraft.findUnique({
@@ -656,8 +667,8 @@ export class ArenaService {
       questionId: question.id,
       title: question.title,
       description: question.description,
-      faultyCode: languageStarterCodes[(question.language || 'javascript').toLowerCase()] || question.starterCode || '',
-      language: question.language || 'javascript',
+      faultyCode: languageStarterCodes[defaultRound2Lang] || question.starterCode || '',
+      language: defaultRound2Lang,
       supportedLanguages,
       languageStarterCodes,
       languageDrafts,
@@ -711,8 +722,16 @@ export class ArenaService {
     }
 
     const rubric = (question.rubric as any) || {};
-    const reqLang = (dto.language || question.language || 'javascript').toLowerCase() as keyof typeof OFFICIAL_ROUND2_LANGUAGE_BUGS;
     const isOfficialTokenBucket = question.title?.includes('Token Bucket');
+    const defaultLang = ROUND2_SUPPORTED_LANGUAGES.includes((question.language || '').toLowerCase() as any)
+      ? (question.language || '').toLowerCase()
+      : 'c';
+    const reqLang = (dto.language || defaultLang).toLowerCase() as keyof typeof OFFICIAL_ROUND2_LANGUAGE_BUGS;
+    if (!ROUND2_SUPPORTED_LANGUAGES.includes(reqLang as any)) {
+      throw new BadRequestException(
+        `Language "${dto.language}" is not supported for Round 2 Bug Hunt. Allowed languages: C (c), C++ (cpp), Java (java), Python (python).`,
+      );
+    }
     const langPlantedBugs =
       (rubric.languagePlantedBugs && rubric.languagePlantedBugs[reqLang]) ||
       (isOfficialTokenBucket && OFFICIAL_ROUND2_LANGUAGE_BUGS[reqLang]) ||
@@ -986,10 +1005,16 @@ export class ArenaService {
       throw new NotFoundException('Round 2 Bug Hunt question not found.');
     }
 
-    const langKey = (dto.language || question.language || 'javascript').toLowerCase();
-    const langConfig =
-      OFFICIAL_JUDGE0_LANGUAGES.find((l) => l.key === langKey) ||
-      OFFICIAL_JUDGE0_LANGUAGES.find((l) => l.key === 'javascript')!;
+    const defaultLang = ROUND2_SUPPORTED_LANGUAGES.includes((question.language || '').toLowerCase() as any)
+      ? (question.language || '').toLowerCase()
+      : 'c';
+    const langKey = (dto.language || defaultLang).toLowerCase();
+    if (!ROUND2_SUPPORTED_LANGUAGES.includes(langKey as any)) {
+      throw new BadRequestException(
+        `Language "${dto.language}" is not supported for Round 2 Bug Hunt. Allowed languages: C (c), C++ (cpp), Java (java), Python (python).`,
+      );
+    }
+    const langConfig = OFFICIAL_JUDGE0_LANGUAGES.find((l) => l.key === langKey)!;
 
     let stdinToUse = '';
     let expectedOutput: string | null = null;
@@ -1320,17 +1345,26 @@ export class ArenaService {
     }
 
     const isRound2BugHunt = roundNumber === 2;
-    const resolvedLanguage =
-      draft?.language && draft.language !== 'typescript'
+    const resolvedLanguage = isRound2BugHunt
+      ? ROUND2_SUPPORTED_LANGUAGES.includes((draft?.language || '').toLowerCase() as any)
+        ? (draft!.language as string).toLowerCase()
+        : ROUND2_SUPPORTED_LANGUAGES.includes((question?.language || '').toLowerCase() as any)
+          ? (question!.language as string).toLowerCase()
+          : 'c'
+      : draft?.language && draft.language !== 'typescript'
         ? draft.language
         : question?.language === 'typescript'
           ? 'javascript'
-          : (question?.language || (isRound2BugHunt ? 'javascript' : 'cpp'));
+          : question?.language || 'cpp';
 
     const resolvedSourceCode =
       draft?.sourceCode
         ? draft.sourceCode
-        : (question?.starterCode || '// Write your solution here\n');
+        : isRound2BugHunt
+          ? OFFICIAL_ROUND2_LANGUAGE_STARTERS[resolvedLanguage as keyof typeof OFFICIAL_ROUND2_LANGUAGE_STARTERS] ||
+            question?.starterCode ||
+            '// Write your solution here\n'
+          : question?.starterCode || '// Write your solution here\n';
 
     return {
       sourceCode: resolvedSourceCode,
@@ -1361,6 +1395,11 @@ export class ArenaService {
     const { round, progress } = await this.assertRoundAccess(teamUser, roundNumber, 'WRITE');
 
     if (roundNumber === 2) {
+      if (!ROUND2_SUPPORTED_LANGUAGES.includes(language.toLowerCase() as any)) {
+        throw new BadRequestException(
+          `Language "${language}" is not supported for Round 2 Bug Hunt. Allowed languages: C (c), C++ (cpp), Java (java), Python (python).`,
+        );
+      }
       if (progress.participationStatus === 'SUBMITTED') {
         throw new BadRequestException('Round 2 has already been submitted by your team.');
       }
@@ -1485,10 +1524,15 @@ export class ArenaService {
 
     // 2. Validate Language
     const langKey = language?.toLowerCase();
+    if (roundNumber === 2 && !ROUND2_SUPPORTED_LANGUAGES.includes(langKey as any)) {
+      throw new BadRequestException(
+        `Language "${language}" is not supported for Round 2 Bug Hunt. Allowed languages: C (c), C++ (cpp), Java (java), Python (python).`,
+      );
+    }
     const langConfig = OFFICIAL_JUDGE0_LANGUAGES.find((l) => l.key === langKey);
     if (!langConfig) {
       throw new BadRequestException(
-        `Language "${language}" is not supported for execution. Supported languages: C++ (cpp), Java (java), Python (python), JavaScript (javascript).`,
+        `Language "${language}" is not supported for execution. Supported languages: C (c), C++ (cpp), Java (java), Python (python).`,
       );
     }
 
@@ -1533,6 +1577,11 @@ export class ArenaService {
 
     // 6. Prevent Duplicate Submissions & Enforce Investigation Completion for Round 2
     if (roundNumber === 2) {
+      if (!ROUND2_SUPPORTED_LANGUAGES.includes(language.toLowerCase() as any)) {
+        throw new BadRequestException(
+          `Language "${language}" is not supported for Round 2 Bug Hunt. Allowed languages: C (c), C++ (cpp), Java (java), Python (python).`,
+        );
+      }
       if (progress.participationStatus === 'SUBMITTED') {
         throw new BadRequestException('Round 2 has already been submitted by your team.');
       }
