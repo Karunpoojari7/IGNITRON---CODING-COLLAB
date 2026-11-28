@@ -681,13 +681,29 @@ export class ArenaService {
       scoreBreakdown: null,
       // Strictly sanitize: Only return info for bugs the team has ALREADY isolated! Never expose un-identified bugs or planted answer locations.
       identifiedBugs: teamReports.map((r) => {
-        const bugDef = plantedBugs.find((b: any) => b.key === r.bugKey);
+        const defaultLangBugs =
+          (rubric.languagePlantedBugs && rubric.languagePlantedBugs[defaultRound2Lang]) ||
+          (isOfficialTokenBucket && OFFICIAL_ROUND2_LANGUAGE_BUGS[defaultRound2Lang as keyof typeof OFFICIAL_ROUND2_LANGUAGE_BUGS]) ||
+          plantedBugs;
+        const bugDef = defaultLangBugs.find((b: any) => b.key === r.bugKey) || plantedBugs.find((b: any) => b.key === r.bugKey);
+        const languageLocations: Record<string, { lineNumber: number; expression: string }> = {};
+        for (const lang of supportedLanguages) {
+          const langBugs =
+            (rubric.languagePlantedBugs && rubric.languagePlantedBugs[lang]) ||
+            (isOfficialTokenBucket && OFFICIAL_ROUND2_LANGUAGE_BUGS[lang as keyof typeof OFFICIAL_ROUND2_LANGUAGE_BUGS]);
+          const matched = Array.isArray(langBugs) ? langBugs.find((b: any) => b.key === r.bugKey) : null;
+          if (matched) {
+            languageLocations[lang] = { lineNumber: matched.lineNumber, expression: matched.expression };
+          }
+        }
         return {
           bugKey: r.bugKey,
           selectedText: r.selectedText,
           lineNumber: r.lineNumber,
           startOffset: bugDef?.startOffset ?? null,
           endOffset: bugDef?.endOffset ?? null,
+          language: defaultRound2Lang,
+          languageLocations,
           identifiedAt: r.createdAt.toISOString(),
           bugName: bugDef?.name || r.bugKey,
           description: bugDef?.description,
@@ -755,12 +771,24 @@ export class ArenaService {
     const formatIdentified = (reports: typeof existingReports) =>
       reports.map((r) => {
         const bugDef = plantedBugs.find((b: any) => b.key === r.bugKey);
+        const languageLocations: Record<string, { lineNumber: number; expression: string }> = {};
+        for (const lang of ROUND2_SUPPORTED_LANGUAGES) {
+          const langBugs =
+            (rubric.languagePlantedBugs && rubric.languagePlantedBugs[lang]) ||
+            (isOfficialTokenBucket && OFFICIAL_ROUND2_LANGUAGE_BUGS[lang]);
+          const matched = Array.isArray(langBugs) ? langBugs.find((b: any) => b.key === r.bugKey) : null;
+          if (matched) {
+            languageLocations[lang] = { lineNumber: matched.lineNumber, expression: matched.expression };
+          }
+        }
         return {
           bugKey: r.bugKey,
           selectedText: r.selectedText,
           lineNumber: r.lineNumber,
           startOffset: bugDef?.startOffset ?? null,
           endOffset: bugDef?.endOffset ?? null,
+          language: reqLang,
+          languageLocations,
           identifiedAt: r.createdAt.toISOString(),
           bugName: bugDef?.name || r.bugKey,
           description: bugDef?.description,
@@ -783,7 +811,8 @@ export class ArenaService {
     if (
       selectedText.startsWith('//') ||
       selectedText.startsWith('/*') ||
-      selectedText.startsWith('*')
+      selectedText.startsWith('*') ||
+      (reqLang === 'python' && selectedText.startsWith('#'))
     ) {
       return {
         isCorrect: false,
@@ -1357,14 +1386,17 @@ export class ArenaService {
           ? 'javascript'
           : question?.language || 'cpp';
 
+    const draftLanguageMap = (draft?.languageDrafts as Record<string, string>) || {};
     const resolvedSourceCode =
-      draft?.sourceCode
-        ? draft.sourceCode
-        : isRound2BugHunt
-          ? OFFICIAL_ROUND2_LANGUAGE_STARTERS[resolvedLanguage as keyof typeof OFFICIAL_ROUND2_LANGUAGE_STARTERS] ||
-            question?.starterCode ||
-            '// Write your solution here\n'
-          : question?.starterCode || '// Write your solution here\n';
+      isRound2BugHunt && draftLanguageMap[resolvedLanguage]
+        ? draftLanguageMap[resolvedLanguage]
+        : draft?.sourceCode
+          ? draft.sourceCode
+          : isRound2BugHunt
+            ? OFFICIAL_ROUND2_LANGUAGE_STARTERS[resolvedLanguage as keyof typeof OFFICIAL_ROUND2_LANGUAGE_STARTERS] ||
+              question?.starterCode ||
+              '// Write your solution here\n'
+            : question?.starterCode || '// Write your solution here\n';
 
     return {
       sourceCode: resolvedSourceCode,

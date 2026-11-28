@@ -1091,6 +1091,8 @@ export interface BugHuntIdentifiedBugDto {
   lineNumber?: number | null;
   startOffset?: number | null;
   endOffset?: number | null;
+  language?: string | null;
+  languageLocations?: Partial<Record<BugHuntLanguageCode, { lineNumber: number; expression: string }>>;
   identifiedAt: string;
   bugName?: string;
   description?: string;
